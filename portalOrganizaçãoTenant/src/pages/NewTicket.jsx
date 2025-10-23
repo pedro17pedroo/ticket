@@ -5,6 +5,7 @@ import { ticketService } from '../services/api'
 import api from '../services/api'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
+import FileUpload from '../components/FileUpload'
 
 const NewTicket = () => {
   const navigate = useNavigate()
@@ -12,6 +13,8 @@ const NewTicket = () => {
   const [priorities, setPriorities] = useState([])
   const [types, setTypes] = useState([])
   const [categories, setCategories] = useState([])
+  const [agents, setAgents] = useState([])
+  const [attachments, setAttachments] = useState([])
   const { register, handleSubmit, formState: { errors } } = useForm()
 
   useEffect(() => {
@@ -20,14 +23,21 @@ const NewTicket = () => {
 
   const loadFormData = async () => {
     try {
-      const [prioritiesRes, typesRes, categoriesRes] = await Promise.all([
+      const [prioritiesRes, typesRes, categoriesRes, usersRes] = await Promise.all([
         api.get('/priorities'),
         api.get('/types'),
-        api.get('/categories')
+        api.get('/categories'),
+        api.get('/users')
       ])
       setPriorities(prioritiesRes.data.priorities || [])
       setTypes(typesRes.data.types || [])
       setCategories(categoriesRes.data.categories || [])
+      
+      // Filtrar apenas agentes e admins
+      const agentsList = usersRes.data.users?.filter(
+        u => u.role === 'agente' || u.role === 'admin-org'
+      ) || []
+      setAgents(agentsList)
     } catch (error) {
       console.error('Erro ao carregar dados do formulário:', error)
       toast.error('Erro ao carregar opções do formulário')
@@ -37,11 +47,32 @@ const NewTicket = () => {
   const onSubmit = async (data) => {
     setLoading(true)
     try {
+      // Criar ticket
       const response = await ticketService.create(data)
+      const ticketId = response.ticket.id
+
+      // Upload de anexos se houver
+      if (attachments.length > 0) {
+        const formData = new FormData()
+        attachments.forEach(file => {
+          formData.append('files', file)
+        })
+
+        try {
+          await api.post(`/tickets/${ticketId}/upload`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          })
+        } catch (uploadError) {
+          console.error('Erro ao fazer upload:', uploadError)
+          toast.error('Ticket criado, mas erro ao anexar arquivos')
+        }
+      }
+
       toast.success('Ticket criado com sucesso!')
-      navigate(`/tickets/${response.ticket.id}`)
+      navigate(`/tickets/${ticketId}`)
     } catch (error) {
       console.error('Erro ao criar ticket:', error)
+      toast.error('Erro ao criar ticket')
     } finally {
       setLoading(false)
     }
@@ -160,6 +191,35 @@ const NewTicket = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Assignee */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Atribuir a</label>
+            <select
+              {...register('assigneeId')}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+            >
+              <option value="">Não atribuído (opcional)</option>
+              {agents.map(agent => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name} {agent.role === 'admin-org' ? '(Admin)' : '(Agente)'}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Selecione um agente para atribuir este ticket
+            </p>
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Anexos</label>
+            <FileUpload
+              onFilesChange={setAttachments}
+              maxSize={20}
+              maxFiles={5}
+            />
           </div>
 
           {/* Actions */}

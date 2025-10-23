@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { ticketService } from '../services/api'
+import api from '../services/api'
 import { ArrowLeft, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
+import FileUpload from '../components/FileUpload'
 
 const NewTicket = () => {
   const navigate = useNavigate()
@@ -11,6 +13,7 @@ const NewTicket = () => {
   const [priorities, setPriorities] = useState([])
   const [types, setTypes] = useState([])
   const [categories, setCategories] = useState([])
+  const [attachments, setAttachments] = useState([])
   const { register, handleSubmit, formState: { errors } } = useForm()
 
   useEffect(() => {
@@ -35,11 +38,32 @@ const NewTicket = () => {
   const onSubmit = async (data) => {
     setLoading(true)
     try {
+      // Criar ticket
       const response = await ticketService.create(data)
+      const ticketId = response.ticket.id
+
+      // Upload de anexos se houver
+      if (attachments.length > 0) {
+        const formData = new FormData()
+        attachments.forEach(file => {
+          formData.append('files', file)
+        })
+
+        try {
+          await api.post(`/tickets/${ticketId}/upload`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          })
+        } catch (uploadError) {
+          console.error('Erro ao fazer upload:', uploadError)
+          toast.error('Ticket criado, mas erro ao anexar arquivos')
+        }
+      }
+
       toast.success('Ticket criado com sucesso!')
-      navigate(`/tickets/${response.ticket.id}`)
+      navigate(`/tickets/${ticketId}`)
     } catch (error) {
       console.error('Erro ao criar ticket:', error)
+      toast.error('Erro ao criar ticket')
     } finally {
       setLoading(false)
     }
@@ -164,6 +188,19 @@ const NewTicket = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Anexos</label>
+            <FileUpload
+              onFilesChange={setAttachments}
+              maxSize={20}
+              maxFiles={5}
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Anexe prints, documentos ou qualquer arquivo que ajude a entender o problema
+            </p>
           </div>
 
           {/* Help Text */}

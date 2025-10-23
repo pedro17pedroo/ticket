@@ -44,11 +44,19 @@ const TicketDetail = () => {
 
   const handleAddComment = async (e) => {
     e.preventDefault()
-    if (!comment.trim()) return
+    
+    // Validar se há comentário ou anexos
+    if (!comment.trim() && commentAttachments.length === 0) {
+      toast.error('Adicione uma resposta ou anexo')
+      return
+    }
 
     setSubmitting(true)
     try {
-      await ticketService.addComment(id, { content: comment, isInternal: false })
+      // Se há comentário, adicionar
+      if (comment.trim()) {
+        await ticketService.addComment(id, { content: comment, isInternal: false })
+      }
       
       // Upload anexos se houver
       if (commentAttachments.length > 0) {
@@ -58,10 +66,11 @@ const TicketDetail = () => {
       
       setComment('')
       setCommentAttachments([])
-      toast.success('Comentário adicionado')
+      toast.success(comment.trim() ? 'Resposta adicionada' : 'Anexos adicionados')
       loadTicket()
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error)
+      toast.error('Erro ao adicionar resposta/anexos')
     } finally {
       setSubmitting(false)
     }
@@ -249,11 +258,11 @@ const TicketDetail = () => {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={!comment.trim() || submitting}
+                    disabled={(!comment.trim() && commentAttachments.length === 0) || submitting}
                     className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                   >
                     <Send className="w-4 h-4" />
-                    {submitting ? 'Enviando...' : 'Enviar Resposta'}
+                    {submitting ? 'Enviando...' : (commentAttachments.length > 0 && !comment.trim() ? 'Enviar Anexos' : 'Enviar Resposta')}
                   </button>
                 </div>
               </form>

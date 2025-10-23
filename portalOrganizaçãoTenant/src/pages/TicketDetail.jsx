@@ -62,10 +62,18 @@ const TicketDetail = () => {
 
   const handleAddComment = async (e) => {
     e.preventDefault()
-    if (!comment.trim()) return
+    
+    // Validar se há comentário ou anexos
+    if (!comment.trim() && commentAttachments.length === 0) {
+      toast.error('Adicione um comentário ou anexo')
+      return
+    }
 
     try {
-      await ticketService.addComment(id, { content: comment, isInternal })
+      // Se há comentário, adicionar
+      if (comment.trim()) {
+        await ticketService.addComment(id, { content: comment, isInternal })
+      }
       
       // Upload anexos se houver
       if (commentAttachments.length > 0) {
@@ -76,10 +84,11 @@ const TicketDetail = () => {
       setComment('')
       setIsInternal(false)
       setCommentAttachments([])
-      toast.success('Comentário adicionado')
+      toast.success(comment.trim() ? 'Comentário adicionado' : 'Anexos adicionados')
       loadTicket()
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error)
+      toast.error('Erro ao adicionar comentário/anexos')
     }
   }
 
@@ -293,10 +302,10 @@ const TicketDetail = () => {
                 </label>
                 <button
                   type="submit"
-                  disabled={!comment.trim()}
+                  disabled={!comment.trim() && commentAttachments.length === 0}
                   className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
-                  Adicionar Comentário
+                  {commentAttachments.length > 0 && !comment.trim() ? 'Adicionar Anexos' : 'Adicionar Comentário'}
                 </button>
               </div>
             </form>

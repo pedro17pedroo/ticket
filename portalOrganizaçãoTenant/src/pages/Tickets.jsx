@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ticketService } from '../services/api'
-import { Plus, Search, Filter, Eye } from 'lucide-react'
+import { Plus, Search, Filter, Eye, User } from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
+import { useAuthStore } from '../store/authStore'
 
 const Tickets = () => {
   const navigate = useNavigate()
+  const { user } = useAuthStore()
   const [tickets, setTickets] = useState([])
   const [slas, setSlas] = useState([])
   const [priorities, setPriorities] = useState([])
   const [types, setTypes] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [showMyTickets, setShowMyTickets] = useState(false)
   const [filters, setFilters] = useState({
     status: '',
     priority: '',
@@ -22,7 +25,7 @@ const Tickets = () => {
 
   useEffect(() => {
     loadData()
-  }, [filters])
+  }, [filters, showMyTickets])
 
   const loadData = async () => {
     await Promise.all([loadTickets(), loadSLAs(), loadPriorities(), loadTypes()])
@@ -58,7 +61,11 @@ const Tickets = () => {
   const loadTickets = async () => {
     setLoading(true)
     try {
-      const data = await ticketService.getAll({ ...filters, search })
+      const params = { ...filters, search }
+      if (showMyTickets) {
+        params.assigneeId = user.id
+      }
+      const data = await ticketService.getAll(params)
       setTickets(data.tickets)
     } catch (error) {
       console.error('Erro ao carregar tickets:', error)
@@ -158,13 +165,26 @@ const Tickets = () => {
             Gerir todos os tickets do sistema
           </p>
         </div>
-        <button
-          onClick={() => navigate('/tickets/new')}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Novo Ticket
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowMyTickets(!showMyTickets)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              showMyTickets
+                ? 'bg-primary-600 text-white hover:bg-primary-700'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            <User className="w-5 h-5" />
+            Meus Tickets
+          </button>
+          <button
+            onClick={() => navigate('/tickets/new')}
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Novo Ticket
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
