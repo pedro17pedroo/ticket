@@ -98,6 +98,37 @@ export const ticketService = {
     const response = await api.get('/types')
     return response.data
   },
+
+  uploadAttachments: async (ticketId, files) => {
+    const formData = new FormData()
+    files.forEach(file => {
+      formData.append('files', file)
+    })
+    
+    const response = await api.post(`/tickets/${ticketId}/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
+  },
+
+  getAttachments: async (ticketId) => {
+    const response = await api.get(`/tickets/${ticketId}/attachments`)
+    return response.data
+  },
+
+  downloadAttachment: async (ticketId, attachmentId) => {
+    const response = await api.get(`/tickets/${ticketId}/attachments/${attachmentId}/download`, {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  deleteAttachment: async (ticketId, attachmentId) => {
+    const response = await api.delete(`/tickets/${ticketId}/attachments/${attachmentId}`)
+    return response.data
+  },
   
   getStatistics: async () => {
     const response = await api.get('/tickets/statistics')

@@ -3,6 +3,7 @@ import { authenticate, authorize } from '../middleware/auth.js';
 import { validate, schemas } from '../middleware/validate.js';
 import { auditLog } from '../middleware/audit.js';
 import { upload } from '../middleware/upload.js';
+import uploadConfig from '../config/multer.js';
 
 import * as authController from '../modules/auth/authController.js';
 import * as userController from '../modules/users/userController.js';
@@ -63,6 +64,12 @@ router.get('/tickets/:id', authenticate, ticketController.getTicketById);
 router.post('/tickets', authenticate, validate(schemas.createTicket), auditLog('create', 'ticket'), ticketController.createTicket);
 router.put('/tickets/:id', authenticate, validate(schemas.updateTicket), auditLog('update', 'ticket'), ticketController.updateTicket);
 router.post('/tickets/:id/comments', authenticate, validate(schemas.createComment), auditLog('create', 'comment'), ticketController.addComment);
+
+// Ticket Attachments
+router.post('/tickets/:ticketId/upload', authenticate, uploadConfig.array('files', 5), auditLog('create', 'attachment'), ticketController.uploadAttachments);
+router.get('/tickets/:ticketId/attachments', authenticate, ticketController.getAttachments);
+router.get('/tickets/:ticketId/attachments/:attachmentId/download', authenticate, ticketController.downloadAttachment);
+router.delete('/tickets/:ticketId/attachments/:attachmentId', authenticate, auditLog('delete', 'attachment'), ticketController.deleteAttachment);
 
 // ==================== DIRECTIONS ====================
 router.get('/directions', authenticate, directionController.getDirections);

@@ -6,6 +6,7 @@ import Section from '../sections/sectionModel.js';
 import Category from '../categories/categoryModel.js';
 import Ticket from '../tickets/ticketModel.js';
 import Comment from '../comments/commentModel.js';
+import Attachment from '../attachments/attachmentModel.js';
 import SLA from '../slas/slaModel.js';
 import Priority from '../priorities/priorityModel.js';
 import KnowledgeArticle from '../knowledge/knowledgeModel.js';
@@ -66,11 +67,16 @@ const setupAssociations = () => {
   Ticket.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
   Ticket.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
   Ticket.hasMany(Comment, { foreignKey: 'ticketId', as: 'comments' });
+  Ticket.hasMany(Attachment, { foreignKey: 'ticketId', as: 'attachments' });
   Ticket.hasMany(HoursTransaction, { foreignKey: 'ticketId', as: 'hoursTransactions' });
 
   // Comment associations
   Comment.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   Comment.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+  // Attachment associations
+  Attachment.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+  Attachment.belongsTo(User, { foreignKey: 'uploadedBy', as: 'uploader' });
 
   // SLA associations
   SLA.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
@@ -103,6 +109,7 @@ export {
   Category,
   Ticket,
   Comment,
+  Attachment,
   SLA,
   Priority,
   KnowledgeArticle,

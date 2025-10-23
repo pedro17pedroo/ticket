@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ticketService } from '../services/api'
-import { ArrowLeft, Clock, User, MessageSquare, Send } from 'lucide-react'
+import { ArrowLeft, Clock, User, MessageSquare, Send, Paperclip, Download, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import FileUpload from '../components/FileUpload'
 
 const TicketDetail = () => {
   const { id } = useParams()
@@ -13,9 +14,12 @@ const TicketDetail = () => {
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [attachments, setAttachments] = useState([])
+  const [commentAttachments, setCommentAttachments] = useState([])
 
   useEffect(() => {
     loadTicket()
+    loadAttachments()
   }, [id])
 
   const loadTicket = async () => {
@@ -29,6 +33,15 @@ const TicketDetail = () => {
     }
   }
 
+  const loadAttachments = async () => {
+    try {
+      const data = await ticketService.getAttachments(id)
+      setAttachments(data.attachments || [])
+    } catch (error) {
+      console.error('Erro ao carregar anexos:', error)
+    }
+  }
+
   const handleAddComment = async (e) => {
     e.preventDefault()
     if (!comment.trim()) return
@@ -36,7 +49,15 @@ const TicketDetail = () => {
     setSubmitting(true)
     try {
       await ticketService.addComment(id, { content: comment, isInternal: false })
+      
+      // Upload anexos se houver
+      if (commentAttachments.length > 0) {
+        await ticketService.uploadAttachments(id, commentAttachments)
+        loadAttachments()
+      }
+      
       setComment('')
+      setCommentAttachments([])
       toast.success('Comentário adicionado')
       loadTicket()
     } catch (error) {
@@ -44,6 +65,29 @@ const TicketDetail = () => {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleDownloadAttachment = async (attachmentId, filename) => {
+    try {
+      const blob = await ticketService.downloadAttachment(id, attachmentId)
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Erro ao fazer download:', error)
+      toast.error('Erro ao fazer download do arquivo')
+    }
+  }
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
   }
 
   const getStatusBadge = (status) => {
@@ -116,6 +160,32 @@ const TicketDetail = () => {
             </p>
           </div>
 
+          {/* Attachments */}
+          {attachments.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="font-semibold mb-4 flex items-center gap-2">
+                <Paperclip className="w-5 h-5" />
+                Anexos ({attachments.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {attachments.map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                    onClick={() => handleDownloadAttachment(attachment.id, attachment.originalName)}
+                  >
+                    <FileText className="w-8 h-8 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{attachment.originalName}</p>
+                      <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                    </div>
+                    <Download className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Comments */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="font-semibold mb-4">
@@ -154,7 +224,7 @@ const TicketDetail = () => {
 
             {/* Add Comment Form */}
             {ticket.status !== 'fechado' && (
-              <form onSubmit={handleAddComment} className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <form onSubmit={handleAddComment} className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <label className="block text-sm font-medium">
                   Adicionar Resposta
                 </label>
@@ -165,6 +235,17 @@ const TicketDetail = () => {
                   rows={4}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
                 />
+                
+                {/* File Upload */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Anexos (opcional)</label>
+                  <FileUpload
+                    onFilesChange={setCommentAttachments}
+                    maxSize={20}
+                    maxFiles={5}
+                  />
+                </div>
+
                 <div className="flex justify-end">
                   <button
                     type="submit"

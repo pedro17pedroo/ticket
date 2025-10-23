@@ -1,6 +1,13 @@
 import { Ticket, User, Department, Category, Comment } from '../models/index.js';
+import Attachment from '../attachments/attachmentModel.js';
 import { Op } from 'sequelize';
 import logger from '../../config/logger.js';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Listar tickets (com filtros e paginação)
 export const getTickets = async (req, res, next) => {
@@ -313,6 +320,190 @@ export const getStatistics = async (req, res, next) => {
           fechado
         }
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Upload de anexos
+export const uploadAttachments = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nenhum arquivo enviado'
+      });
+    }
+
+    // Verificar se ticket existe e se usuário tem acesso
+    const ticket = await Ticket.findOne({
+      where: {
+        id: ticketId,
+        organizationId: req.user.organizationId
+      }
+    });
+
+    if (!ticket) {
+      // Deletar arquivos enviados se ticket não existe
+      files.forEach(file => {
+        fs.unlinkSync(file.path);
+      });
+      return res.status(404).json({
+        success: false,
+        error: 'Ticket não encontrado'
+      });
+    }
+
+    // Criar registos de anexos
+    const attachments = await Promise.all(
+      files.map(file => 
+        Attachment.create({
+          ticketId,
+          filename: file.filename,
+          originalName: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          path: file.path,
+          uploadedBy: req.user.id
+        })
+      )
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Arquivos enviados com sucesso',
+      attachments: attachments.map(att => ({
+        id: att.id,
+        filename: att.filename,
+        originalName: att.originalName,
+        mimetype: att.mimetype,
+        size: att.size,
+        createdAt: att.createdAt
+      }))
+    });
+  } catch (error) {
+    // Limpar arquivos em caso de erro
+    if (req.files) {
+      req.files.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+    }
+    next(error);
+  }
+};
+
+// Listar anexos de um ticket
+export const getAttachments = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    // Verificar acesso ao ticket
+    const ticket = await Ticket.findOne({
+      where: {
+        id: ticketId,
+        organizationId: req.user.organizationId
+      }
+    });
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ticket não encontrado'
+      });
+    }
+
+    const attachments = await Attachment.findAll({
+      where: { ticketId },
+      include: [{
+        model: User,
+        as: 'uploader',
+        attributes: ['id', 'name']
+      }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      attachments
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Download de anexo
+export const downloadAttachment = async (req, res, next) => {
+  try {
+    const { ticketId, attachmentId } = req.params;
+
+    const attachment = await Attachment.findOne({
+      where: { id: attachmentId, ticketId },
+      include: [{
+        model: Ticket,
+        as: 'ticket',
+        where: { organizationId: req.user.organizationId }
+      }]
+    });
+
+    if (!attachment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Anexo não encontrado'
+      });
+    }
+
+    // Verificar se arquivo existe
+    if (!fs.existsSync(attachment.path)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Arquivo não encontrado no servidor'
+      });
+    }
+
+    res.download(attachment.path, attachment.originalName);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Deletar anexo
+export const deleteAttachment = async (req, res, next) => {
+  try {
+    const { ticketId, attachmentId } = req.params;
+
+    const attachment = await Attachment.findOne({
+      where: { id: attachmentId, ticketId },
+      include: [{
+        model: Ticket,
+        as: 'ticket',
+        where: { organizationId: req.user.organizationId }
+      }]
+    });
+
+    if (!attachment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Anexo não encontrado'
+      });
+    }
+
+    // Deletar arquivo físico
+    if (fs.existsSync(attachment.path)) {
+      fs.unlinkSync(attachment.path);
+    }
+
+    // Deletar registo
+    await attachment.destroy();
+
+    res.json({
+      success: true,
+      message: 'Anexo eliminado com sucesso'
     });
   } catch (error) {
     next(error);
