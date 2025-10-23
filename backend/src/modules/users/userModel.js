@@ -27,7 +27,6 @@ const User = sequelize.define('User', {
   email: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
     validate: {
       isEmail: true
     }
@@ -57,6 +56,15 @@ const User = sequelize.define('User', {
       key: 'id'
     }
   },
+  clientId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'Para utilizadores cliente-org, indica a empresa cliente à qual pertencem'
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
@@ -77,7 +85,11 @@ const User = sequelize.define('User', {
 }, {
   tableName: 'users',
   indexes: [
-    { fields: ['email'], unique: true },
+    { 
+      fields: ['email', 'organization_id'], 
+      unique: true,
+      name: 'users_email_organization_unique'
+    },
     { fields: ['organization_id'] },
     { fields: ['role'] },
     { fields: ['department_id'] }

@@ -83,6 +83,21 @@ export const ticketService = {
     const response = await api.post(`/tickets/${id}/comments`, data)
     return response.data
   },
+
+  getSLAs: async () => {
+    const response = await api.get('/slas')
+    return response.data
+  },
+
+  getPriorities: async () => {
+    const response = await api.get('/priorities')
+    return response.data
+  },
+
+  getTypes: async () => {
+    const response = await api.get('/types')
+    return response.data
+  },
   
   getStatistics: async () => {
     const response = await api.get('/tickets/statistics')

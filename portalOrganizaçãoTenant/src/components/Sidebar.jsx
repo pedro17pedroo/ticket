@@ -1,15 +1,23 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  LayoutDashboard,
+  Home,
   Ticket,
   Users,
+  UserCog,
   Building2,
+  FolderTree,
+  Tag,
   BookOpen,
-  BarChart3,
-  Settings,
+  Clock,
+  AlertCircle,
+  FileType,
+  Settings as SettingsIcon,
+  X,
   ChevronLeft,
   ChevronRight,
+  LayoutDashboard,
+  BarChart3,
 } from 'lucide-react'
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -20,10 +28,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
     { path: '/tickets', icon: Ticket, label: t('nav.tickets') },
     { path: '/clients', icon: Users, label: t('nav.clients') },
+    { path: '/users', icon: UserCog, label: 'Utilizadores' },
+    { path: '/directions', icon: Building2, label: 'Direções' },
     { path: '/departments', icon: Building2, label: t('nav.departments') },
-    { path: '/knowledge', icon: BookOpen, label: t('nav.knowledge') },
-    { path: '/reports', icon: BarChart3, label: t('nav.reports') },
-    { path: '/settings', icon: Settings, label: t('nav.settings') },
+    { path: '/sections', icon: FolderTree, label: 'Secções' },
+    { path: '/categories', icon: Tag, label: 'Categorias' },
+    { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento' },
+    { path: '/slas', icon: Clock, label: 'SLAs' },
+    { path: '/priorities', icon: AlertCircle, label: 'Prioridades' },
+    { path: '/types', icon: FileType, label: 'Tipos' },
+    { path: '/settings', icon: SettingsIcon, label: t('nav.settings') },
   ]
 
   const isActive = (path) => {

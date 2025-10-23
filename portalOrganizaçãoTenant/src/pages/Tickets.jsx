@@ -8,17 +8,52 @@ import { pt } from 'date-fns/locale'
 const Tickets = () => {
   const navigate = useNavigate()
   const [tickets, setTickets] = useState([])
+  const [slas, setSlas] = useState([])
+  const [priorities, setPriorities] = useState([])
+  const [types, setTypes] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState({
     status: '',
     priority: '',
-    type: ''
+    type: '',
+    sla: ''
   })
 
   useEffect(() => {
-    loadTickets()
+    loadData()
   }, [filters])
+
+  const loadData = async () => {
+    await Promise.all([loadTickets(), loadSLAs(), loadPriorities(), loadTypes()])
+  }
+
+  const loadSLAs = async () => {
+    try {
+      const response = await ticketService.getSLAs()
+      setSlas(response.slas || [])
+    } catch (error) {
+      console.error('Erro ao carregar SLAs:', error)
+    }
+  }
+
+  const loadPriorities = async () => {
+    try {
+      const response = await ticketService.getPriorities()
+      setPriorities(response.priorities || [])
+    } catch (error) {
+      console.error('Erro ao carregar prioridades:', error)
+    }
+  }
+
+  const loadTypes = async () => {
+    try {
+      const response = await ticketService.getTypes()
+      setTypes(response.types || [])
+    } catch (error) {
+      console.error('Erro ao carregar tipos:', error)
+    }
+  }
 
   const loadTickets = async () => {
     setLoading(true)
@@ -54,23 +89,62 @@ const Tickets = () => {
     )
   }
 
-  const getPriorityBadge = (priority) => {
-    const styles = {
-      baixa: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-      media: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-      alta: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-      urgente: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  const getPriorityBadge = (priorityName) => {
+    // Buscar prioridade dinâmica
+    const priority = priorities.find(p => 
+      p.name.toLowerCase() === priorityName.toLowerCase()
+    )
+    
+    // Cores padrão para compatibilidade
+    const defaultColors = {
+      'baixa': '#10B981',
+      'media': '#3B82F6',
+      'média': '#3B82F6',
+      'alta': '#F59E0B',
+      'urgente': '#EF4444'
     }
-    const labels = {
-      baixa: 'Baixa',
-      media: 'Média',
-      alta: 'Alta',
-      urgente: 'Urgente',
-    }
+    
+    const color = priority?.color || defaultColors[priorityName.toLowerCase()] || '#6B7280'
+    const displayName = priority?.name || priorityName
+    
     return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[priority]}`}>
-        {labels[priority]}
+      <span 
+        className="px-2 py-1 text-xs font-semibold rounded-full"
+        style={{ 
+          backgroundColor: `${color}20`,
+          color: color
+        }}
+      >
+        {displayName}
       </span>
+    )
+  }
+
+  const getSLAForPriority = (priority) => {
+    const sla = slas.find(s => s.priority.toLowerCase() === priority.toLowerCase())
+    
+    if (!sla) {
+      return <span className="text-gray-400">-</span>
+    }
+
+    const formatTime = (minutes) => {
+      const hours = Math.floor(minutes / 60)
+      const mins = minutes % 60
+      if (hours > 0) {
+        return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`
+      }
+      return `${mins}min`
+    }
+
+    return (
+      <div className="text-xs">
+        <div className="text-gray-600 dark:text-gray-400">
+          Resposta: <span className="font-medium text-gray-900 dark:text-gray-100">{formatTime(sla.responseTimeMinutes)}</span>
+        </div>
+        <div className="text-gray-600 dark:text-gray-400">
+          Resolução: <span className="font-medium text-gray-900 dark:text-gray-100">{formatTime(sla.resolutionTimeMinutes)}</span>
+        </div>
+      </div>
     )
   }
 
@@ -95,7 +169,7 @@ const Tickets = () => {
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -130,10 +204,11 @@ const Tickets = () => {
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
           >
             <option value="">Todas as Prioridades</option>
-            <option value="baixa">Baixa</option>
-            <option value="media">Média</option>
-            <option value="alta">Alta</option>
-            <option value="urgente">Urgente</option>
+            {priorities.map(priority => (
+              <option key={priority.id} value={priority.name}>
+                {priority.name}
+              </option>
+            ))}
           </select>
 
           {/* Type Filter */}
@@ -143,10 +218,25 @@ const Tickets = () => {
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
           >
             <option value="">Todos os Tipos</option>
-            <option value="suporte">Suporte</option>
-            <option value="implementacao">Implementação</option>
-            <option value="problema">Problema</option>
-            <option value="duvida">Dúvida</option>
+            {types.map(type => (
+              <option key={type.id} value={type.name}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+
+          {/* SLA Filter */}
+          <select
+            value={filters.sla}
+            onChange={(e) => setFilters({ ...filters, sla: e.target.value })}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+          >
+            <option value="">Todos os SLAs</option>
+            {slas.map(sla => (
+              <option key={sla.id} value={sla.id}>
+                {sla.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -182,6 +272,9 @@ const Tickets = () => {
                     Prioridade
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    SLA
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Data
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -210,6 +303,9 @@ const Tickets = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getPriorityBadge(ticket.priority)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {getSLAForPriority(ticket.priority)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {format(new Date(ticket.createdAt), 'dd/MM/yyyy', { locale: pt })}

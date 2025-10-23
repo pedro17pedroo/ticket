@@ -1,0 +1,260 @@
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { ticketService } from '../services/api'
+import { ArrowLeft, Clock, User, MessageSquare, Send } from 'lucide-react'
+import { format } from 'date-fns'
+import { pt } from 'date-fns/locale'
+import toast from 'react-hot-toast'
+
+const TicketDetail = () => {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const [ticket, setTicket] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [comment, setComment] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    loadTicket()
+  }, [id])
+
+  const loadTicket = async () => {
+    try {
+      const data = await ticketService.getById(id)
+      setTicket(data.ticket)
+    } catch (error) {
+      console.error('Erro ao carregar ticket:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddComment = async (e) => {
+    e.preventDefault()
+    if (!comment.trim()) return
+
+    setSubmitting(true)
+    try {
+      await ticketService.addComment(id, { content: comment, isInternal: false })
+      setComment('')
+      toast.success('Comentário adicionado')
+      loadTicket()
+    } catch (error) {
+      console.error('Erro ao adicionar comentário:', error)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      novo: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+      em_progresso: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+      aguardando_cliente: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+      resolvido: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+      fechado: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
+    }
+    const labels = {
+      novo: 'Novo',
+      em_progresso: 'Em Progresso',
+      aguardando_cliente: 'Aguardando Você',
+      resolvido: 'Resolvido',
+      fechado: 'Fechado',
+    }
+    return (
+      <span className={`px-3 py-1 text-sm font-medium rounded-full ${styles[status]}`}>
+        {labels[status]}
+      </span>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (!ticket) {
+    return <div>Ticket não encontrado</div>
+  }
+
+  // Filtrar apenas comentários públicos (não mostrar notas internas para clientes)
+  const publicComments = ticket.comments?.filter(c => !c.isInternal) || []
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => navigate('/tickets')}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-2xl font-bold">{ticket.ticketNumber}</h1>
+            {getStatusBadge(ticket.status)}
+          </div>
+          <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Description */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5" />
+              Descrição
+            </h2>
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+              {ticket.description}
+            </p>
+          </div>
+
+          {/* Comments */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="font-semibold mb-4">
+              Histórico de Respostas ({publicComments.length})
+            </h2>
+
+            <div className="space-y-4 mb-6">
+              {publicComments.length === 0 ? (
+                <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                  Nenhuma resposta ainda. Aguarde o retorno de nossa equipe.
+                </p>
+              ) : (
+                publicComments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    className="p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50"
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
+                        {comment.user?.name?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium">{comment.user?.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {format(new Date(comment.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap ml-13">
+                      {comment.content}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Add Comment Form */}
+            {ticket.status !== 'fechado' && (
+              <form onSubmit={handleAddComment} className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <label className="block text-sm font-medium">
+                  Adicionar Resposta
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Digite sua resposta ou informações adicionais..."
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={!comment.trim() || submitting}
+                    className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  >
+                    <Send className="w-4 h-4" />
+                    {submitting ? 'Enviando...' : 'Enviar Resposta'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {ticket.status === 'fechado' && (
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Este ticket foi fechado e não aceita mais respostas.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Info Card */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 space-y-4">
+            <h3 className="font-semibold">Informações</h3>
+
+            <div className="space-y-3">
+              {ticket.assignee && (
+                <div className="flex items-start gap-2 text-sm">
+                  <User className="w-4 h-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400">Atendente:</p>
+                    <p className="font-medium">{ticket.assignee.name}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start gap-2 text-sm">
+                <Clock className="w-4 h-4 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-gray-600 dark:text-gray-400">Criado em:</p>
+                  <p className="font-medium">
+                    {format(new Date(ticket.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}
+                  </p>
+                </div>
+              </div>
+
+              {ticket.updatedAt !== ticket.createdAt && (
+                <div className="flex items-start gap-2 text-sm">
+                  <Clock className="w-4 h-4 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400">Última atualização:</p>
+                    <p className="font-medium">
+                      {format(new Date(ticket.updatedAt), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Status Message */}
+          {ticket.status === 'aguardando_cliente' && (
+            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4">
+              <p className="text-sm font-medium text-purple-900 dark:text-purple-300">
+                ⏰ Aguardando sua resposta
+              </p>
+              <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
+                Nossa equipe está aguardando informações adicionais suas.
+              </p>
+            </div>
+          )}
+
+          {ticket.status === 'resolvido' && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+              <p className="text-sm font-medium text-green-900 dark:text-green-300">
+                ✓ Ticket Resolvido
+              </p>
+              <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+                Seu problema foi resolvido. Se tudo estiver OK, este ticket será fechado automaticamente.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default TicketDetail

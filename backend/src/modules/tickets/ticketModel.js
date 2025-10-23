@@ -41,14 +41,16 @@ const Ticket = sequelize.define('Ticket', {
     defaultValue: 'novo'
   },
   priority: {
-    type: DataTypes.ENUM('baixa', 'media', 'alta', 'urgente'),
+    type: DataTypes.STRING,
     allowNull: false,
-    defaultValue: 'media'
+    defaultValue: 'media',
+    comment: 'Nome da prioridade'
   },
   type: {
-    type: DataTypes.ENUM('suporte', 'implementacao', 'problema', 'duvida'),
+    type: DataTypes.STRING,
     allowNull: false,
-    defaultValue: 'suporte'
+    defaultValue: 'suporte',
+    comment: 'Nome do tipo'
   },
   categoryId: {
     type: DataTypes.UUID,

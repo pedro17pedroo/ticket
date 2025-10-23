@@ -144,9 +144,16 @@ export const createTicket = async (req, res, next) => {
   try {
     const { subject, description, priority, type, categoryId, departmentId } = req.body;
 
+    // Gerar número do ticket
+    const date = new Date();
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const random = Math.floor(1000 + Math.random() * 9000);
+    const ticketNumber = `TKT-${dateStr}-${random}`;
+
     const ticket = await Ticket.create({
       organizationId: req.user.organizationId,
       requesterId: req.user.id,
+      ticketNumber,
       subject,
       description,
       priority,
@@ -247,6 +254,7 @@ export const addComment = async (req, res, next) => {
 
     // Clientes não podem criar notas internas
     const commentData = {
+      organizationId: req.user.organizationId,
       ticketId,
       userId: req.user.id,
       content,

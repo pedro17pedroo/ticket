@@ -7,6 +7,12 @@ const Comment = sequelize.define('Comment', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
+  organizationId: {
+    type: DataTypes.UUID,
+    allowNull: true, // Temporariamente nullable para migração
+    field: 'organization_id',
+    comment: 'Organização do comentário (para isolamento multi-tenant)'
+  },
   ticketId: {
     type: DataTypes.UUID,
     allowNull: false,
@@ -45,9 +51,11 @@ const Comment = sequelize.define('Comment', {
 }, {
   tableName: 'comments',
   indexes: [
+    { fields: ['organization_id'] },
     { fields: ['ticket_id'] },
     { fields: ['user_id'] },
-    { fields: ['created_at'] }
+    { fields: ['created_at'] },
+    { fields: ['organization_id', 'ticket_id'] }
   ]
 });
 

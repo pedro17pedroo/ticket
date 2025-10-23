@@ -28,8 +28,9 @@ const SLA = sequelize.define('SLA', {
     allowNull: true
   },
   priority: {
-    type: DataTypes.ENUM('baixa', 'media', 'alta', 'urgente'),
-    allowNull: false
+    type: DataTypes.STRING,
+    allowNull: false,
+    comment: 'Nome da prioridade associada'
   },
   responseTimeMinutes: {
     type: DataTypes.INTEGER,

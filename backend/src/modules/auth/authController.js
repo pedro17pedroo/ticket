@@ -53,12 +53,6 @@ export const register = async (req, res, next) => {
   try {
     const { name, email, password, phone, organizationId } = req.body;
 
-    // Verificar se email já existe
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(409).json({ error: 'Email já cadastrado' });
-    }
-
     // Buscar organização (ou usar padrão)
     let orgId = organizationId;
     if (!orgId) {
@@ -69,6 +63,17 @@ export const register = async (req, res, next) => {
         return res.status(400).json({ error: 'Organização não encontrada' });
       }
       orgId = defaultOrg.id;
+    }
+
+    // Verificar se email já existe NESTA organização
+    const existingUser = await User.findOne({ 
+      where: { 
+        email,
+        organizationId: orgId 
+      } 
+    });
+    if (existingUser) {
+      return res.status(409).json({ error: 'Email já cadastrado nesta organização' });
     }
 
     // Criar usuário
@@ -145,7 +150,13 @@ export const updateProfile = async (req, res, next) => {
 export const changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const user = await User.scope('withPassword').findByPk(req.user.id);
+    const userId = req.user.id;
+
+    // Buscar usuário com senha
+    const user = await User.scope('withPassword').findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
 
     // Verificar senha atual
     const isPasswordValid = await user.comparePassword(currentPassword);
@@ -153,10 +164,40 @@ export const changePassword = async (req, res, next) => {
       return res.status(401).json({ error: 'Senha atual incorreta' });
     }
 
-    // Atualizar senha
+    // Atualizar senha (será hasheada pelo hook)
     await user.update({ password: newPassword });
 
     res.json({ message: 'Senha alterada com sucesso' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/auth/users - Listar usuários da organização
+export const getUsers = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organizationId;
+
+    const users = await User.findAll({
+      where: { 
+        organizationId,
+        isActive: true,
+        role: ['admin-org', 'agente'] // Não incluir clientes
+      },
+      attributes: ['id', 'name', 'email', 'role'],
+      include: [{
+        model: Department,
+        as: 'department',
+        attributes: ['id', 'name']
+      }],
+      order: [['name', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      users,
+      total: users.length
+    });
   } catch (error) {
     next(error);
   }

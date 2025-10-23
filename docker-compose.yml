@@ -99,6 +99,20 @@ services:
     environment:
       VITE_API_URL: http://localhost:3000/api
 
+  # Portal Cliente
+  portal-client:
+    build:
+      context: ./portalClientEmpresa
+      dockerfile: Dockerfile
+    container_name: tatuticket-portal-client
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+
 volumes:
   postgres_data:
   mongodb_data:

@@ -23,6 +23,14 @@ const startServer = async () => {
     // Sincronizar modelos (apenas em desenvolvimento)
     await syncDatabase();
 
+    // Executar migração de organizationId em comments se necessário
+    try {
+      const { updateCommentsOrganization } = await import('./migrations/updateCommentsOrganization.js');
+      await updateCommentsOrganization();
+    } catch (error) {
+      logger.warn('⚠️  Migração de comments:', error.message);
+    }
+
     // Iniciar servidor
     app.listen(PORT, () => {
       logger.info(`🚀 Servidor rodando na porta ${PORT}`);

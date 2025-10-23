@@ -8,7 +8,16 @@ import Tickets from './pages/Tickets'
 import TicketDetail from './pages/TicketDetail'
 import NewTicket from './pages/NewTicket'
 import Clients from './pages/Clients'
+import ClientDetails from './pages/ClientDetails'
+import Users from './pages/Users'
 import Departments from './pages/Departments'
+import Sections from './pages/Sections'
+import Directions from './pages/Directions'
+import Categories from './pages/Categories'
+import Knowledge from './pages/Knowledge'
+import SLAs from './pages/SLAs'
+import Priorities from './pages/Priorities'
+import Types from './pages/Types'
 import Settings from './pages/Settings'
 
 // Componente de rota protegida
@@ -57,7 +66,16 @@ function App() {
                   <Route path="/tickets/new" element={<NewTicket />} />
                   <Route path="/tickets/:id" element={<TicketDetail />} />
                   <Route path="/clients" element={<Clients />} />
+                  <Route path="/clients/:id" element={<ClientDetails />} />
+                  <Route path="/users" element={<Users />} />
+                  <Route path="/directions" element={<Directions />} />
                   <Route path="/departments" element={<Departments />} />
+                  <Route path="/sections" element={<Sections />} />
+                  <Route path="/categories" element={<Categories />} />
+                  <Route path="/knowledge" element={<Knowledge />} />
+                  <Route path="/slas" element={<SLAs />} />
+                  <Route path="/priorities" element={<Priorities />} />
+                  <Route path="/types" element={<Types />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>

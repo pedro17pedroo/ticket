@@ -1,14 +1,38 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { ticketService } from '../services/api'
+import api from '../services/api'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const NewTicket = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [priorities, setPriorities] = useState([])
+  const [types, setTypes] = useState([])
+  const [categories, setCategories] = useState([])
   const { register, handleSubmit, formState: { errors } } = useForm()
+
+  useEffect(() => {
+    loadFormData()
+  }, [])
+
+  const loadFormData = async () => {
+    try {
+      const [prioritiesRes, typesRes, categoriesRes] = await Promise.all([
+        api.get('/priorities'),
+        api.get('/types'),
+        api.get('/categories')
+      ])
+      setPriorities(prioritiesRes.data.priorities || [])
+      setTypes(typesRes.data.types || [])
+      setCategories(categoriesRes.data.categories || [])
+    } catch (error) {
+      console.error('Erro ao carregar dados do formulário:', error)
+      toast.error('Erro ao carregar opções do formulário')
+    }
+  }
 
   const onSubmit = async (data) => {
     setLoading(true)
@@ -90,10 +114,15 @@ const NewTicket = () => {
                 {...register('priority')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
               >
-                <option value="baixa">Baixa</option>
-                <option value="media">Média</option>
-                <option value="alta">Alta</option>
-                <option value="urgente">Urgente</option>
+                {priorities.length === 0 ? (
+                  <option value="">Carregando...</option>
+                ) : (
+                  priorities.map(priority => (
+                    <option key={priority.id} value={priority.name}>
+                      {priority.name}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -104,12 +133,33 @@ const NewTicket = () => {
                 {...register('type')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
               >
-                <option value="suporte">Suporte</option>
-                <option value="implementacao">Implementação</option>
-                <option value="problema">Problema</option>
-                <option value="duvida">Dúvida</option>
+                {types.length === 0 ? (
+                  <option value="">Carregando...</option>
+                ) : (
+                  types.map(type => (
+                    <option key={type.id} value={type.name}>
+                      {type.name}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Categoria</label>
+            <select
+              {...register('categoryId')}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+            >
+              <option value="">Selecione uma categoria (opcional)</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Actions */}

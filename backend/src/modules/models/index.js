@@ -1,10 +1,13 @@
 import Organization from '../organizations/organizationModel.js';
 import User from '../users/userModel.js';
+import Direction from '../directions/directionModel.js';
 import Department from '../departments/departmentModel.js';
+import Section from '../sections/sectionModel.js';
 import Category from '../categories/categoryModel.js';
 import Ticket from '../tickets/ticketModel.js';
 import Comment from '../comments/commentModel.js';
 import SLA from '../slas/slaModel.js';
+import Priority from '../priorities/priorityModel.js';
 import KnowledgeArticle from '../knowledge/knowledgeModel.js';
 import { HoursBank, HoursTransaction } from '../hours/hoursBankModel.js';
 
@@ -12,26 +15,44 @@ import { HoursBank, HoursTransaction } from '../hours/hoursBankModel.js';
 const setupAssociations = () => {
   // Organization associations
   Organization.hasMany(User, { foreignKey: 'organizationId', as: 'users' });
+  Organization.hasMany(Direction, { foreignKey: 'organizationId', as: 'directions' });
   Organization.hasMany(Department, { foreignKey: 'organizationId', as: 'departments' });
+  Organization.hasMany(Section, { foreignKey: 'organizationId', as: 'sections' });
   Organization.hasMany(Ticket, { foreignKey: 'organizationId', as: 'tickets' });
   Organization.hasMany(Category, { foreignKey: 'organizationId', as: 'categories' });
   Organization.hasMany(SLA, { foreignKey: 'organizationId', as: 'slas' });
+  Organization.hasMany(Priority, { foreignKey: 'organizationId', as: 'priorities' });
   Organization.hasMany(KnowledgeArticle, { foreignKey: 'organizationId', as: 'articles' });
   Organization.hasMany(HoursBank, { foreignKey: 'organizationId', as: 'hoursBanks' });
 
   // User associations
   User.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   User.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+  User.belongsTo(Section, { foreignKey: 'sectionId', as: 'section' });
   User.hasMany(Ticket, { foreignKey: 'requesterId', as: 'requestedTickets' });
   User.hasMany(Ticket, { foreignKey: 'assigneeId', as: 'assignedTickets' });
   User.hasMany(Comment, { foreignKey: 'userId', as: 'comments' });
   User.hasMany(KnowledgeArticle, { foreignKey: 'authorId', as: 'articles' });
   User.hasMany(HoursBank, { foreignKey: 'clientId', as: 'hoursBanks' });
 
+  // Direction associations
+  Direction.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Direction.belongsTo(User, { foreignKey: 'managerId', as: 'manager' });
+  Direction.hasMany(Department, { foreignKey: 'directionId', as: 'departments' });
+
   // Department associations
   Department.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Department.belongsTo(Direction, { foreignKey: 'directionId', as: 'direction' });
+  Department.belongsTo(User, { foreignKey: 'managerId', as: 'manager' });
   Department.hasMany(User, { foreignKey: 'departmentId', as: 'users' });
+  Department.hasMany(Section, { foreignKey: 'departmentId', as: 'sections' });
   Department.hasMany(Ticket, { foreignKey: 'departmentId', as: 'tickets' });
+
+  // Section associations
+  Section.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Section.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+  Section.belongsTo(User, { foreignKey: 'managerId', as: 'manager' });
+  Section.hasMany(User, { foreignKey: 'sectionId', as: 'users' });
 
   // Category associations
   Category.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
@@ -54,6 +75,9 @@ const setupAssociations = () => {
   // SLA associations
   SLA.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
 
+  // Priority associations
+  Priority.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+
   // KnowledgeArticle associations
   KnowledgeArticle.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   KnowledgeArticle.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
@@ -73,11 +97,14 @@ const setupAssociations = () => {
 export {
   Organization,
   User,
+  Direction,
   Department,
+  Section,
   Category,
   Ticket,
   Comment,
   SLA,
+  Priority,
   KnowledgeArticle,
   HoursBank,
   HoursTransaction,
