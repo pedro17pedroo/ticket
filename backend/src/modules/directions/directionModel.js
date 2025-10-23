@@ -1,55 +1,38 @@
 import { DataTypes } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 
-const Department = sequelize.define('Department', {
+const Direction = sequelize.define('Direction', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
-  organizationId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'organizations',
-      key: 'id'
-    }
-  },
-  directionId: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    field: 'direction_id',
-    comment: 'ID da direção pai'
-  },
   name: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(100),
     allowNull: false,
-    validate: {
-      notEmpty: true,
-      len: [2, 100]
-    }
+    comment: 'Nome da direção'
   },
   description: {
     type: DataTypes.TEXT,
-    allowNull: true
+    allowNull: true,
+    comment: 'Descrição da direção'
   },
   code: {
     type: DataTypes.STRING(20),
     allowNull: true,
-    comment: 'Código/Sigla do departamento'
+    comment: 'Código/Sigla da direção'
   },
   managerId: {
     type: DataTypes.UUID,
     allowNull: true,
     field: 'manager_id',
-    comment: 'ID do responsável pelo departamento'
+    comment: 'ID do responsável pela direção'
   },
-  email: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    validate: {
-      isEmail: true
-    }
+  organizationId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    field: 'organization_id',
+    comment: 'ID da organização'
   },
   clientId: {
     type: DataTypes.UUID,
@@ -63,18 +46,19 @@ const Department = sequelize.define('Department', {
   },
   isActive: {
     type: DataTypes.BOOLEAN,
-    defaultValue: true
+    defaultValue: true,
+    field: 'is_active',
+    comment: 'Direção ativa'
   }
 }, {
-  tableName: 'departments',
+  tableName: 'directions',
   timestamps: true,
   underscored: true,
   indexes: [
     { fields: ['organization_id'] },
-    { fields: ['direction_id'] },
     { fields: ['manager_id'] },
-    { fields: ['is_active'] }
+    { fields: ['organization_id', 'name'], unique: true }
   ]
 });
 
-export default Department;
+export default Direction;
