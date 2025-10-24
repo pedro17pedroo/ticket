@@ -9,7 +9,8 @@ export const getClients = async (req, res, next) => {
 
     const where = { 
       organizationId,
-      role: 'cliente-org'
+      role: 'cliente-org',
+      clientId: null  // Apenas empresas clientes, não utilizadores
     };
 
     if (isActive !== undefined) {
@@ -69,7 +70,8 @@ export const getClientById = async (req, res, next) => {
       where: { 
         id, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Apenas empresas clientes
       },
       attributes: [
         'id', 'name', 'email', 'phone',
@@ -208,7 +210,8 @@ export const updateClient = async (req, res, next) => {
       where: { 
         id, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Apenas empresas clientes
       }
     });
 
@@ -274,7 +277,8 @@ export const deleteClient = async (req, res, next) => {
       where: { 
         id, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Apenas empresas clientes
       }
     });
 
@@ -329,7 +333,8 @@ export const activateClient = async (req, res, next) => {
       where: { 
         id, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Apenas empresas clientes
       }
     });
 

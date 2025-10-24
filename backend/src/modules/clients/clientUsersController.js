@@ -13,7 +13,8 @@ export const getClientUsers = async (req, res, next) => {
       where: { 
         id: clientId, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Deve ser uma empresa cliente, não um utilizador
       }
     });
 
@@ -64,7 +65,8 @@ export const createClientUser = async (req, res, next) => {
       where: { 
         id: clientId, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Deve ser uma empresa cliente, não um utilizador
       }
     });
 
@@ -133,7 +135,8 @@ export const updateClientUser = async (req, res, next) => {
       where: { 
         id: clientId, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Deve ser uma empresa cliente
       }
     });
 
@@ -215,7 +218,8 @@ export const deleteClientUser = async (req, res, next) => {
       where: { 
         id: clientId, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Deve ser uma empresa cliente
       }
     });
 
@@ -264,7 +268,8 @@ export const activateClientUser = async (req, res, next) => {
       where: { 
         id: clientId, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Deve ser uma empresa cliente
       }
     });
 
@@ -313,7 +318,8 @@ export const resetClientUserPassword = async (req, res, next) => {
       where: { 
         id: clientId, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null  // Deve ser uma empresa cliente
       }
     });
 
