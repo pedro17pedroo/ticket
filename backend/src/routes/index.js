@@ -184,4 +184,7 @@ router.post('/hours-banks/:id/adjust', authenticate, authorize('admin-org'), aud
 // Hours Transactions
 router.get('/hours-transactions', authenticate, authorize('admin-org', 'agente'), hoursController.getTransactions);
 
+// Tickets para consumo de horas
+router.get('/hours-banks/tickets/completed', authenticate, authorize('admin-org', 'agente'), hoursController.getCompletedTickets);
+
 export default router;

@@ -264,6 +264,32 @@ export const consumeHours = async (req, res, next) => {
       return res.status(400).json({ error: 'Quantidade de horas inválida' });
     }
 
+    // Validar ticket obrigatório
+    if (!ticketId) {
+      return res.status(400).json({ 
+        error: 'Ticket é obrigatório para registrar consumo de horas' 
+      });
+    }
+
+    // Verificar se ticket existe e está concluído
+    const ticket = await Ticket.findOne({
+      where: {
+        id: ticketId,
+        organizationId: req.user.organizationId
+      }
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    if (ticket.status !== 'concluido') {
+      return res.status(400).json({ 
+        error: 'Apenas tickets com status "Concluído" podem ter horas registradas',
+        currentStatus: ticket.status
+      });
+    }
+
     const hoursBank = await HoursBank.findOne({
       where: { 
         id, 
@@ -506,6 +532,43 @@ export const getStatistics = async (req, res, next) => {
   }
 };
 
+// Buscar tickets concluídos para consumo de horas
+export const getCompletedTickets = async (req, res, next) => {
+  try {
+    const { clientId } = req.query;
+    
+    const where = {
+      organizationId: req.user.organizationId,
+      status: 'concluido'
+    };
+
+    if (clientId) {
+      where.requesterId = clientId;
+    }
+
+    const tickets = await Ticket.findAll({
+      where,
+      attributes: ['id', 'ticketNumber', 'subject', 'status', 'createdAt'],
+      include: [
+        {
+          model: User,
+          as: 'requester',
+          attributes: ['id', 'name']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 100
+    });
+
+    res.json({
+      success: true,
+      tickets
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getHoursBanks,
   getHoursBankById,
@@ -515,5 +578,6 @@ export default {
   consumeHours,
   adjustHours,
   getTransactions,
-  getStatistics
+  getStatistics,
+  getCompletedTickets
 };

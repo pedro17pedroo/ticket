@@ -8,6 +8,7 @@ import { pt } from 'date-fns/locale'
 const HoursBank = () => {
   const [hoursBanks, setHoursBanks] = useState([])
   const [clients, setClients] = useState([])
+  const [completedTickets, setCompletedTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showAddHoursModal, setShowAddHoursModal] = useState(false)
@@ -112,6 +113,17 @@ const HoursBank = () => {
     } catch (error) {
       console.error('Erro ao carregar transações:', error)
       toast.error('Erro ao carregar transações')
+    }
+  }
+
+  const loadCompletedTickets = async (clientId) => {
+    try {
+      const params = clientId ? { clientId } : {}
+      const response = await api.get('/hours-banks/tickets/completed', { params })
+      setCompletedTickets(response.data.tickets || [])
+    } catch (error) {
+      console.error('Erro ao carregar tickets:', error)
+      toast.error('Erro ao carregar tickets concluídos')
     }
   }
 
@@ -273,6 +285,7 @@ const HoursBank = () => {
                       <button
                         onClick={() => {
                           setSelectedBank(bank)
+                          loadCompletedTickets(bank.clientId)
                           setShowConsumeModal(true)
                         }}
                         className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded-lg transition-colors"
@@ -518,6 +531,26 @@ const HoursBank = () => {
               Disponível: <strong className="text-green-600">{(parseFloat(selectedBank.totalHours) - parseFloat(selectedBank.usedHours)).toFixed(1)}h</strong>
             </p>
             <form onSubmit={handleConsumeHours} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Ticket Concluído *</label>
+                <select
+                  value={hoursData.ticketId}
+                  onChange={(e) => setHoursData({ ...hoursData, ticketId: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+                >
+                  <option value="">Selecione o ticket</option>
+                  {completedTickets.map(ticket => (
+                    <option key={ticket.id} value={ticket.id}>
+                      {ticket.ticketNumber} - {ticket.subject}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Apenas tickets com status "Concluído" podem ser selecionados
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-2">Quantidade de Horas *</label>
                 <input
