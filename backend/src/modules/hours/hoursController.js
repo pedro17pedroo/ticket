@@ -98,7 +98,7 @@ export const getHoursBankById = async (req, res, next) => {
 // Criar bolsa de horas
 export const createHoursBank = async (req, res, next) => {
   try {
-    const { clientId, totalHours, packageType, startDate, endDate, notes } = req.body;
+    const { clientId, totalHours, packageType, startDate, endDate, allowNegativeBalance, minBalance, notes } = req.body;
 
     // Verificar se cliente existe e pertence à organização
     const client = await User.findOne({
@@ -114,14 +114,23 @@ export const createHoursBank = async (req, res, next) => {
       return res.status(404).json({ error: 'Cliente não encontrado' });
     }
 
+    // Validar minBalance se saldo negativo permitido
+    if (allowNegativeBalance && minBalance !== undefined && minBalance > 0) {
+      return res.status(400).json({ 
+        error: 'Saldo mínimo deve ser negativo ou zero quando saldo negativo é permitido' 
+      });
+    }
+
     // Criar bolsa de horas
     const hoursBank = await HoursBank.create({
       organizationId: req.user.organizationId,
       clientId,
       totalHours,
       packageType,
-      startDate,
-      endDate,
+      startDate: startDate || null,
+      endDate: endDate || null,
+      allowNegativeBalance: allowNegativeBalance || false,
+      minBalance: allowNegativeBalance ? (minBalance || null) : null,
       notes,
       isActive: true
     });
@@ -268,17 +277,33 @@ export const consumeHours = async (req, res, next) => {
 
     // Verificar saldo disponível
     const available = parseFloat(hoursBank.totalHours) - parseFloat(hoursBank.usedHours);
-    if (parseFloat(hours) > available) {
+    const newUsedHours = parseFloat(hoursBank.usedHours) + parseFloat(hours);
+    const newBalance = parseFloat(hoursBank.totalHours) - newUsedHours;
+
+    // Validar saldo negativo
+    if (newBalance < 0 && !hoursBank.allowNegativeBalance) {
       return res.status(400).json({ 
-        error: 'Saldo insuficiente',
+        error: 'Saldo insuficiente. Esta bolsa não permite saldo negativo.',
         available,
         requested: parseFloat(hours)
       });
     }
 
+    // Se permite saldo negativo, verificar limite mínimo
+    if (hoursBank.allowNegativeBalance && hoursBank.minBalance !== null) {
+      if (newBalance < parseFloat(hoursBank.minBalance)) {
+        return res.status(400).json({ 
+          error: `Saldo mínimo atingido. Limite: ${hoursBank.minBalance}h`,
+          available,
+          requested: parseFloat(hours),
+          minBalance: parseFloat(hoursBank.minBalance)
+        });
+      }
+    }
+
     // Consumir horas
     await hoursBank.update({
-      usedHours: parseFloat(hoursBank.usedHours) + parseFloat(hours)
+      usedHours: newUsedHours
     });
 
     // Criar transação

@@ -46,11 +46,23 @@ const HoursBank = sequelize.define('HoursBank', {
   },
   startDate: {
     type: DataTypes.DATE,
-    allowNull: false
+    allowNull: true,
+    comment: 'Data de início (opcional - para pacotes com validade)'
   },
   endDate: {
     type: DataTypes.DATE,
-    allowNull: true
+    allowNull: true,
+    comment: 'Data de fim (opcional - para pacotes com validade)'
+  },
+  allowNegativeBalance: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: 'Permite saldo negativo (crédito para o cliente)'
+  },
+  minBalance: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    comment: 'Saldo mínimo permitido se negativo habilitado (ex: -10.00)'
   },
   isActive: {
     type: DataTypes.BOOLEAN,
