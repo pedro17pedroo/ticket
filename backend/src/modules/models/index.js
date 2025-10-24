@@ -28,6 +28,7 @@ const setupAssociations = () => {
 
   // User associations
   User.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  User.belongsTo(Direction, { foreignKey: 'directionId', as: 'direction' });
   User.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
   User.belongsTo(Section, { foreignKey: 'sectionId', as: 'section' });
   User.hasMany(Ticket, { foreignKey: 'requesterId', as: 'requestedTickets' });
@@ -39,6 +40,7 @@ const setupAssociations = () => {
   // Direction associations
   Direction.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Direction.belongsTo(User, { foreignKey: 'managerId', as: 'manager' });
+  Direction.hasMany(User, { foreignKey: 'directionId', as: 'users' });
   Direction.hasMany(Department, { foreignKey: 'directionId', as: 'departments' });
 
   // Department associations
