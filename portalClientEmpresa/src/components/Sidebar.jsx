@@ -9,6 +9,7 @@ import {
   Building2,
   FolderTree,
   Network,
+  Clock,
   X,
 } from 'lucide-react'
 
@@ -22,6 +23,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/tickets', icon: Ticket, label: 'Meus Tickets' },
     { path: '/tickets/new', icon: Plus, label: 'Novo Ticket' },
     { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento' },
+    { path: '/hours-bank', icon: Clock, label: 'Bolsa de Horas' },
     ...(isClientUser ? [
       { path: '/users', icon: Users, label: 'Utilizadores' },
       { path: '/directions', icon: Building2, label: 'Direções' },

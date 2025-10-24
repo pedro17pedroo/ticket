@@ -20,6 +20,8 @@ import * as clientController from '../modules/clients/clientController.js';
 import * as clientUsersController from '../modules/clients/clientUsersController.js';
 import * as clientUserController from '../modules/users/clientUserController.js';
 import * as clientStructureController from '../modules/clients/clientStructureController.js';
+import * as hoursController from '../modules/hours/hoursController.js';
+import * as clientHoursController from '../modules/hours/clientHoursController.js';
 
 const router = express.Router();
 
@@ -162,5 +164,24 @@ router.get('/client/sections', authenticate, authorize('cliente-org'), clientStr
 router.post('/client/sections', authenticate, authorize('cliente-org'), auditLog('create', 'client_section'), clientStructureController.createSection);
 router.put('/client/sections/:id', authenticate, authorize('cliente-org'), auditLog('update', 'client_section'), clientStructureController.updateSection);
 router.delete('/client/sections/:id', authenticate, authorize('cliente-org'), auditLog('delete', 'client_section'), clientStructureController.deleteSection);
+
+// ==================== CLIENT HOURS BANK (Bolsa de Horas - Cliente) ====================
+router.get('/client/hours-banks', authenticate, authorize('cliente-org'), clientHoursController.getClientHoursBanks);
+router.get('/client/hours-banks/:id', authenticate, authorize('cliente-org'), clientHoursController.getClientHoursBankById);
+router.get('/client/hours-banks/:id/transactions', authenticate, authorize('cliente-org'), clientHoursController.getClientHoursBankTransactions);
+router.get('/client/hours-transactions', authenticate, authorize('cliente-org'), clientHoursController.getClientAllTransactions);
+
+// ==================== HOURS BANK (Bolsa de Horas) ====================
+router.get('/hours-banks', authenticate, authorize('admin-org', 'agente'), hoursController.getHoursBanks);
+router.get('/hours-banks/statistics', authenticate, authorize('admin-org', 'agente'), hoursController.getStatistics);
+router.get('/hours-banks/:id', authenticate, authorize('admin-org', 'agente'), hoursController.getHoursBankById);
+router.post('/hours-banks', authenticate, authorize('admin-org'), auditLog('create', 'hours_bank'), hoursController.createHoursBank);
+router.put('/hours-banks/:id', authenticate, authorize('admin-org'), auditLog('update', 'hours_bank'), hoursController.updateHoursBank);
+router.post('/hours-banks/:id/add', authenticate, authorize('admin-org'), auditLog('update', 'hours_bank'), hoursController.addHours);
+router.post('/hours-banks/:id/consume', authenticate, authorize('admin-org', 'agente'), auditLog('update', 'hours_bank'), hoursController.consumeHours);
+router.post('/hours-banks/:id/adjust', authenticate, authorize('admin-org'), auditLog('update', 'hours_bank'), hoursController.adjustHours);
+
+// Hours Transactions
+router.get('/hours-transactions', authenticate, authorize('admin-org', 'agente'), hoursController.getTransactions);
 
 export default router;
