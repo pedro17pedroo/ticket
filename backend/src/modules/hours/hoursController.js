@@ -21,9 +21,9 @@ export const getHoursBanks = async (req, res, next) => {
       where,
       include: [
         {
-          model: Client,
+          model: User,
           as: 'client',
-          attributes: ['id', 'name', 'email', 'contactPhone']
+          attributes: ['id', 'name', 'email', 'phone']
         }
       ],
       limit: parseInt(limit),
@@ -56,9 +56,9 @@ export const getHoursBankById = async (req, res, next) => {
       },
       include: [
         {
-          model: Client,
+          model: User,
           as: 'client',
-          attributes: ['id', 'name', 'email', 'contactPhone']
+          attributes: ['id', 'name', 'email', 'phone']
         }
       ]
     });
@@ -101,10 +101,12 @@ export const createHoursBank = async (req, res, next) => {
     const { clientId, totalHours, packageType, startDate, endDate, notes } = req.body;
 
     // Verificar se cliente existe e pertence à organização
-    const client = await Client.findOne({
+    const client = await User.findOne({
       where: { 
         id: clientId,
-        organizationId: req.user.organizationId 
+        organizationId: req.user.organizationId,
+        role: 'cliente-org',
+        clientId: null // Deve ser empresa cliente, não utilizador
       }
     });
 
@@ -137,7 +139,7 @@ export const createHoursBank = async (req, res, next) => {
     await hoursBank.reload({
       include: [
         {
-          model: Client,
+          model: User,
           as: 'client',
           attributes: ['id', 'name', 'email']
         }
@@ -386,7 +388,7 @@ export const getTransactions = async (req, res, next) => {
           as: 'hoursBank',
           where: { organizationId: req.user.organizationId },
           include: [{
-            model: Client,
+            model: User,
             as: 'client',
             attributes: ['id', 'name']
           }]
@@ -437,7 +439,7 @@ export const getStatistics = async (req, res, next) => {
         [sequelize.fn('SUM', sequelize.col('used_hours')), 'usedHours']
       ],
       include: [{
-        model: Client,
+        model: User,
         as: 'client',
         attributes: ['id', 'name']
       }],
