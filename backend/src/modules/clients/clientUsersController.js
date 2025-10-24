@@ -1,4 +1,4 @@
-import { User } from '../models/index.js';
+import { User, Department, Section } from '../models/index.js';
 import { Op } from 'sequelize';
 import logger from '../../config/logger.js';
 
@@ -34,7 +34,12 @@ export const getClientUsers = async (req, res, next) => {
       },
       attributes: [
         'id', 'name', 'email', 'phone',
-        'isActive', 'createdAt', 'lastLogin', 'settings', 'clientId'
+        'isActive', 'createdAt', 'lastLogin', 'settings', 'clientId',
+        'departmentId', 'sectionId'
+      ],
+      include: [
+        { model: Department, as: 'department', attributes: ['id', 'name'] },
+        { model: Section, as: 'section', attributes: ['id', 'name'] }
       ],
       order: [['name', 'ASC']]
     });
@@ -57,7 +62,7 @@ export const getClientUsers = async (req, res, next) => {
 export const createClientUser = async (req, res, next) => {
   try {
     const { clientId } = req.params;
-    const { name, email, phone, password, isAdmin } = req.body;
+    const { name, email, phone, password, isAdmin, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
 
     // Verificar se o cliente existe
@@ -98,6 +103,8 @@ export const createClientUser = async (req, res, next) => {
       role: 'cliente-org',
       organizationId,
       clientId: clientId, // Pertence a esta empresa cliente
+      departmentId: departmentId || null,
+      sectionId: sectionId || null,
       isActive: true,
       settings: {
         notifications: true,
@@ -127,7 +134,7 @@ export const createClientUser = async (req, res, next) => {
 export const updateClientUser = async (req, res, next) => {
   try {
     const { clientId, userId } = req.params;
-    const { name, email, phone, isActive, isAdmin } = req.body;
+    const { name, email, phone, isActive, isAdmin, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
 
     // Verificar se o cliente existe
@@ -191,6 +198,8 @@ export const updateClientUser = async (req, res, next) => {
       email,
       phone,
       isActive,
+      departmentId: departmentId !== undefined ? departmentId : user.departmentId,
+      sectionId: sectionId !== undefined ? sectionId : user.sectionId,
       settings: updatedSettings
     });
 

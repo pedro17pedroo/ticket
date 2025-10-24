@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { User } from '../models/index.js';
+import { User, Department, Section } from '../models/index.js';
 import logger from '../../config/logger.js';
 
 const ensureClientAdmin = (req, res) => {
@@ -31,7 +31,11 @@ export const getClientUsers = async (req, res, next) => {
 
     const users = await User.findAll({
       where,
-      attributes: ['id','name','email','phone','isActive','createdAt','lastLogin','settings']
+      attributes: ['id','name','email','phone','isActive','createdAt','lastLogin','settings','departmentId','sectionId'],
+      include: [
+        { model: Department, as: 'department', attributes: ['id', 'name'] },
+        { model: Section, as: 'section', attributes: ['id', 'name'] }
+      ]
     });
 
     res.json({ success: true, users });
@@ -42,7 +46,7 @@ export const getClientUsers = async (req, res, next) => {
 export const createClientUser = async (req, res, next) => {
   try {
     if (!ensureClientAdmin(req, res)) return;
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone, password, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
     
     // Define clientId: se user atual tem clientId, usa-o; senão usa id do user atual (é a empresa raiz)
@@ -52,7 +56,10 @@ export const createClientUser = async (req, res, next) => {
     if (existing) return res.status(400).json({ success:false, error:'Email já está em uso nesta organização' });
 
     const user = await User.create({
-      name, email, phone, password, role: 'cliente-org', organizationId, clientId, isActive: true
+      name, email, phone, password, role: 'cliente-org', organizationId, clientId, 
+      departmentId: departmentId || null,
+      sectionId: sectionId || null,
+      isActive: true
     });
 
     const data = user.toJSON();
@@ -67,7 +74,7 @@ export const updateClientUser = async (req, res, next) => {
   try {
     if (!ensureClientAdmin(req, res)) return;
     const { id } = req.params;
-    const { name, email, phone, isActive } = req.body;
+    const { name, email, phone, isActive, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
 
     const user = await User.findOne({ where: { id, organizationId, role: 'cliente-org' } });
@@ -78,7 +85,11 @@ export const updateClientUser = async (req, res, next) => {
       if (exists) return res.status(400).json({ success:false, error:'Email já está em uso nesta organização' });
     }
 
-    await user.update({ name, email, phone, isActive });
+    await user.update({ 
+      name, email, phone, isActive,
+      departmentId: departmentId !== undefined ? departmentId : user.departmentId,
+      sectionId: sectionId !== undefined ? sectionId : user.sectionId
+    });
     const data = user.toJSON();
     delete data.password;
     res.json({ success:true, message:'Utilizador atualizado com sucesso', user: data });

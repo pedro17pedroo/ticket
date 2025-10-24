@@ -56,6 +56,14 @@ const User = sequelize.define('User', {
       key: 'id'
     }
   },
+  sectionId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'sections',
+      key: 'id'
+    }
+  },
   clientId: {
     type: DataTypes.UUID,
     allowNull: true,
@@ -92,7 +100,8 @@ const User = sequelize.define('User', {
     },
     { fields: ['organization_id'] },
     { fields: ['role'] },
-    { fields: ['department_id'] }
+    { fields: ['department_id'] },
+    { fields: ['section_id'] }
   ],
   hooks: {
     beforeCreate: async (user) => {
