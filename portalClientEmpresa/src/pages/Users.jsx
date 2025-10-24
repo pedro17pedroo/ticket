@@ -10,6 +10,7 @@ const Users = () => {
   const isClientAdmin = user?.role === 'cliente-org' && user?.settings?.clientAdmin === true
 
   const [users, setUsers] = useState([])
+  const [directions, setDirections] = useState([])
   const [departments, setDepartments] = useState([])
   const [sections, setSections] = useState([])
   const [loading, setLoading] = useState(true)
@@ -21,6 +22,7 @@ const Users = () => {
     email: '',
     phone: '',
     password: '',
+    directionId: '',
     departmentId: '',
     sectionId: '',
     isActive: true
@@ -33,12 +35,14 @@ const Users = () => {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [usersData, deptsRes, sectsRes] = await Promise.all([
+      const [usersData, dirsRes, deptsRes, sectsRes] = await Promise.all([
         clientUserService.getAll(),
+        api.get('/client/directions'),
         api.get('/client/departments'),
         api.get('/client/sections')
       ])
       setUsers(usersData.users || [])
+      setDirections(dirsRes.data.directions || [])
       setDepartments(deptsRes.data.departments || [])
       setSections(sectsRes.data.sections || [])
     } catch (error) {
@@ -56,6 +60,7 @@ const Users = () => {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
+          directionId: formData.directionId || null,
           departmentId: formData.departmentId || null,
           sectionId: formData.sectionId || null,
           isActive: formData.isActive
@@ -67,6 +72,7 @@ const Users = () => {
           email: formData.email,
           phone: formData.phone,
           password: formData.password,
+          directionId: formData.directionId || null,
           departmentId: formData.departmentId || null,
           sectionId: formData.sectionId || null
         })
@@ -87,6 +93,7 @@ const Users = () => {
       email: u.email,
       phone: u.phone || '',
       password: '',
+      directionId: u.directionId || '',
       departmentId: u.departmentId || '',
       sectionId: u.sectionId || '',
       isActive: u.isActive
@@ -142,7 +149,7 @@ const Users = () => {
   }
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', phone: '', password: '', departmentId: '', sectionId: '', isActive: true })
+    setFormData({ name: '', email: '', phone: '', password: '', directionId: '', departmentId: '', sectionId: '', isActive: true })
     setEditingUser(null)
   }
 
@@ -210,6 +217,11 @@ const Users = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4">
+                  {u.direction && (
+                    <div className="text-xs text-gray-600 font-medium mb-1">
+                      📍 {u.direction.name}
+                    </div>
+                  )}
                   {u.department && (
                     <div className="flex items-center gap-1 text-sm">
                       <Building2 className="w-4 h-4 text-gray-400" />
@@ -218,7 +230,7 @@ const Users = () => {
                   )}
                   {u.section && (
                     <div className="text-xs text-gray-500 ml-5">
-                      {u.section.name}
+                      → {u.section.name}
                     </div>
                   )}
                 </td>
@@ -291,14 +303,26 @@ const Users = () => {
                 )}
               </div>
 
+              <div>
+                <label className="block text-sm font-medium mb-2">Direção</label>
+                <select value={formData.directionId} onChange={(e)=>setFormData({ ...formData, directionId: e.target.value, departmentId: '', sectionId: '' })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700">
+                  <option value="">Sem direção</option>
+                  {directions.map((dir) => (
+                    <option key={dir.id} value={dir.id}>{dir.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Departamento</label>
-                  <select value={formData.departmentId} onChange={(e)=>setFormData({ ...formData, departmentId: e.target.value, sectionId: '' })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700">
+                  <select value={formData.departmentId} onChange={(e)=>setFormData({ ...formData, departmentId: e.target.value, sectionId: '' })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" disabled={!formData.directionId}>
                     <option value="">Sem departamento</option>
-                    {departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
+                    {departments
+                      .filter(dept => !formData.directionId || dept.directionId === formData.directionId)
+                      .map((dept) => (
+                        <option key={dept.id} value={dept.id}>{dept.name}</option>
+                      ))}
                   </select>
                 </div>
                 <div>

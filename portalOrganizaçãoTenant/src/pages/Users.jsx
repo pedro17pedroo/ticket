@@ -6,6 +6,7 @@ import Swal from 'sweetalert2'
 
 const Users = () => {
   const [users, setUsers] = useState([])
+  const [directions, setDirections] = useState([])
   const [departments, setDepartments] = useState([])
   const [sections, setSections] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,6 +20,7 @@ const Users = () => {
     phone: '',
     password: '',
     role: 'user-org',
+    directionId: '',
     departmentId: '',
     sectionId: '',
     isActive: true
@@ -36,12 +38,14 @@ const Users = () => {
 
   const loadData = async () => {
     try {
-      const [usersRes, deptsRes, sectsRes] = await Promise.all([
+      const [usersRes, dirsRes, deptsRes, sectsRes] = await Promise.all([
         api.get('/users'),
+        api.get('/directions'),
         api.get('/departments'),
         api.get('/sections')
       ])
       setUsers(usersRes.data.users || [])
+      setDirections(dirsRes.data.directions || [])
       setDepartments(deptsRes.data.departments || [])
       setSections(sectsRes.data.sections || [])
     } catch (error) {
@@ -57,6 +61,7 @@ const Users = () => {
     try {
       const payload = {
         ...formData,
+        directionId: formData.directionId || null,
         departmentId: formData.departmentId || null,
         sectionId: formData.sectionId || null
       }
@@ -86,6 +91,7 @@ const Users = () => {
       phone: user.phone || '',
       password: '',
       role: user.role,
+      directionId: user.directionId || '',
       departmentId: user.departmentId || '',
       sectionId: user.sectionId || '',
       isActive: user.isActive
@@ -158,6 +164,7 @@ const Users = () => {
       phone: '',
       password: '',
       role: 'user-org',
+      directionId: '',
       departmentId: '',
       sectionId: '',
       isActive: true
@@ -269,6 +276,11 @@ const Users = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4">
+                  {user.direction && (
+                    <div className="text-xs text-gray-600 font-medium mb-1">
+                      📍 {user.direction.name}
+                    </div>
+                  )}
                   {user.department && (
                     <div className="flex items-center gap-1 text-sm">
                       <Building2 className="w-4 h-4 text-gray-400" />
@@ -277,7 +289,7 @@ const Users = () => {
                   )}
                   {user.section && (
                     <div className="text-xs text-gray-500 ml-5">
-                      {user.section.name}
+                      → {user.section.name}
                     </div>
                   )}
                 </td>
@@ -411,18 +423,45 @@ const Users = () => {
                 </div>
               )}
 
+              {/* Direção */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Direção</label>
+                <select
+                  value={formData.directionId}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    directionId: e.target.value,
+                    departmentId: '', // Limpar departamento ao mudar direção
+                    sectionId: '' // Limpar secção ao mudar direção
+                  })}
+                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
+                >
+                  <option value="">Sem direção</option>
+                  {directions.map((dir) => (
+                    <option key={dir.id} value={dir.id}>{dir.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Departamento</label>
                   <select
                     value={formData.departmentId}
-                    onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      departmentId: e.target.value,
+                      sectionId: '' // Limpar secção ao mudar departamento
+                    })}
                     className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
+                    disabled={!formData.directionId}
                   >
                     <option value="">Sem departamento</option>
-                    {departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
+                    {departments
+                      .filter(dept => !formData.directionId || dept.directionId === formData.directionId)
+                      .map((dept) => (
+                        <option key={dept.id} value={dept.id}>{dept.name}</option>
+                      ))}
                   </select>
                 </div>
 
@@ -432,10 +471,11 @@ const Users = () => {
                     value={formData.sectionId}
                     onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
                     className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
+                    disabled={!formData.departmentId}
                   >
                     <option value="">Sem secção</option>
                     {sections
-                      .filter(s => !formData.departmentId || s.departmentId === formData.departmentId)
+                      .filter(s => formData.departmentId && s.departmentId === formData.departmentId)
                       .map((sect) => (
                         <option key={sect.id} value={sect.id}>{sect.name}</option>
                       ))}

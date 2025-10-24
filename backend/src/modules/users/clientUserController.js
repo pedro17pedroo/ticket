@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { User, Department, Section } from '../models/index.js';
+import { User, Direction, Department, Section } from '../models/index.js';
 import logger from '../../config/logger.js';
 
 const ensureClientAdmin = (req, res) => {
@@ -31,8 +31,9 @@ export const getClientUsers = async (req, res, next) => {
 
     const users = await User.findAll({
       where,
-      attributes: ['id','name','email','phone','isActive','createdAt','lastLogin','settings','departmentId','sectionId'],
+      attributes: ['id','name','email','phone','isActive','createdAt','lastLogin','settings','directionId','departmentId','sectionId'],
       include: [
+        { model: Direction, as: 'direction', attributes: ['id', 'name'] },
         { model: Department, as: 'department', attributes: ['id', 'name'] },
         { model: Section, as: 'section', attributes: ['id', 'name'] }
       ]
@@ -46,7 +47,7 @@ export const getClientUsers = async (req, res, next) => {
 export const createClientUser = async (req, res, next) => {
   try {
     if (!ensureClientAdmin(req, res)) return;
-    const { name, email, phone, password, departmentId, sectionId } = req.body;
+    const { name, email, phone, password, directionId, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
     
     // Define clientId: se user atual tem clientId, usa-o; senão usa id do user atual (é a empresa raiz)
@@ -57,6 +58,7 @@ export const createClientUser = async (req, res, next) => {
 
     const user = await User.create({
       name, email, phone, password, role: 'cliente-org', organizationId, clientId, 
+      directionId: directionId || null,
       departmentId: departmentId || null,
       sectionId: sectionId || null,
       isActive: true
@@ -74,7 +76,7 @@ export const updateClientUser = async (req, res, next) => {
   try {
     if (!ensureClientAdmin(req, res)) return;
     const { id } = req.params;
-    const { name, email, phone, isActive, departmentId, sectionId } = req.body;
+    const { name, email, phone, isActive, directionId, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
 
     const user = await User.findOne({ where: { id, organizationId, role: 'cliente-org' } });
@@ -87,6 +89,7 @@ export const updateClientUser = async (req, res, next) => {
 
     await user.update({ 
       name, email, phone, isActive,
+      directionId: directionId !== undefined ? directionId : user.directionId,
       departmentId: departmentId !== undefined ? departmentId : user.departmentId,
       sectionId: sectionId !== undefined ? sectionId : user.sectionId
     });

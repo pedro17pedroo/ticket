@@ -1,4 +1,4 @@
-import { User, Organization, Department, Section } from '../models/index.js';
+import { User, Organization, Direction, Department, Section } from '../models/index.js';
 import { Op } from 'sequelize';
 import logger from '../../config/logger.js';
 
@@ -34,9 +34,14 @@ export const getUsers = async (req, res, next) => {
       attributes: [
         'id', 'name', 'email', 'phone', 'role',
         'isActive', 'createdAt', 'lastLogin',
-        'departmentId', 'sectionId'
+        'directionId', 'departmentId', 'sectionId'
       ],
       include: [
+        {
+          model: Direction,
+          as: 'direction',
+          attributes: ['id', 'name']
+        },
         {
           model: Department,
           as: 'department',
@@ -75,9 +80,14 @@ export const getUserById = async (req, res, next) => {
       attributes: [
         'id', 'name', 'email', 'phone', 'role',
         'isActive', 'createdAt', 'lastLogin',
-        'departmentId', 'sectionId'
+        'directionId', 'departmentId', 'sectionId'
       ],
       include: [
+        {
+          model: Direction,
+          as: 'direction',
+          attributes: ['id', 'name']
+        },
         {
           model: Department,
           as: 'department',
@@ -110,7 +120,7 @@ export const getUserById = async (req, res, next) => {
 // POST /api/users - Criar usuário
 export const createUser = async (req, res, next) => {
   try {
-    const { name, email, phone, password, role, departmentId, sectionId } = req.body;
+    const { name, email, phone, password, role, directionId, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
 
     // Apenas admin pode criar usuários
@@ -151,6 +161,7 @@ export const createUser = async (req, res, next) => {
       password, // Será hasheado pelo hook do modelo
       role: role || 'user-org',
       organizationId,
+      directionId: directionId || null,
       departmentId: departmentId || null,
       sectionId: sectionId || null,
       isActive: true
@@ -176,7 +187,7 @@ export const createUser = async (req, res, next) => {
 export const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, role, departmentId, sectionId, isActive } = req.body;
+    const { name, email, phone, role, directionId, departmentId, sectionId, isActive } = req.body;
     const organizationId = req.user.organizationId;
 
     if (req.user.role !== 'admin-org' && req.user.role !== 'super-admin') {
@@ -232,8 +243,9 @@ export const updateUser = async (req, res, next) => {
       email,
       phone,
       role,
-      departmentId: departmentId || null,
-      sectionId: sectionId || null,
+      directionId: directionId !== undefined ? (directionId || null) : user.directionId,
+      departmentId: departmentId !== undefined ? (departmentId || null) : user.departmentId,
+      sectionId: sectionId !== undefined ? (sectionId || null) : user.sectionId,
       isActive
     });
 

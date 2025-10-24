@@ -48,6 +48,14 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  directionId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'directions',
+      key: 'id'
+    }
+  },
   departmentId: {
     type: DataTypes.UUID,
     allowNull: true,
@@ -100,6 +108,7 @@ const User = sequelize.define('User', {
     },
     { fields: ['organization_id'] },
     { fields: ['role'] },
+    { fields: ['direction_id'] },
     { fields: ['department_id'] },
     { fields: ['section_id'] }
   ],
