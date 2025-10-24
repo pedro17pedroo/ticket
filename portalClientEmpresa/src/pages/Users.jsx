@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, UserX, UserCheck, Mail, Phone, Search, X, Key } from 'lucide-react'
+import { Plus, Edit2, UserX, UserCheck, Mail, Phone, Search, X, Key, Building2 } from 'lucide-react'
 import api, { clientUserService } from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
 import { useAuthStore } from '../store/authStore'
@@ -10,6 +10,8 @@ const Users = () => {
   const isClientAdmin = user?.role === 'cliente-org' && user?.settings?.clientAdmin === true
 
   const [users, setUsers] = useState([])
+  const [departments, setDepartments] = useState([])
+  const [sections, setSections] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
@@ -19,6 +21,8 @@ const Users = () => {
     email: '',
     phone: '',
     password: '',
+    departmentId: '',
+    sectionId: '',
     isActive: true
   })
 
@@ -29,8 +33,14 @@ const Users = () => {
   const loadData = async () => {
     setLoading(true)
     try {
-      const data = await clientUserService.getAll()
-      setUsers(data.users || [])
+      const [usersData, deptsRes, sectsRes] = await Promise.all([
+        clientUserService.getAll(),
+        api.get('/client/departments'),
+        api.get('/client/sections')
+      ])
+      setUsers(usersData.users || [])
+      setDepartments(deptsRes.data.departments || [])
+      setSections(sectsRes.data.sections || [])
     } catch (error) {
       console.error('Erro:', error)
     } finally {
@@ -46,6 +56,8 @@ const Users = () => {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
+          departmentId: formData.departmentId || null,
+          sectionId: formData.sectionId || null,
           isActive: formData.isActive
         })
         showSuccess('Atualizado!', 'Utilizador atualizado com sucesso')
@@ -54,7 +66,9 @@ const Users = () => {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          password: formData.password
+          password: formData.password,
+          departmentId: formData.departmentId || null,
+          sectionId: formData.sectionId || null
         })
         showSuccess('Criado!', 'Utilizador criado com sucesso')
       }
@@ -73,6 +87,8 @@ const Users = () => {
       email: u.email,
       phone: u.phone || '',
       password: '',
+      departmentId: u.departmentId || '',
+      sectionId: u.sectionId || '',
       isActive: u.isActive
     })
     setShowModal(true)
@@ -126,7 +142,7 @@ const Users = () => {
   }
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', phone: '', password: '', isActive: true })
+    setFormData({ name: '', email: '', phone: '', password: '', departmentId: '', sectionId: '', isActive: true })
     setEditingUser(null)
   }
 
@@ -172,6 +188,7 @@ const Users = () => {
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               <th className="text-left px-6 py-3 text-sm font-medium">Utilizador</th>
+              <th className="text-left px-6 py-3 text-sm font-medium">Departamento/Secção</th>
               <th className="text-center px-6 py-3 text-sm font-medium">Estado</th>
               <th className="text-right px-6 py-3 text-sm font-medium">Ações</th>
             </tr>
@@ -191,6 +208,19 @@ const Users = () => {
                       </div>
                     )}
                   </div>
+                </td>
+                <td className="px-6 py-4">
+                  {u.department && (
+                    <div className="flex items-center gap-1 text-sm">
+                      <Building2 className="w-4 h-4 text-gray-400" />
+                      <span>{u.department.name}</span>
+                    </div>
+                  )}
+                  {u.section && (
+                    <div className="text-xs text-gray-500 ml-5">
+                      {u.section.name}
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-center">
                   <span className={`px-2 py-1 text-xs rounded-full ${u.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
@@ -259,6 +289,29 @@ const Users = () => {
                     <input type="password" value={formData.password} onChange={(e)=>setFormData({ ...formData, password: e.target.value })} minLength={6} required className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
                   </div>
                 )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Departamento</label>
+                  <select value={formData.departmentId} onChange={(e)=>setFormData({ ...formData, departmentId: e.target.value, sectionId: '' })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700">
+                    <option value="">Sem departamento</option>
+                    {departments.map((dept) => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Secção</label>
+                  <select value={formData.sectionId} onChange={(e)=>setFormData({ ...formData, sectionId: e.target.value })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" disabled={!formData.departmentId}>
+                    <option value="">Sem secção</option>
+                    {sections
+                      .filter(s => formData.departmentId && s.departmentId === formData.departmentId)
+                      .map((sect) => (
+                        <option key={sect.id} value={sect.id}>{sect.name}</option>
+                      ))}
+                  </select>
+                </div>
               </div>
 
               {editingUser && (
