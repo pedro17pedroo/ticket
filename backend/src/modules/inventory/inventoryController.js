@@ -836,9 +836,17 @@ export const browserCollect = async (req, res, next) => {
     logger.error('Erro ao processar coleta via navegador:', {
       message: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      sql: error.sql,
+      original: error.original?.message
     });
-    next(error);
+    
+    // Retornar erro detalhado para debug
+    res.status(500).json({
+      error: 'Erro ao processar inventário',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
