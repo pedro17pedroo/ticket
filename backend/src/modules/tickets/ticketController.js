@@ -282,9 +282,27 @@ export const updateTicket = async (req, res, next) => {
       }
     }
 
+    // Auto-consumir tempo rastreado ao concluir ticket
+    let autoConsumeResult = null;
+    if (updates.status === 'concluido' && oldStatus !== 'concluido') {
+      const { autoConsumeOnTicketComplete } = await import('../timeTracking/timeTrackingController.js');
+      autoConsumeResult = await autoConsumeOnTicketComplete(
+        ticket.id,
+        req.user.id,
+        req.user.organizationId
+      );
+      
+      if (autoConsumeResult.success) {
+        logger.info(`Auto-consumo executado: ${autoConsumeResult.consumedHours}h`);
+      } else {
+        logger.info(`Auto-consumo não executado: ${autoConsumeResult.message}`);
+      }
+    }
+
     res.json({
       message: 'Ticket atualizado com sucesso',
-      ticket
+      ticket,
+      autoConsumeResult
     });
   } catch (error) {
     next(error);

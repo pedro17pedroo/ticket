@@ -11,6 +11,10 @@ import SLA from '../slas/slaModel.js';
 import Priority from '../priorities/priorityModel.js';
 import KnowledgeArticle from '../knowledge/knowledgeModel.js';
 import { HoursBank, HoursTransaction } from '../hours/hoursBankModel.js';
+import TimeTracking from '../timeTracking/timeTrackingModel.js';
+import { Tag, TicketTag } from '../tags/tagModel.js';
+import ResponseTemplate from '../templates/templateModel.js';
+import { CatalogCategory, CatalogItem, ServiceRequest } from '../catalog/catalogModel.js';
 
 // Definir associações entre modelos
 const setupAssociations = () => {
@@ -100,6 +104,52 @@ const setupAssociations = () => {
   HoursTransaction.belongsTo(HoursBank, { foreignKey: 'hoursBankId', as: 'hoursBank' });
   HoursTransaction.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   HoursTransaction.belongsTo(User, { foreignKey: 'performedById', as: 'performedBy' });
+
+  // TimeTracking associations
+  TimeTracking.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+  TimeTracking.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+  TimeTracking.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  TimeTracking.belongsTo(HoursBank, { foreignKey: 'hoursBankId', as: 'hoursBank' });
+  Ticket.hasMany(TimeTracking, { foreignKey: 'ticketId', as: 'timeTracking' });
+  User.hasMany(TimeTracking, { foreignKey: 'userId', as: 'timeTracking' });
+
+  // Tag associations
+  Tag.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Organization.hasMany(Tag, { foreignKey: 'organizationId', as: 'tags' });
+  
+  // Ticket-Tag associations (many-to-many)
+  TicketTag.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+  TicketTag.belongsTo(Tag, { foreignKey: 'tagId', as: 'tag' });
+  Ticket.belongsToMany(Tag, { through: TicketTag, foreignKey: 'ticketId', as: 'tags' });
+  Tag.belongsToMany(Ticket, { through: TicketTag, foreignKey: 'tagId', as: 'tickets' });
+
+  // ResponseTemplate associations
+  ResponseTemplate.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  ResponseTemplate.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+  ResponseTemplate.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
+  Organization.hasMany(ResponseTemplate, { foreignKey: 'organizationId', as: 'templates' });
+  User.hasMany(ResponseTemplate, { foreignKey: 'createdBy', as: 'templates' });
+  Category.hasMany(ResponseTemplate, { foreignKey: 'categoryId', as: 'templates' });
+
+  // Catalog associations
+  CatalogCategory.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Organization.hasMany(CatalogCategory, { foreignKey: 'organizationId', as: 'catalogCategories' });
+  
+  CatalogItem.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  CatalogItem.belongsTo(CatalogCategory, { foreignKey: 'categoryId', as: 'category' });
+  CatalogItem.belongsTo(SLA, { foreignKey: 'slaId', as: 'sla' });
+  CatalogItem.belongsTo(Category, { foreignKey: 'defaultTicketCategoryId', as: 'ticketCategory' });
+  CatalogItem.belongsTo(User, { foreignKey: 'defaultApproverId', as: 'approver' });
+  CatalogItem.belongsTo(Department, { foreignKey: 'assignedDepartmentId', as: 'department' });
+  CatalogCategory.hasMany(CatalogItem, { foreignKey: 'categoryId', as: 'items' });
+  
+  ServiceRequest.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  ServiceRequest.belongsTo(CatalogItem, { foreignKey: 'catalogItemId', as: 'catalogItem' });
+  ServiceRequest.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
+  ServiceRequest.belongsTo(User, { foreignKey: 'approverId', as: 'approver' });
+  ServiceRequest.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+  CatalogItem.hasMany(ServiceRequest, { foreignKey: 'catalogItemId', as: 'requests' });
+  Ticket.hasOne(ServiceRequest, { foreignKey: 'ticketId', as: 'serviceRequest' });
 };
 
 export {
@@ -117,5 +167,12 @@ export {
   KnowledgeArticle,
   HoursBank,
   HoursTransaction,
+  TimeTracking,
+  Tag,
+  TicketTag,
+  ResponseTemplate,
+  CatalogCategory,
+  CatalogItem,
+  ServiceRequest,
   setupAssociations
 };

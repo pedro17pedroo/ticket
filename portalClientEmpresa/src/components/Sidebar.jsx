@@ -10,6 +10,7 @@ import {
   FolderTree,
   Network,
   Clock,
+  ShoppingCart,
   X,
 } from 'lucide-react'
 
@@ -20,6 +21,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   const menuItems = [
     { path: '/', icon: Home, label: 'Início' },
+    { path: '/catalog', icon: ShoppingCart, label: 'Catálogo de Serviços' },
     { path: '/tickets', icon: Ticket, label: 'Meus Tickets' },
     { path: '/tickets/new', icon: Plus, label: 'Novo Ticket' },
     { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento' },

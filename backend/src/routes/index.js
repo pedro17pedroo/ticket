@@ -22,6 +22,11 @@ import * as clientUserController from '../modules/users/clientUserController.js'
 import * as clientStructureController from '../modules/clients/clientStructureController.js';
 import * as hoursController from '../modules/hours/hoursController.js';
 import * as clientHoursController from '../modules/hours/clientHoursController.js';
+import * as timeTrackingController from '../modules/timeTracking/timeTrackingController.js';
+import * as tagController from '../modules/tags/tagController.js';
+import * as templateController from '../modules/templates/templateController.js';
+import * as ticketMergeController from '../modules/tickets/ticketMergeController.js';
+import * as catalogController from '../modules/catalog/catalogController.js';
 
 const router = express.Router();
 
@@ -186,5 +191,55 @@ router.get('/hours-transactions', authenticate, authorize('admin-org', 'agente')
 
 // Tickets para consumo de horas
 router.get('/hours-banks/tickets/completed', authenticate, authorize('admin-org', 'agente'), hoursController.getCompletedTickets);
+
+// ==================== TIME TRACKING (Cronômetro) ====================
+router.post('/tickets/:ticketId/timer/start', authenticate, timeTrackingController.startTimer);
+router.put('/timers/:id/pause', authenticate, timeTrackingController.pauseTimer);
+router.put('/timers/:id/resume', authenticate, timeTrackingController.resumeTimer);
+router.put('/timers/:id/stop', authenticate, timeTrackingController.stopTimer);
+router.get('/tickets/:ticketId/timer/active', authenticate, timeTrackingController.getActiveTimer);
+router.get('/tickets/:ticketId/timers', authenticate, timeTrackingController.getTicketTimers);
+
+// ==================== TAGS ====================
+router.get('/tags', authenticate, tagController.getTags);
+router.post('/tags', authenticate, authorize('admin-org'), auditLog('create', 'tag'), tagController.createTag);
+router.put('/tags/:id', authenticate, authorize('admin-org'), auditLog('update', 'tag'), tagController.updateTag);
+router.delete('/tags/:id', authenticate, authorize('admin-org'), auditLog('delete', 'tag'), tagController.deleteTag);
+router.post('/tickets/:ticketId/tags', authenticate, tagController.addTagToTicket);
+router.delete('/tickets/:ticketId/tags/:tagId', authenticate, tagController.removeTagFromTicket);
+router.get('/tickets/:ticketId/tags', authenticate, tagController.getTicketTags);
+
+// ==================== RESPONSE TEMPLATES ====================
+router.get('/templates', authenticate, templateController.getTemplates);
+router.post('/templates', authenticate, auditLog('create', 'template'), templateController.createTemplate);
+router.get('/templates/:id', authenticate, templateController.getTemplateById);
+router.put('/templates/:id', authenticate, auditLog('update', 'template'), templateController.updateTemplate);
+router.delete('/templates/:id', authenticate, auditLog('delete', 'template'), templateController.deleteTemplate);
+
+// ==================== TICKET MERGE ====================
+router.post('/tickets/merge', authenticate, authorize('admin-org', 'agente'), auditLog('update', 'ticket'), ticketMergeController.mergeTickets);
+router.get('/tickets/:ticketId/duplicates', authenticate, ticketMergeController.findDuplicates);
+
+// ==================== SERVICE CATALOG ====================
+// Categorias do catálogo
+router.get('/catalog/categories', authenticate, catalogController.getCatalogCategories);
+router.post('/catalog/categories', authenticate, authorize('admin-org'), auditLog('create', 'catalog_category'), catalogController.createCatalogCategory);
+router.put('/catalog/categories/:id', authenticate, authorize('admin-org'), auditLog('update', 'catalog_category'), catalogController.updateCatalogCategory);
+router.delete('/catalog/categories/:id', authenticate, authorize('admin-org'), auditLog('delete', 'catalog_category'), catalogController.deleteCatalogCategory);
+
+// Itens do catálogo
+router.get('/catalog/items', authenticate, catalogController.getCatalogItems);
+router.get('/catalog/items/:id', authenticate, catalogController.getCatalogItemById);
+router.post('/catalog/items', authenticate, authorize('admin-org'), auditLog('create', 'catalog_item'), catalogController.createCatalogItem);
+router.put('/catalog/items/:id', authenticate, authorize('admin-org'), auditLog('update', 'catalog_item'), catalogController.updateCatalogItem);
+router.delete('/catalog/items/:id', authenticate, authorize('admin-org'), auditLog('delete', 'catalog_item'), catalogController.deleteCatalogItem);
+
+// Service Requests
+router.post('/catalog/requests', authenticate, auditLog('create', 'service_request'), catalogController.createServiceRequest);
+router.get('/catalog/requests', authenticate, catalogController.getServiceRequests);
+router.post('/catalog/requests/:id/approve', authenticate, authorize('admin-org', 'agente'), auditLog('update', 'service_request'), catalogController.approveServiceRequest);
+
+// Estatísticas
+router.get('/catalog/statistics', authenticate, catalogController.getCatalogStatistics);
 
 export default router;

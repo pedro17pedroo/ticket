@@ -15,6 +15,7 @@ import Directions from './pages/Directions'
 import Departments from './pages/Departments'
 import Sections from './pages/Sections'
 import HoursBank from './pages/HoursBank'
+import ServiceCatalog from './pages/ServiceCatalog'
 
 const PrivateRoute = ({ children }) => {
   const { token } = useAuthStore()
@@ -68,6 +69,7 @@ function App() {
                   <Route path="/departments" element={<Departments />} />
                   <Route path="/sections" element={<Sections />} />
                   <Route path="/hours-bank" element={<HoursBank />} />
+                  <Route path="/catalog" element={<ServiceCatalog />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </Layout>
