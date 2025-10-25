@@ -148,7 +148,7 @@ const Knowledge = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">{editingArticle ? 'Editar' : 'Novo'} Artigo</h2>
             <form onSubmit={handleSubmit} className="space-y-4">

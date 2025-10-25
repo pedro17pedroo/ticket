@@ -338,7 +338,7 @@ const HoursBank = () => {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold mb-4">Nova Bolsa de Horas</h2>
             <form onSubmit={handleCreateBank} className="space-y-4">
@@ -465,7 +465,7 @@ const HoursBank = () => {
 
       {/* Add Hours Modal */}
       {showAddHoursModal && selectedBank && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold mb-4">Adicionar Horas</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -523,7 +523,7 @@ const HoursBank = () => {
 
       {/* Consume Hours Modal */}
       {showConsumeModal && selectedBank && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold mb-4">Consumir Horas</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -602,7 +602,7 @@ const HoursBank = () => {
 
       {/* Transactions Modal */}
       {showTransactionsModal && selectedBank && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">Histórico de Transações</h2>

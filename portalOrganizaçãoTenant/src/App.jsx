@@ -18,6 +18,7 @@ import Knowledge from './pages/Knowledge'
 import SLAs from './pages/SLAs'
 import Priorities from './pages/Priorities'
 import Types from './pages/Types'
+import HoursBank from './pages/HoursBank'
 import Settings from './pages/Settings'
 
 // Componente de rota protegida
@@ -76,6 +77,7 @@ function App() {
                   <Route path="/slas" element={<SLAs />} />
                   <Route path="/priorities" element={<Priorities />} />
                   <Route path="/types" element={<Types />} />
+                  <Route path="/hours-bank" element={<HoursBank />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>

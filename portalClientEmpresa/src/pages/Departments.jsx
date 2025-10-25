@@ -165,7 +165,7 @@ const Departments = () => {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full">
             <div className="flex items-center justify-between p-6 border-b">
               <h3 className="text-xl font-bold">{editingDepartment ? 'Editar' : 'Novo'} Departamento</h3>

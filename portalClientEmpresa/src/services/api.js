@@ -153,3 +153,23 @@ export const clientUserService = {
     return response.data
   }
 }
+
+// Hours Bank - Cliente
+export const hoursBankService = {
+  getAll: async () => {
+    const response = await api.get('/client/hours-banks')
+    return response.data
+  },
+  getById: async (id) => {
+    const response = await api.get(`/client/hours-banks/${id}`)
+    return response.data
+  },
+  getTransactions: async (id, params = {}) => {
+    const response = await api.get(`/client/hours-banks/${id}/transactions`, { params })
+    return response.data
+  },
+  getAllTransactions: async (params = {}) => {
+    const response = await api.get('/client/hours-transactions', { params })
+    return response.data
+  }
+}

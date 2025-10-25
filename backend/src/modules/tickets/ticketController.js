@@ -2,6 +2,7 @@ import { Ticket, User, Department, Category, Comment } from '../models/index.js'
 import Attachment from '../attachments/attachmentModel.js';
 import { Op } from 'sequelize';
 import logger from '../../config/logger.js';
+import emailService from '../../services/emailService.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -149,7 +150,7 @@ export const getTicketById = async (req, res, next) => {
 // Criar ticket
 export const createTicket = async (req, res, next) => {
   try {
-    const { subject, description, priority, type, categoryId, departmentId } = req.body;
+    const { subject, description, priority, type, categoryId, departmentId, assigneeId } = req.body;
 
     // Gerar número do ticket
     const date = new Date();
@@ -160,6 +161,7 @@ export const createTicket = async (req, res, next) => {
     const ticket = await Ticket.create({
       organizationId: req.user.organizationId,
       requesterId: req.user.id,
+      assigneeId: assigneeId || null,
       ticketNumber,
       subject,
       description,
@@ -174,12 +176,19 @@ export const createTicket = async (req, res, next) => {
     const fullTicket = await Ticket.findByPk(ticket.id, {
       include: [
         { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+        { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] },
         { model: Category, as: 'category', attributes: ['id', 'name'] },
         { model: Department, as: 'department', attributes: ['id', 'name'] }
       ]
     });
 
     logger.info(`Ticket criado: ${ticket.ticketNumber} por ${req.user.email}`);
+
+    // Enviar notificação por email (async - não bloqueia a resposta)
+    if (fullTicket.assignee) {
+      emailService.notifyNewTicket(fullTicket, fullTicket.requester, fullTicket.assignee)
+        .catch(err => logger.error('Erro ao enviar notificação de novo ticket:', err));
+    }
 
     res.status(201).json({
       message: 'Ticket criado com sucesso',
@@ -197,7 +206,11 @@ export const updateTicket = async (req, res, next) => {
     const updates = req.body;
 
     const ticket = await Ticket.findOne({
-      where: { id, organizationId: req.user.organizationId }
+      where: { id, organizationId: req.user.organizationId },
+      include: [
+        { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+        { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+      ]
     });
 
     if (!ticket) {
@@ -208,6 +221,10 @@ export const updateTicket = async (req, res, next) => {
     if (req.user.role === 'cliente-org') {
       return res.status(403).json({ error: 'Clientes não podem atualizar tickets diretamente' });
     }
+
+    // Guardar valores anteriores para notificações
+    const oldStatus = ticket.status;
+    const oldAssigneeId = ticket.assigneeId;
 
     // Atualizar campos permitidos
     const allowedFields = ['subject', 'description', 'status', 'priority', 'assigneeId', 'departmentId'];
@@ -229,7 +246,41 @@ export const updateTicket = async (req, res, next) => {
 
     await ticket.update(updateData);
 
+    // Recarregar ticket com relações atualizadas
+    await ticket.reload({
+      include: [
+        { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+        { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+      ]
+    });
+
     logger.info(`Ticket atualizado: ${ticket.ticketNumber} por ${req.user.email}`);
+
+    // Notificações (async - não bloqueia resposta)
+    const currentUser = await User.findByPk(req.user.id, { attributes: ['id', 'name', 'email'] });
+
+    // Notificar mudança de status
+    if (updates.status && oldStatus !== updates.status) {
+      const recipients = [];
+      if (ticket.requester?.email) recipients.push(ticket.requester.email);
+      if (ticket.assignee?.email && ticket.assignee.email !== req.user.email) {
+        recipients.push(ticket.assignee.email);
+      }
+      
+      if (recipients.length > 0) {
+        emailService.notifyStatusChange(ticket, oldStatus, updates.status, currentUser, recipients)
+          .catch(err => logger.error('Erro ao enviar notificação de mudança de status:', err));
+      }
+    }
+
+    // Notificar nova atribuição
+    if (updates.assigneeId && oldAssigneeId !== updates.assigneeId) {
+      const newAssignee = await User.findByPk(updates.assigneeId, { attributes: ['id', 'name', 'email'] });
+      if (newAssignee) {
+        emailService.notifyTicketAssignment(ticket, newAssignee, currentUser)
+          .catch(err => logger.error('Erro ao enviar notificação de atribuição:', err));
+      }
+    }
 
     res.json({
       message: 'Ticket atualizado com sucesso',
@@ -247,7 +298,11 @@ export const addComment = async (req, res, next) => {
     const { content, isPrivate, isInternal } = req.body;
 
     const ticket = await Ticket.findOne({
-      where: { id: ticketId, organizationId: req.user.organizationId }
+      where: { id: ticketId, organizationId: req.user.organizationId },
+      include: [
+        { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+        { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+      ]
     });
 
     if (!ticket) {
@@ -275,11 +330,41 @@ export const addComment = async (req, res, next) => {
       include: [{
         model: User,
         as: 'user',
-        attributes: ['id', 'name', 'avatar', 'role']
+        attributes: ['id', 'name', 'avatar', 'role', 'email']
       }]
     });
 
     logger.info(`Comentário adicionado ao ticket ${ticket.ticketNumber} por ${req.user.email}`);
+
+    // Enviar notificações (async - não bloqueia resposta)
+    const recipients = [];
+    
+    // Se for comentário interno, notificar apenas agentes
+    if (comment.isInternal) {
+      if (ticket.assignee?.email && ticket.assignee.email !== req.user.email) {
+        recipients.push(ticket.assignee.email);
+      }
+      // TODO: Adicionar outros agentes/admins se necessário
+    } else {
+      // Comentário público: notificar solicitante e agente
+      if (req.user.role !== 'cliente-org' && ticket.requester?.email) {
+        // Agente comentou - notificar cliente
+        emailService.notifyRequesterResponse(ticket, comment, fullComment.user)
+          .catch(err => logger.error('Erro ao notificar solicitante:', err));
+      }
+      
+      if (ticket.assignee?.email && ticket.assignee.email !== req.user.email) {
+        recipients.push(ticket.assignee.email);
+      }
+      if (ticket.requester?.email && ticket.requester.email !== req.user.email && req.user.role === 'cliente-org') {
+        recipients.push(ticket.requester.email);
+      }
+    }
+    
+    if (recipients.length > 0) {
+      emailService.notifyNewComment(ticket, comment, fullComment.user, recipients)
+        .catch(err => logger.error('Erro ao enviar notificação de comentário:', err));
+    }
 
     res.status(201).json({
       message: 'Comentário adicionado com sucesso',

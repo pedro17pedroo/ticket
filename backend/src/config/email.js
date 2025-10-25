@@ -1,0 +1,61 @@
+import nodemailer from 'nodemailer';
+import logger from './logger.js';
+
+const createTransporter = () => {
+  // Configuração para Gmail (pode ser alterada para outros provedores)
+  const config = {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  };
+
+  // Se não houver configuração SMTP, usar ethereal para testes
+  if (!process.env.SMTP_USER) {
+    logger.warn('Configuração SMTP não encontrada. Usando modo de teste (emails não serão enviados).');
+    return null;
+  }
+
+  const transporter = nodemailer.createTransporter(config);
+
+  // Verificar conexão
+  transporter.verify((error, success) => {
+    if (error) {
+      logger.error('Erro ao conectar ao servidor SMTP:', error);
+    } else {
+      logger.info('Servidor SMTP conectado e pronto para enviar emails');
+    }
+  });
+
+  return transporter;
+};
+
+export const transporter = createTransporter();
+
+export const sendEmail = async ({ to, subject, html, text }) => {
+  if (!transporter) {
+    logger.warn(`Email não enviado (modo teste): ${subject} para ${to}`);
+    return { success: false, message: 'SMTP não configurado' };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"${process.env.SMTP_FROM_NAME || 'TatuTicket'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
+
+    logger.info(`Email enviado: ${info.messageId} para ${to}`);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    logger.error('Erro ao enviar email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export default { transporter, sendEmail };

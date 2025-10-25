@@ -12,6 +12,7 @@ import {
   Clock,
   AlertCircle,
   FileType,
+  Timer,
   Settings as SettingsIcon,
   X,
   ChevronLeft,
@@ -37,6 +38,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/slas', icon: Clock, label: 'SLAs' },
     { path: '/priorities', icon: AlertCircle, label: 'Prioridades' },
     { path: '/types', icon: FileType, label: 'Tipos' },
+    { path: '/hours-bank', icon: Timer, label: 'Bolsa de Horas' },
     { path: '/settings', icon: SettingsIcon, label: t('nav.settings') },
   ]
 

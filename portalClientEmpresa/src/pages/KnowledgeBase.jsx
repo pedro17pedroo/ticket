@@ -191,7 +191,7 @@ const KnowledgeBase = () => {
 
       {/* Article Modal */}
       {showArticleModal && selectedArticle && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="flex items-center justify-center bg-black/50 p-4 overflow-y-auto" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full my-8">
             <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white dark:bg-gray-800 z-10">
               <h3 className="text-2xl font-bold">{selectedArticle.title}</h3>
