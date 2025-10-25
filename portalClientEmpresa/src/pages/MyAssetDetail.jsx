@@ -25,7 +25,11 @@ const MyAssetDetail = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    loadAsset();
+    if (id && id !== 'new') {
+      loadAsset();
+    } else {
+      setLoading(false);
+    }
   }, [id]);
 
   const loadAsset = async () => {

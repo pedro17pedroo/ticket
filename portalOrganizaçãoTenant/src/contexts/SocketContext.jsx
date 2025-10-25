@@ -43,35 +43,30 @@ export const SocketProvider = ({ children }) => {
 
     // Eventos de conexão
     newSocket.on('connect', () => {
-      console.log('✅ Socket conectado:', newSocket.id);
       setIsConnected(true);
     });
 
-    newSocket.on('disconnect', (reason) => {
-      console.log('❌ Socket desconectado:', reason);
+    newSocket.on('disconnect', () => {
       setIsConnected(false);
     });
 
     newSocket.on('connect_error', (error) => {
       // Ignorar erros de namespace inválido se socket.io não estiver configurado no servidor
       if (error.message === 'Invalid namespace') {
-        console.warn('⚠️ Socket.io não está configurado no servidor - funcionalidade em tempo real desabilitada');
         newSocket.disconnect();
         return;
       }
-      console.error('Erro de conexão socket:', error.message);
       setIsConnected(false);
     });
 
     newSocket.on('connected', (data) => {
-      console.log('Socket autenticado:', data);
+      // Socket autenticado com sucesso
     });
 
     setSocket(newSocket);
 
     // Cleanup
     return () => {
-      console.log('Desconectando socket...');
       newSocket.disconnect();
     };
   }, [user, token]);
