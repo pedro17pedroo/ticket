@@ -2,9 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
 import passport from './middleware/auth.js';
 import routes from './routes/index.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import swaggerSpec from './config/swagger.js';
 import logger from './config/logger.js';
 
 const app = express();
@@ -48,6 +50,19 @@ app.use((req, res, next) => {
     userAgent: req.get('user-agent')
   });
   next();
+});
+
+// Swagger UI - Documentação da API
+app.use('/api-docs', swaggerUi.serve);
+app.get('/api-docs', swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'TatuTicket API Documentation'
+}));
+
+// Swagger JSON spec
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
 });
 
 // Rotas
