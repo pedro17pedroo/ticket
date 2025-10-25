@@ -22,12 +22,52 @@ const MyAssets = () => {
   const [statistics, setStatistics] = useState(null);
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [autoCollecting, setAutoCollecting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, [filterType]);
+    // Auto-coleta na primeira carga
+    autoCollectAndSend();
+  }, []);
+
+  useEffect(() => {
+    if (!autoCollecting) {
+      loadData();
+    }
+  }, [filterType, autoCollecting]);
+
+  const autoCollectAndSend = async () => {
+    setAutoCollecting(true);
+    setLoading(true);
+    
+    try {
+      // Importar dynamicamente a função de coleta
+      const { collectBrowserInventory, sendInventoryToServer } = await import('../utils/browserInventory');
+      const apiClient = (await import('../services/api')).default;
+      
+      // Coletar informações
+      const inventory = await collectBrowserInventory();
+      
+      // Enviar para servidor automaticamente (silenciosamente)
+      try {
+        await sendInventoryToServer(apiClient);
+      } catch (error) {
+        // Se falhar, apenas logar mas não mostrar erro ao usuário
+        console.log('Atualização automática falhou:', error);
+      }
+      
+      // Aguardar um pouco para dar tempo do backend processar
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+    } catch (error) {
+      console.log('Auto-coleta falhou:', error);
+    } finally {
+      setAutoCollecting(false);
+      // Carregar dados após a coleta
+      loadData();
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -109,8 +149,13 @@ const MyAssets = () => {
 
   if (loading && !statistics) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="flex flex-col items-center justify-center h-96 space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        {autoCollecting && (
+          <p className="text-gray-600 dark:text-gray-400 animate-pulse">
+            A recolher informações do seu equipamento...
+          </p>
+        )}
       </div>
     );
   }
