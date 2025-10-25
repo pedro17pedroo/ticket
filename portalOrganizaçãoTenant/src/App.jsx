@@ -7,6 +7,7 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Tickets from './pages/Tickets'
+import TicketsKanban from './pages/TicketsKanban'
 import TicketDetail from './pages/TicketDetail'
 import NewTicket from './pages/NewTicket'
 import Clients from './pages/Clients'
@@ -26,7 +27,9 @@ import ServiceCatalog from './pages/ServiceCatalog'
 import Tags from './pages/Tags'
 import Templates from './pages/Templates'
 import Inventory from './pages/Inventory'
+import InventoryDashboard from './pages/InventoryDashboard'
 import InventoryDetail from './pages/InventoryDetail'
+import AssetForm from './pages/AssetForm'
 import Licenses from './pages/Licenses'
 
 // Componente de rota protegida
@@ -79,6 +82,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/tickets" element={<Tickets />} />
+                  <Route path="/tickets/kanban" element={<TicketsKanban />} />
                   <Route path="/tickets/new" element={<NewTicket />} />
                   <Route path="/tickets/:id" element={<TicketDetail />} />
                   <Route path="/clients" element={<Clients />} />
@@ -96,9 +100,12 @@ function App() {
                   <Route path="/catalog" element={<ServiceCatalog />} />
                   <Route path="/tags" element={<Tags />} />
                   <Route path="/templates" element={<Templates />} />
-                  <Route path="/inventory" element={<Inventory />} />
-                  <Route path="/inventory/:id" element={<InventoryDetail />} />
+                  <Route path="/inventory" element={<InventoryDashboard />} />
+                  <Route path="/inventory/assets" element={<Inventory />} />
+                  <Route path="/inventory/new" element={<AssetForm />} />
                   <Route path="/inventory/licenses" element={<Licenses />} />
+                  <Route path="/inventory/:id" element={<InventoryDetail />} />
+                  <Route path="/inventory/:id/edit" element={<AssetForm />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>

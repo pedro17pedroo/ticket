@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ticketService } from '../services/api'
-import { Plus, Search, Filter, Eye, User, X } from 'lucide-react'
+import { Plus, Search, Filter, Eye, User, X, LayoutGrid, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import { useAuthStore } from '../store/authStore'
 import AdvancedSearch from '../components/AdvancedSearch'
 import toast from 'react-hot-toast'
+import { exportTicketsToCSV, exportTicketsToPDF } from '../utils/exportUtils'
 
 const Tickets = () => {
   const navigate = useNavigate()
@@ -17,6 +18,7 @@ const Tickets = () => {
   const [types, setTypes] = useState([])
   const [loading, setLoading] = useState(true)
   const [showMyTickets, setShowMyTickets] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
   const [activeFilters, setActiveFilters] = useState({})
   const [savedSearches, setSavedSearches] = useState([])
 
@@ -162,12 +164,10 @@ const Tickets = () => {
     }
 
     const formatTime = (minutes) => {
+      if (!minutes) return '-'
       const hours = Math.floor(minutes / 60)
       const mins = minutes % 60
-      if (hours > 0) {
-        return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`
-      }
-      return `${mins}min`
+      return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
     }
 
     return (
@@ -180,6 +180,18 @@ const Tickets = () => {
         </div>
       </div>
     )
+  }
+
+  const handleExportCSV = () => {
+    exportTicketsToCSV(tickets, `tickets-${new Date().toISOString().split('T')[0]}.csv`)
+    toast.success('Tickets exportados para CSV')
+    setShowExportMenu(false)
+  }
+
+  const handleExportPDF = () => {
+    exportTicketsToPDF(tickets, `tickets-${new Date().toISOString().split('T')[0]}.pdf`)
+    toast.success('Tickets exportados para PDF')
+    setShowExportMenu(false)
   }
 
   return (
@@ -203,6 +215,45 @@ const Tickets = () => {
           >
             <User className="w-5 h-5" />
             Meus Tickets
+          </button>
+          
+          {/* Export Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              title="Exportar Tickets"
+            >
+              <FileDown className="w-5 h-5" />
+              Exportar
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                <button
+                  onClick={handleExportCSV}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-lg transition-colors flex items-center gap-2"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Exportar como CSV
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-b-lg transition-colors flex items-center gap-2"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Exportar como PDF
+                </button>
+              </div>
+            )}
+          </div>
+          
+          <button
+            onClick={() => navigate('/tickets/kanban')}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            title="Visualização Kanban"
+          >
+            <LayoutGrid className="w-5 h-5" />
+            Kanban
           </button>
           <button
             onClick={() => navigate('/tickets/new')}
