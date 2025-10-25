@@ -206,26 +206,21 @@ export const getTicketTags = async (req, res, next) => {
       where: {
         id: ticketId,
         organizationId: req.user.organizationId
-      }
+      },
+      include: [{
+        model: Tag,
+        as: 'ticketTags',
+        through: { attributes: [] }
+      }]
     });
 
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket não encontrado' });
     }
 
-    const ticketTags = await TicketTag.findAll({
-      where: { ticketId },
-      include: [{
-        model: Tag,
-        as: 'tag'
-      }]
-    });
-
-    const tags = ticketTags.map(tt => tt.tag);
-
     res.json({
       success: true,
-      tags
+      tags: ticket.ticketTags || []
     });
   } catch (error) {
     next(error);

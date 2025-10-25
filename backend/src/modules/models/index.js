@@ -120,7 +120,7 @@ const setupAssociations = () => {
   // Ticket-Tag associations (many-to-many)
   TicketTag.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   TicketTag.belongsTo(Tag, { foreignKey: 'tagId', as: 'tag' });
-  Ticket.belongsToMany(Tag, { through: TicketTag, foreignKey: 'ticketId', as: 'tags' });
+  Ticket.belongsToMany(Tag, { through: TicketTag, foreignKey: 'ticketId', as: 'ticketTags' });
   Tag.belongsToMany(Ticket, { through: TicketTag, foreignKey: 'tagId', as: 'tickets' });
 
   // ResponseTemplate associations
