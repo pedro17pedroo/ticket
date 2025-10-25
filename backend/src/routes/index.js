@@ -290,4 +290,7 @@ router.post('/inventory/licenses/:id/unassign', authenticate, authorize('admin-o
 // Statistics
 router.get('/inventory/statistics', authenticate, inventoryController.getStatistics);
 
+// Browser Collection
+router.post('/inventory/browser-collect', authenticate, inventoryController.browserCollect);
+
 export default router;

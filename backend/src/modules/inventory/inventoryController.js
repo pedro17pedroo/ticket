@@ -728,6 +728,91 @@ export const getStatistics = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/inventory/browser-collect
+ * Receber dados coletados pelo navegador
+ */
+export const browserCollect = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const organizationId = req.user.organizationId;
+    const { inventory, source } = req.body;
+
+    if (!inventory) {
+      return res.status(400).json({ error: 'Dados de inventário não fornecidos' });
+    }
+
+    // Verificar se já existe um asset para este usuário com source=browser
+    let asset = await Asset.findOne({
+      where: {
+        organizationId,
+        clientId: userId,
+        assetTag: `BROWSER-${userId}`
+      }
+    });
+
+    // Montar especificações
+    const specifications = {
+      os: inventory.os,
+      osVersion: inventory.osVersion,
+      architecture: inventory.architecture,
+      browser: inventory.browser,
+      browserVersion: inventory.browserVersion,
+      cpu: `${inventory.hardware?.cpuCores || 'Unknown'} cores`,
+      ram: inventory.hardware?.memory || 'Unknown',
+      gpu: inventory.hardware?.gpu || 'Unknown',
+      screenResolution: inventory.hardware?.screenResolution,
+      colorDepth: inventory.hardware?.colorDepth,
+      timezone: inventory.locale?.timezone,
+      language: inventory.locale?.language,
+      collectionMethod: 'browser',
+      userAgent: inventory.userAgent
+    };
+
+    if (asset) {
+      // Atualizar asset existente
+      await asset.update({
+        specifications,
+        lastSeen: new Date(),
+        lastInventoryUpdate: new Date()
+      });
+
+      logger.info(`Asset atualizado via navegador: ${asset.assetTag}`);
+    } else {
+      // Criar novo asset
+      asset = await Asset.create({
+        organizationId,
+        clientId: userId,
+        assetTag: `BROWSER-${userId}`,
+        type: 'desktop', // ou detectar baseado no OS
+        brand: 'Unknown',
+        model: `${inventory.browser} - ${inventory.os}`,
+        serialNumber: `BROWSER-${Date.now()}`,
+        specifications,
+        status: 'ativo',
+        lastSeen: new Date(),
+        lastInventoryUpdate: new Date()
+      });
+
+      logger.info(`Novo asset criado via navegador: ${asset.assetTag}`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Inventário atualizado com sucesso',
+      asset: {
+        id: asset.id,
+        assetTag: asset.assetTag,
+        type: asset.type,
+        model: asset.model
+      }
+    });
+  } catch (error) {
+    logger.error('Erro ao processar coleta via navegador:', error);
+    next(error);
+  }
+};
+
 export default {
   getAssets,
   getAssetById,
@@ -744,5 +829,6 @@ export default {
   deleteLicense,
   assignLicense,
   unassignLicense,
-  getStatistics
+  getStatistics,
+  browserCollect
 };

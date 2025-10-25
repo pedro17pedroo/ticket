@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as inventoryService from '../services/inventoryService';
+import BrowserInventoryCollector from '../components/BrowserInventoryCollector';
 
 const MyAssets = () => {
   const [statistics, setStatistics] = useState(null);
@@ -170,49 +171,8 @@ const MyAssets = () => {
         </div>
       )}
 
-      {/* Info Box - Como Atualizar */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-              <Info className="w-5 h-5 text-blue-600 dark:text-blue-300" />
-            </div>
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
-              Como Atualizar o Inventário
-            </h3>
-            <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">
-              Para manter as informações dos seus equipamentos atualizadas, baixe e execute 
-              o script de coleta automática no seu computador. O script é seguro e coleta apenas 
-              informações técnicas do hardware e software.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => downloadScript('windows')}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Windows
-              </button>
-              <button
-                onClick={() => downloadScript('linux')}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Linux
-              </button>
-              <button
-                onClick={() => downloadScript('mac')}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                macOS
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Coleta Automática via Navegador */}
+      <BrowserInventoryCollector />
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
