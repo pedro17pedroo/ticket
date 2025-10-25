@@ -17,7 +17,7 @@ const Asset = sequelize.define('Asset', {
   },
   clientId: {
     type: DataTypes.UUID,
-    allowNull: false,
+    allowNull: true, // Opcional - pode ser null para assets internos
     references: {
       model: 'clients',
       key: 'id'

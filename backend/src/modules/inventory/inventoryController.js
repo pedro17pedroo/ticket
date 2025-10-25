@@ -742,11 +742,19 @@ export const browserCollect = async (req, res, next) => {
       return res.status(400).json({ error: 'Dados de inventário não fornecidos' });
     }
 
+    // Detectar tipo de dispositivo baseado no OS
+    let deviceType = 'desktop';
+    if (inventory.os === 'Android' || inventory.os === 'iOS') {
+      deviceType = 'smartphone';
+    } else if (inventory.hardware?.touchSupport) {
+      deviceType = 'tablet';
+    }
+
     // Verificar se já existe um asset para este usuário com source=browser
     let asset = await Asset.findOne({
       where: {
         organizationId,
-        clientId: userId,
+        userId,
         assetTag: `BROWSER-${userId}`
       }
     });
@@ -772,6 +780,8 @@ export const browserCollect = async (req, res, next) => {
     if (asset) {
       // Atualizar asset existente
       await asset.update({
+        name: `${inventory.browser} - ${inventory.os}`,
+        type: deviceType,
         specifications,
         lastSeen: new Date(),
         lastInventoryUpdate: new Date()
@@ -779,17 +789,22 @@ export const browserCollect = async (req, res, next) => {
 
       logger.info(`Asset atualizado via navegador: ${asset.assetTag}`);
     } else {
+      // Buscar clientId do usuário (se for cliente)
+      const user = await User.findByPk(userId);
+      
       // Criar novo asset
       asset = await Asset.create({
         organizationId,
-        clientId: userId,
+        clientId: user.clientId || null, // Pode ser null se não for cliente
+        userId,
         assetTag: `BROWSER-${userId}`,
-        type: 'desktop', // ou detectar baseado no OS
+        name: `${inventory.browser} - ${inventory.os}`,
+        type: deviceType,
         brand: 'Unknown',
-        model: `${inventory.browser} - ${inventory.os}`,
+        model: `${inventory.browser} ${inventory.browserVersion}`,
         serialNumber: `BROWSER-${Date.now()}`,
         specifications,
-        status: 'ativo',
+        status: 'active',
         lastSeen: new Date(),
         lastInventoryUpdate: new Date()
       });
@@ -803,6 +818,7 @@ export const browserCollect = async (req, res, next) => {
       asset: {
         id: asset.id,
         assetTag: asset.assetTag,
+        name: asset.name,
         type: asset.type,
         model: asset.model
       }
