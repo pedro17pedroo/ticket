@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as inventoryService from '../services/inventoryService';
-import BrowserInventoryCollector from '../components/BrowserInventoryCollector';
 
 const MyAssets = () => {
   const [statistics, setStatistics] = useState(null);
@@ -27,15 +26,28 @@ const MyAssets = () => {
   const [filterType, setFilterType] = useState('');
 
   useEffect(() => {
-    // Auto-coleta na primeira carga
-    autoCollectAndSend();
+    // Auto-coleta apenas na primeira montagem
+    let mounted = true;
+    
+    const init = async () => {
+      if (mounted) {
+        await autoCollectAndSend();
+      }
+    };
+    
+    init();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (!autoCollecting) {
+    // Recarregar quando filtro muda (mas não na primeira vez)
+    if (!autoCollecting && statistics) {
       loadData();
     }
-  }, [filterType, autoCollecting]);
+  }, [filterType]);
 
   const autoCollectAndSend = async () => {
     setAutoCollecting(true);
@@ -216,8 +228,19 @@ const MyAssets = () => {
         </div>
       )}
 
-      {/* Coleta Automática via Navegador */}
-      <BrowserInventoryCollector />
+      {/* Info: Coleta automática ativa */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="font-medium text-blue-900 dark:text-blue-100">Atualização Automática Ativa</h3>
+            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+              Suas informações são atualizadas automaticamente sempre que acede a esta página. 
+              Não precisa fazer nada!
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
