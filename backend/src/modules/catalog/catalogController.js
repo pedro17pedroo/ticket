@@ -166,7 +166,7 @@ export const getCatalogItems = async (req, res, next) => {
         {
           model: SLA,
           as: 'sla',
-          attributes: ['id', 'name', 'responseTime', 'resolutionTime']
+          attributes: ['id', 'name', 'responseTimeMinutes', 'resolutionTimeMinutes']
         },
         {
           model: Department,
@@ -205,7 +205,7 @@ export const getCatalogItemById = async (req, res, next) => {
         {
           model: SLA,
           as: 'sla',
-          attributes: ['id', 'name', 'responseTime', 'resolutionTime']
+          attributes: ['id', 'name', 'responseTimeMinutes', 'resolutionTimeMinutes']
         },
         {
           model: Category,

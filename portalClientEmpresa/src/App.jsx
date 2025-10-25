@@ -16,6 +16,8 @@ import Departments from './pages/Departments'
 import Sections from './pages/Sections'
 import HoursBank from './pages/HoursBank'
 import ServiceCatalog from './pages/ServiceCatalog'
+import MyAssets from './pages/MyAssets'
+import MyAssetDetail from './pages/MyAssetDetail'
 
 const PrivateRoute = ({ children }) => {
   const { token } = useAuthStore()
@@ -24,7 +26,12 @@ const PrivateRoute = ({ children }) => {
 
 function App() {
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
       <Toaster 
         position="top-right"
         toastOptions={{
@@ -70,6 +77,8 @@ function App() {
                   <Route path="/sections" element={<Sections />} />
                   <Route path="/hours-bank" element={<HoursBank />} />
                   <Route path="/catalog" element={<ServiceCatalog />} />
+                  <Route path="/my-assets" element={<MyAssets />} />
+                  <Route path="/my-assets/:id" element={<MyAssetDetail />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </Layout>

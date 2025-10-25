@@ -15,6 +15,12 @@ import TimeTracking from '../timeTracking/timeTrackingModel.js';
 import { Tag, TicketTag } from '../tags/tagModel.js';
 import ResponseTemplate from '../templates/templateModel.js';
 import { CatalogCategory, CatalogItem, ServiceRequest } from '../catalog/catalogModel.js';
+import TicketHistory from '../tickets/ticketHistoryModel.js';
+import Notification from '../notifications/notificationModel.js';
+import Asset from '../inventory/assetModel.js';
+import Software from '../inventory/softwareModel.js';
+import License from '../inventory/licenseModel.js';
+import AssetLicense from '../inventory/assetLicenseModel.js';
 
 // Definir associações entre modelos
 const setupAssociations = () => {
@@ -70,11 +76,19 @@ const setupAssociations = () => {
   Ticket.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Ticket.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
   Ticket.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+  Ticket.belongsTo(Direction, { foreignKey: 'directionId', as: 'direction' });
+  Ticket.belongsTo(Section, { foreignKey: 'sectionId', as: 'section' });
   Ticket.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
   Ticket.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
   Ticket.hasMany(Comment, { foreignKey: 'ticketId', as: 'comments' });
   Ticket.hasMany(Attachment, { foreignKey: 'ticketId', as: 'attachments' });
   Ticket.hasMany(HoursTransaction, { foreignKey: 'ticketId', as: 'hoursTransactions' });
+  Ticket.hasMany(TicketHistory, { foreignKey: 'ticketId', as: 'history' });
+
+  // TicketHistory associations
+  TicketHistory.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+  TicketHistory.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+  TicketHistory.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
 
   // Comment associations
   Comment.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
@@ -150,6 +164,37 @@ const setupAssociations = () => {
   ServiceRequest.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   CatalogItem.hasMany(ServiceRequest, { foreignKey: 'catalogItemId', as: 'requests' });
   Ticket.hasOne(ServiceRequest, { foreignKey: 'ticketId', as: 'serviceRequest' });
+
+  // Notification associations
+  Notification.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+  Notification.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+  Organization.hasMany(Notification, { foreignKey: 'organizationId', as: 'notifications' });
+  User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
+  Ticket.hasMany(Notification, { foreignKey: 'ticketId', as: 'notifications' });
+
+  // Inventory associations
+  Asset.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Asset.belongsTo(User, { foreignKey: 'clientId', as: 'client' });
+  Asset.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+  Organization.hasMany(Asset, { foreignKey: 'organizationId', as: 'assets' });
+  User.hasMany(Asset, { foreignKey: 'clientId', as: 'clientAssets' });
+  User.hasMany(Asset, { foreignKey: 'userId', as: 'userAssets' });
+
+  Software.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Software.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+  Organization.hasMany(Software, { foreignKey: 'organizationId', as: 'software' });
+  Asset.hasMany(Software, { foreignKey: 'assetId', as: 'software' });
+
+  License.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  License.belongsTo(User, { foreignKey: 'clientId', as: 'client' });
+  Organization.hasMany(License, { foreignKey: 'organizationId', as: 'licenses' });
+  User.hasMany(License, { foreignKey: 'clientId', as: 'licenses' });
+
+  AssetLicense.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
+  AssetLicense.belongsTo(License, { foreignKey: 'licenseId', as: 'license' });
+  Asset.belongsToMany(License, { through: AssetLicense, foreignKey: 'assetId', as: 'licenses' });
+  License.belongsToMany(Asset, { through: AssetLicense, foreignKey: 'licenseId', as: 'assets' });
 };
 
 export {
@@ -160,6 +205,7 @@ export {
   Section,
   Category,
   Ticket,
+  TicketHistory,
   Comment,
   Attachment,
   SLA,
@@ -174,5 +220,10 @@ export {
   CatalogCategory,
   CatalogItem,
   ServiceRequest,
+  Notification,
+  Asset,
+  Software,
+  License,
+  AssetLicense,
   setupAssociations
 };

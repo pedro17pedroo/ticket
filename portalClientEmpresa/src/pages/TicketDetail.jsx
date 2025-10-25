@@ -6,6 +6,7 @@ import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import FileUpload from '../components/FileUpload'
+import RichTextEditor from '../components/RichTextEditor'
 
 const TicketDetail = () => {
   const { id } = useParams()
@@ -45,8 +46,9 @@ const TicketDetail = () => {
   const handleAddComment = async (e) => {
     e.preventDefault()
     
-    // Validar se há comentário ou anexos
-    if (!comment.trim() && commentAttachments.length === 0) {
+    // Validar se há comentário ou anexos (verificar HTML vazio)
+    const isCommentEmpty = !comment || comment.trim() === '' || comment === '<p><br></p>'
+    if (isCommentEmpty && commentAttachments.length === 0) {
       toast.error('Adicione uma resposta ou anexo')
       return
     }
@@ -54,7 +56,7 @@ const TicketDetail = () => {
     setSubmitting(true)
     try {
       // Se há comentário, adicionar
-      if (comment.trim()) {
+      if (!isCommentEmpty) {
         await ticketService.addComment(id, { content: comment, isInternal: false })
       }
       
@@ -164,9 +166,10 @@ const TicketDetail = () => {
               <MessageSquare className="w-5 h-5" />
               Descrição
             </h2>
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-              {ticket.description}
-            </p>
+            <div 
+              className="ticket-description-view text-gray-700 dark:text-gray-300"
+              dangerouslySetInnerHTML={{ __html: ticket.description }}
+            />
           </div>
 
           {/* Attachments */}
@@ -223,9 +226,10 @@ const TicketDetail = () => {
                         </p>
                       </div>
                     </div>
-                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap ml-13">
-                      {comment.content}
-                    </p>
+                    <div 
+                      className="ticket-description-view text-gray-700 dark:text-gray-300 ml-13"
+                      dangerouslySetInnerHTML={{ __html: comment.content }}
+                    />
                   </div>
                 ))
               )}
@@ -234,16 +238,21 @@ const TicketDetail = () => {
             {/* Add Comment Form */}
             {ticket.status !== 'fechado' && (
               <form onSubmit={handleAddComment} className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <label className="block text-sm font-medium">
-                  Adicionar Resposta
-                </label>
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Digite sua resposta ou informações adicionais..."
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                />
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Adicionar Resposta
+                  </label>
+                  <RichTextEditor
+                    value={comment}
+                    onChange={setComment}
+                    placeholder="Digite sua resposta ou informações adicionais...
+
+Você pode usar formatação para:
+• Destacar informações importantes em negrito
+• Organizar passos em listas
+• Adicionar links úteis"
+                  />
+                </div>
                 
                 {/* File Upload */}
                 <div>
@@ -258,7 +267,7 @@ const TicketDetail = () => {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={(!comment.trim() && commentAttachments.length === 0) || submitting}
+                    disabled={((!comment || comment === '<p><br></p>') && commentAttachments.length === 0) || submitting}
                     className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                   >
                     <Send className="w-4 h-4" />

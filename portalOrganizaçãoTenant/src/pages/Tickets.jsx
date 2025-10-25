@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ticketService } from '../services/api'
-import { Plus, Search, Filter, Eye, User } from 'lucide-react'
+import { Plus, Search, Filter, Eye, User, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import { useAuthStore } from '../store/authStore'
+import AdvancedSearch from '../components/AdvancedSearch'
+import toast from 'react-hot-toast'
 
 const Tickets = () => {
   const navigate = useNavigate()
@@ -14,18 +16,20 @@ const Tickets = () => {
   const [priorities, setPriorities] = useState([])
   const [types, setTypes] = useState([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
   const [showMyTickets, setShowMyTickets] = useState(false)
-  const [filters, setFilters] = useState({
-    status: '',
-    priority: '',
-    type: '',
-    sla: ''
-  })
+  const [activeFilters, setActiveFilters] = useState({})
+  const [savedSearches, setSavedSearches] = useState([])
 
   useEffect(() => {
     loadData()
-  }, [filters, showMyTickets])
+  }, [activeFilters, showMyTickets])
+
+  useEffect(() => {
+    const saved = localStorage.getItem('savedSearches');
+    if (saved) {
+      setSavedSearches(JSON.parse(saved));
+    }
+  }, [])
 
   const loadData = async () => {
     await Promise.all([loadTickets(), loadSLAs(), loadPriorities(), loadTypes()])
@@ -61,7 +65,7 @@ const Tickets = () => {
   const loadTickets = async () => {
     setLoading(true)
     try {
-      const params = { ...filters, search }
+      const params = { ...activeFilters }
       if (showMyTickets) {
         params.assigneeId = user.id
       }
@@ -72,6 +76,29 @@ const Tickets = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = (filters) => {
+    setActiveFilters(filters)
+  }
+
+  const handleSaveSearch = (searchData) => {
+    const updated = [...savedSearches, { ...searchData, id: Date.now() }]
+    setSavedSearches(updated)
+    localStorage.setItem('savedSearches', JSON.stringify(updated))
+    toast.success('Pesquisa salva com sucesso')
+  }
+
+  const handleDeleteSavedSearch = (id) => {
+    const updated = savedSearches.filter(s => s.id !== id)
+    setSavedSearches(updated)
+    localStorage.setItem('savedSearches', JSON.stringify(updated))
+    toast.success('Pesquisa removida')
+  }
+
+  const handleLoadSavedSearch = (filters) => {
+    setActiveFilters(filters)
+    toast.success('Pesquisa carregada')
   }
 
   const getStatusBadge = (status) => {
@@ -187,79 +214,37 @@ const Tickets = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && loadTickets()}
-              placeholder="Pesquisar tickets..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-            />
-          </div>
+      {/* Advanced Search */}
+      <AdvancedSearch 
+        onSearch={handleSearch} 
+        onSaveSearch={handleSaveSearch}
+      />
 
-          {/* Status Filter */}
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-          >
-            <option value="">Todos os Status</option>
-            <option value="novo">Novo</option>
-            <option value="em_progresso">Em Progresso</option>
-            <option value="aguardando_cliente">Aguardando Cliente</option>
-            <option value="resolvido">Resolvido</option>
-            <option value="fechado">Fechado</option>
-          </select>
-
-          {/* Priority Filter */}
-          <select
-            value={filters.priority}
-            onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-          >
-            <option value="">Todas as Prioridades</option>
-            {priorities.map(priority => (
-              <option key={priority.id} value={priority.name}>
-                {priority.name}
-              </option>
-            ))}
-          </select>
-
-          {/* Type Filter */}
-          <select
-            value={filters.type}
-            onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-          >
-            <option value="">Todos os Tipos</option>
-            {types.map(type => (
-              <option key={type.id} value={type.name}>
-                {type.name}
-              </option>
-            ))}
-          </select>
-
-          {/* SLA Filter */}
-          <select
-            value={filters.sla}
-            onChange={(e) => setFilters({ ...filters, sla: e.target.value })}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-          >
-            <option value="">Todos os SLAs</option>
-            {slas.map(sla => (
-              <option key={sla.id} value={sla.id}>
-                {sla.name}
-              </option>
-            ))}
-          </select>
+      {/* Saved Searches */}
+      {savedSearches.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {savedSearches.map((saved) => (
+            <button
+              key={saved.id}
+              onClick={() => handleLoadSavedSearch(saved.filters)}
+              className="group flex items-center gap-2 px-3 py-1.5 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors"
+            >
+              <Search className="w-3 h-3" />
+              <span className="text-sm font-medium">{saved.name}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteSavedSearch(saved.id);
+                }}
+                className="opacity-0 group-hover:opacity-100 ml-1"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </button>
+          ))}
         </div>
-      </div>
+      )}
+
 
       {/* Tickets Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">

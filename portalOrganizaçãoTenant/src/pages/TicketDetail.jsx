@@ -2,12 +2,25 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ticketService } from '../services/api'
 import api from '../services/api'
-import { ArrowLeft, Clock, User, Building2, Tag, UserPlus, Paperclip, Download, Trash2, FileText } from 'lucide-react'
+import { ArrowLeft, Clock, User, Building2, Tag, UserPlus, Paperclip, Download, Trash2, FileText, Mail, Phone, GitMerge, ArrowRightLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/authStore'
 import FileUpload from '../components/FileUpload'
+import TimeTracker from '../components/TimeTracker'
+import TagManager from '../components/TagManager'
+import TemplateSelector from '../components/TemplateSelector'
+import ClientHistory from '../components/ClientHistory'
+import SLAIndicator from '../components/SLAIndicator'
+import ActivityTimeline from '../components/ActivityTimeline'
+import RelatedTickets from '../components/RelatedTickets'
+import MergeTicketsModal from '../components/MergeTicketsModal'
+import TransferTicketModal from '../components/TransferTicketModal'
+import TicketHistoryPanel from '../components/TicketHistoryPanel'
+import ResolutionStatusManager from '../components/ResolutionStatusManager'
+import InternalPriorityManager from '../components/InternalPriorityManager'
+import RichTextEditor from '../components/RichTextEditor'
 
 const TicketDetail = () => {
   const { id } = useParams()
@@ -21,6 +34,8 @@ const TicketDetail = () => {
   const [showAssignSelect, setShowAssignSelect] = useState(false)
   const [attachments, setAttachments] = useState([])
   const [commentAttachments, setCommentAttachments] = useState([])
+  const [showMergeModal, setShowMergeModal] = useState(false)
+  const [showTransferModal, setShowTransferModal] = useState(false)
 
   useEffect(() => {
     loadTicket()
@@ -63,15 +78,16 @@ const TicketDetail = () => {
   const handleAddComment = async (e) => {
     e.preventDefault()
     
-    // Validar se há comentário ou anexos
-    if (!comment.trim() && commentAttachments.length === 0) {
+    // Validar se há comentário ou anexos (verificar HTML vazio)
+    const isCommentEmpty = !comment || comment.trim() === '' || comment === '<p><br></p>'
+    if (isCommentEmpty && commentAttachments.length === 0) {
       toast.error('Adicione um comentário ou anexo')
       return
     }
 
     try {
       // Se há comentário, adicionar
-      if (comment.trim()) {
+      if (!isCommentEmpty) {
         await ticketService.addComment(id, { content: comment, isInternal })
       }
       
@@ -84,7 +100,7 @@ const TicketDetail = () => {
       setComment('')
       setIsInternal(false)
       setCommentAttachments([])
-      toast.success(comment.trim() ? 'Comentário adicionado' : 'Anexos adicionados')
+      toast.success(!isCommentEmpty ? 'Comentário adicionado' : 'Anexos adicionados')
       loadTicket()
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error)
@@ -167,17 +183,37 @@ const TicketDetail = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate('/tickets')}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold">{ticket.ticketNumber}</h1>
-          <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/tickets')}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold">{ticket.ticketNumber}</h1>
+            <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>
+          </div>
         </div>
+        {(user.role === 'admin-org' || user.role === 'agente') && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowTransferModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              Transferir
+            </button>
+            <button
+              onClick={() => setShowMergeModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            >
+              <GitMerge className="w-4 h-4" />
+              Mesclar
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -186,9 +222,10 @@ const TicketDetail = () => {
           {/* Description */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="font-semibold mb-4">Descrição</h2>
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-              {ticket.description}
-            </p>
+            <div 
+              className="ticket-description-view text-gray-700 dark:text-gray-300"
+              dangerouslySetInnerHTML={{ __html: ticket.description }}
+            />
           </div>
 
           {/* Attachments */}
@@ -231,54 +268,37 @@ const TicketDetail = () => {
             </div>
           )}
 
-          {/* Comments */}
+          {/* Activity Timeline */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="font-semibold mb-4">
-              Comentários ({ticket.comments?.length || 0})
+              Atividades ({ticket.comments?.length || 0})
             </h2>
 
-            <div className="space-y-4 mb-6">
-              {ticket.comments?.map((comment) => (
-                <div
-                  key={comment.id}
-                  className={`p-4 rounded-lg ${
-                    comment.isInternal
-                      ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
-                      : 'bg-gray-50 dark:bg-gray-700/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white text-sm font-semibold">
-                      {comment.user?.name?.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{comment.user?.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {format(new Date(comment.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}
-                      </p>
-                    </div>
-                    {comment.isInternal && (
-                      <span className="ml-auto text-xs bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
-                        Interno
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
-                    {comment.content}
-                  </p>
-                </div>
-              ))}
+            <div className="mb-6">
+              <ActivityTimeline ticket={ticket} />
             </div>
 
             {/* Add Comment Form */}
             <form onSubmit={handleAddComment} className="space-y-4">
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Adicionar comentário..."
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-              />
+              {/* Template Selector */}
+              {(user.role === 'admin-org' || user.role === 'agente') && (
+                <TemplateSelector onSelect={(content) => setComment(comment + content)} />
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Comentário</label>
+                <RichTextEditor
+                  value={comment}
+                  onChange={setComment}
+                  placeholder="Adicione seu comentário...
+
+Você pode usar formatação para destacar informações importantes:
+• Negrito para pontos críticos
+• Listas para organizar passos
+• Cores para destacar alertas
+• Links para referências"
+                />
+              </div>
               
               {/* File Upload */}
               <div>
@@ -302,10 +322,10 @@ const TicketDetail = () => {
                 </label>
                 <button
                   type="submit"
-                  disabled={!comment.trim() && commentAttachments.length === 0}
+                  disabled={(!comment || comment === '<p><br></p>') && commentAttachments.length === 0}
                   className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
-                  {commentAttachments.length > 0 && !comment.trim() ? 'Adicionar Anexos' : 'Adicionar Comentário'}
+                  {commentAttachments.length > 0 && (!comment || comment === '<p><br></p>') ? 'Adicionar Anexos' : 'Adicionar Comentário'}
                 </button>
               </div>
             </form>
@@ -324,6 +344,26 @@ const TicketDetail = () => {
                 <span className="text-gray-600 dark:text-gray-400">Solicitante:</span>
                 <span className="font-medium ml-auto">{ticket.requester?.name}</span>
               </div>
+
+              {ticket.requester?.email && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-600 dark:text-gray-400">Email:</span>
+                  <a href={`mailto:${ticket.requester.email}`} className="font-medium ml-auto text-primary-600 hover:underline">
+                    {ticket.requester.email}
+                  </a>
+                </div>
+              )}
+
+              {ticket.requester?.phone && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Phone className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-600 dark:text-gray-400">Telefone:</span>
+                  <a href={`tel:${ticket.requester.phone}`} className="font-medium ml-auto text-primary-600 hover:underline">
+                    {ticket.requester.phone}
+                  </a>
+                </div>
+              )}
 
               <div className="flex items-center gap-2 text-sm">
                 <User className="w-4 h-4 text-gray-400" />
@@ -358,6 +398,51 @@ const TicketDetail = () => {
               </div>
             </div>
           </div>
+
+          {/* Time Tracker */}
+          {(user.role === 'admin-org' || user.role === 'agente') && (
+            <TimeTracker ticketId={id} />
+          )}
+
+          {/* Tags */}
+          {(user.role === 'admin-org' || user.role === 'agente') && (
+            <TagManager ticketId={id} />
+          )}
+
+          {/* Client History */}
+          {ticket.requesterId && (
+            <ClientHistory userId={ticket.requesterId} currentTicketId={id} />
+          )}
+
+          {/* SLA Indicator */}
+          {ticket.sla && (
+            <SLAIndicator ticket={ticket} sla={ticket.sla} />
+          )}
+
+          {/* Related Tickets */}
+          <RelatedTickets ticketId={id} />
+
+          {/* Internal Priority Manager */}
+          {(user.role === 'admin-org' || user.role === 'agente') && (
+            <InternalPriorityManager
+              ticketId={id}
+              clientPriority={ticket.priority}
+              internalPriority={ticket.internalPriority}
+              onUpdate={loadTicket}
+            />
+          )}
+
+          {/* Resolution Status Manager */}
+          {(user.role === 'admin-org' || user.role === 'agente') && (
+            <ResolutionStatusManager
+              ticketId={id}
+              currentStatus={ticket.resolutionStatus}
+              onUpdate={loadTicket}
+            />
+          )}
+
+          {/* Ticket History */}
+          <TicketHistoryPanel ticketId={id} />
 
           {/* Assignment Card */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 space-y-4">
@@ -407,6 +492,38 @@ const TicketDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Merge Modal */}
+      {showMergeModal && (
+        <MergeTicketsModal
+          ticketId={id}
+          onClose={() => setShowMergeModal(false)}
+          onSuccess={() => {
+            loadTicket();
+            loadAttachments();
+          }}
+        />
+      )}
+
+      {/* Transfer Modal */}
+      {showTransferModal && (
+        <TransferTicketModal
+          ticketId={id}
+          currentData={{
+            directionId: ticket.directionId,
+            departmentId: ticket.departmentId,
+            sectionId: ticket.sectionId,
+            assigneeId: ticket.assigneeId,
+            categoryId: ticket.categoryId,
+            type: ticket.type
+          }}
+          onClose={() => setShowTransferModal(false)}
+          onSuccess={() => {
+            loadTicket();
+            loadAttachments();
+          }}
+        />
+      )}
     </div>
   )
 }

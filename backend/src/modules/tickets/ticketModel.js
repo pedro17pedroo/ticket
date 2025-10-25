@@ -44,7 +44,25 @@ const Ticket = sequelize.define('Ticket', {
     type: DataTypes.STRING,
     allowNull: false,
     defaultValue: 'media',
-    comment: 'Nome da prioridade'
+    comment: 'Prioridade definida pelo cliente'
+  },
+  internalPriority: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Prioridade interna definida pela organização (pode ser diferente da prioridade do cliente)'
+  },
+  resolutionStatus: {
+    type: DataTypes.ENUM(
+      'pendente',           // Aguardando ação
+      'em_analise',         // Sendo analisado
+      'aguardando_terceiro',// Aguardando fornecedor/terceiro
+      'solucao_proposta',   // Solução proposta ao cliente
+      'resolvido',          // Problema resolvido
+      'nao_resolvido',      // Não foi possível resolver
+      'workaround'          // Solução temporária aplicada
+    ),
+    allowNull: true,
+    comment: 'Estado específico da resolução do ticket'
   },
   type: {
     type: DataTypes.STRING,
@@ -60,11 +78,27 @@ const Ticket = sequelize.define('Ticket', {
       key: 'id'
     }
   },
+  directionId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'directions',
+      key: 'id'
+    }
+  },
   departmentId: {
     type: DataTypes.UUID,
     allowNull: true,
     references: {
       model: 'departments',
+      key: 'id'
+    }
+  },
+  sectionId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'sections',
       key: 'id'
     }
   },

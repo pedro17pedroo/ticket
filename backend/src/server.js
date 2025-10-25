@@ -1,10 +1,12 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import http from 'http';
 import app from './app.js';
 import { connectPostgreSQL, connectMongoDB, syncDatabase } from './config/database.js';
 import { connectRedis } from './config/redis.js';
 import { setupAssociations } from './modules/models/index.js';
+import { initializeSocket } from './socket/index.js';
 import logger from './config/logger.js';
 
 const PORT = process.env.PORT || 3000;
@@ -31,11 +33,18 @@ const startServer = async () => {
       logger.warn('⚠️  Migração de comments:', error.message);
     }
 
+    // Criar servidor HTTP
+    const server = http.createServer(app);
+
+    // Inicializar Socket.IO
+    initializeSocket(server);
+
     // Iniciar servidor
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       logger.info(`🚀 Servidor rodando na porta ${PORT}`);
       logger.info(`📍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`🔗 API: http://localhost:${PORT}/api`);
+      logger.info(`🔌 WebSocket: ws://localhost:${PORT}`);
       logger.info(`❤️  Health: http://localhost:${PORT}/api/health`);
     });
   } catch (error) {

@@ -19,6 +19,10 @@ import {
   ChevronRight,
   LayoutDashboard,
   BarChart3,
+  ShoppingCart,
+  Tags as TagsIcon,
+  FileText,
+  HardDrive,
 } from 'lucide-react'
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -39,6 +43,10 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/priorities', icon: AlertCircle, label: 'Prioridades' },
     { path: '/types', icon: FileType, label: 'Tipos' },
     { path: '/hours-bank', icon: Timer, label: 'Bolsa de Horas' },
+    { path: '/catalog', icon: ShoppingCart, label: 'Catálogo de Serviços' },
+    { path: '/inventory', icon: HardDrive, label: 'Inventário' },
+    { path: '/tags', icon: TagsIcon, label: 'Tags' },
+    { path: '/templates', icon: FileText, label: 'Templates' },
     { path: '/settings', icon: SettingsIcon, label: t('nav.settings') },
   ]
 

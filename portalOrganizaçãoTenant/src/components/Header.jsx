@@ -1,8 +1,9 @@
-import { Menu, Bell, Moon, Sun, LogOut, User } from 'lucide-react'
+import { Menu, Moon, Sun, LogOut, User } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
+import NotificationBell from './NotificationBell'
 
 const Header = ({ toggleSidebar }) => {
   const { user, logout } = useAuthStore()
@@ -53,10 +54,7 @@ const Header = ({ toggleSidebar }) => {
         </button>
 
         {/* Notifications */}
-        <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 relative">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
+        <NotificationBell />
 
         {/* User Menu */}
         <div className="relative" ref={menuRef}>

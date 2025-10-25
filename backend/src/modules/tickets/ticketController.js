@@ -1,8 +1,14 @@
-import { Ticket, User, Department, Category, Comment } from '../models/index.js';
+import { Ticket, User, Department, Category, Comment, SLA, Direction, Section } from '../models/index.js';
 import Attachment from '../attachments/attachmentModel.js';
+import TicketRelationship from './ticketRelationshipModel.js';
+import TicketHistory from './ticketHistoryModel.js';
+import { logTicketChange, trackTicketChanges, getTicketHistory } from './ticketHistoryHelper.js';
 import { Op } from 'sequelize';
+import { sequelize } from '../../config/database.js';
 import logger from '../../config/logger.js';
 import emailService from '../../services/emailService.js';
+import notificationService from '../../services/notificationService.js';
+import { emitNotification, emitTicketUpdate } from '../../socket/index.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -110,9 +116,19 @@ export const getTicketById = async (req, res, next) => {
           attributes: ['id', 'name', 'email', 'avatar']
         },
         {
+          model: Direction,
+          as: 'direction',
+          attributes: ['id', 'name', 'description']
+        },
+        {
           model: Department,
           as: 'department',
           attributes: ['id', 'name', 'email']
+        },
+        {
+          model: Section,
+          as: 'section',
+          attributes: ['id', 'name', 'description']
         },
         {
           model: Category,
@@ -141,7 +157,25 @@ export const getTicketById = async (req, res, next) => {
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
-    res.json({ ticket });
+    // Buscar SLA baseado na prioridade do ticket
+    let sla = null;
+    if (ticket.priority) {
+      sla = await SLA.findOne({
+        where: {
+          organizationId: req.user.organizationId,
+          priority: ticket.priority,
+          isActive: true
+        },
+        attributes: ['id', 'name', 'responseTimeMinutes', 'resolutionTimeMinutes']
+      });
+    }
+
+    res.json({ 
+      ticket: {
+        ...ticket.toJSON(),
+        sla: sla || null
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -188,6 +222,15 @@ export const createTicket = async (req, res, next) => {
     if (fullTicket.assignee) {
       emailService.notifyNewTicket(fullTicket, fullTicket.requester, fullTicket.assignee)
         .catch(err => logger.error('Erro ao enviar notificação de novo ticket:', err));
+      
+      // Notificação in-app e WebSocket
+      notificationService.notifyNewTicket(fullTicket, fullTicket.assignee.id)
+        .then(notification => {
+          if (notification) {
+            emitNotification(fullTicket.assignee.id, notification);
+          }
+        })
+        .catch(err => logger.error('Erro ao criar notificação in-app:', err));
     }
 
     res.status(201).json({
@@ -222,17 +265,38 @@ export const updateTicket = async (req, res, next) => {
       return res.status(403).json({ error: 'Clientes não podem atualizar tickets diretamente' });
     }
 
-    // Guardar valores anteriores para notificações
-    const oldStatus = ticket.status;
-    const oldAssigneeId = ticket.assigneeId;
+    // Guardar valores anteriores para histórico
+    const oldTicket = { ...ticket.toJSON() };
 
     // Atualizar campos permitidos
-    const allowedFields = ['subject', 'description', 'status', 'priority', 'assigneeId', 'departmentId'];
+    const allowedFields = [
+      'subject', 
+      'description', 
+      'status', 
+      'priority', 
+      'internalPriority',
+      'resolutionStatus',
+      'assigneeId', 
+      'directionId',
+      'departmentId',
+      'sectionId',
+      'categoryId',
+      'type'
+    ];
+    
+    // Campos UUID que precisam converter string vazia para null
+    const uuidFields = ['assigneeId', 'directionId', 'departmentId', 'sectionId', 'categoryId'];
+    
     const updateData = {};
     
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) {
-        updateData[field] = updates[field];
+        // Converter strings vazias em null para campos UUID
+        if (uuidFields.includes(field) && updates[field] === '') {
+          updateData[field] = null;
+        } else {
+          updateData[field] = updates[field];
+        }
       }
     });
 
@@ -244,7 +308,25 @@ export const updateTicket = async (req, res, next) => {
       updateData.closedAt = new Date();
     }
 
-    await ticket.update(updateData);
+    const transaction = await sequelize.transaction();
+    
+    try {
+      await ticket.update(updateData, { transaction });
+
+      // Registrar mudanças no histórico
+      await trackTicketChanges(
+        oldTicket,
+        { ...oldTicket, ...updateData },
+        req.user.id,
+        req.user.organizationId,
+        transaction
+      );
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
 
     // Recarregar ticket com relações atualizadas
     await ticket.reload({
@@ -262,14 +344,29 @@ export const updateTicket = async (req, res, next) => {
     // Notificar mudança de status
     if (updates.status && oldStatus !== updates.status) {
       const recipients = [];
+      const userIds = [];
+      
       if (ticket.requester?.email) recipients.push(ticket.requester.email);
+      if (ticket.requester?.id) userIds.push(ticket.requester.id);
+      
       if (ticket.assignee?.email && ticket.assignee.email !== req.user.email) {
         recipients.push(ticket.assignee.email);
+        userIds.push(ticket.assignee.id);
       }
       
       if (recipients.length > 0) {
+        // Email
         emailService.notifyStatusChange(ticket, oldStatus, updates.status, currentUser, recipients)
           .catch(err => logger.error('Erro ao enviar notificação de mudança de status:', err));
+        
+        // In-app e WebSocket
+        notificationService.notifyStatusChange(ticket, oldStatus, updates.status, userIds)
+          .then(notifications => {
+            notifications.forEach(notif => {
+              emitNotification(notif.userId, notif);
+            });
+          })
+          .catch(err => logger.error('Erro ao criar notificações in-app:', err));
       }
     }
 
@@ -277,8 +374,18 @@ export const updateTicket = async (req, res, next) => {
     if (updates.assigneeId && oldAssigneeId !== updates.assigneeId) {
       const newAssignee = await User.findByPk(updates.assigneeId, { attributes: ['id', 'name', 'email'] });
       if (newAssignee) {
+        // Email
         emailService.notifyTicketAssignment(ticket, newAssignee, currentUser)
           .catch(err => logger.error('Erro ao enviar notificação de atribuição:', err));
+        
+        // In-app e WebSocket
+        notificationService.notifyTicketAssigned(ticket, newAssignee.id, currentUser.id)
+          .then(notification => {
+            if (notification) {
+              emitNotification(newAssignee.id, notification);
+            }
+          })
+          .catch(err => logger.error('Erro ao criar notificação in-app:', err));
       }
     }
 
@@ -356,11 +463,13 @@ export const addComment = async (req, res, next) => {
 
     // Enviar notificações (async - não bloqueia resposta)
     const recipients = [];
+    const userIds = [];
     
     // Se for comentário interno, notificar apenas agentes
     if (comment.isInternal) {
       if (ticket.assignee?.email && ticket.assignee.email !== req.user.email) {
         recipients.push(ticket.assignee.email);
+        userIds.push(ticket.assignee.id);
       }
       // TODO: Adicionar outros agentes/admins se necessário
     } else {
@@ -373,15 +482,27 @@ export const addComment = async (req, res, next) => {
       
       if (ticket.assignee?.email && ticket.assignee.email !== req.user.email) {
         recipients.push(ticket.assignee.email);
+        userIds.push(ticket.assignee.id);
       }
       if (ticket.requester?.email && ticket.requester.email !== req.user.email && req.user.role === 'cliente-org') {
         recipients.push(ticket.requester.email);
+        userIds.push(ticket.requester.id);
       }
     }
     
     if (recipients.length > 0) {
+      // Email
       emailService.notifyNewComment(ticket, comment, fullComment.user, recipients)
         .catch(err => logger.error('Erro ao enviar notificação de comentário:', err));
+      
+      // In-app e WebSocket
+      notificationService.notifyNewComment(ticket, comment, req.user.id, userIds)
+        .then(notifications => {
+          notifications.forEach(notif => {
+            emitNotification(notif.userId, notif);
+          });
+        })
+        .catch(err => logger.error('Erro ao criar notificações in-app:', err));
     }
 
     res.status(201).json({
@@ -609,6 +730,436 @@ export const deleteAttachment = async (req, res, next) => {
       message: 'Anexo eliminado com sucesso'
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// Obter histórico de tickets de um cliente
+export const getClientHistory = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 10, excludeTicketId } = req.query;
+
+    const where = {
+      organizationId: req.user.organizationId,
+      requesterId: userId
+    };
+
+    // Excluir ticket atual
+    if (excludeTicketId) {
+      where.id = { [Op.ne]: excludeTicketId };
+    }
+
+    const tickets = await Ticket.findAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'requester',
+          attributes: ['id', 'name', 'email']
+        },
+        {
+          model: User,
+          as: 'assignee',
+          attributes: ['id', 'name']
+        },
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit)
+    });
+
+    res.json({
+      success: true,
+      tickets,
+      total: tickets.length
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Adicionar relacionamento entre tickets
+export const addRelationship = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { relatedTicketId, relationshipType, notes } = req.body;
+
+    // Verificar se ambos os tickets existem
+    const [ticket, relatedTicket] = await Promise.all([
+      Ticket.findOne({ where: { id: ticketId, organizationId: req.user.organizationId } }),
+      Ticket.findOne({ where: { id: relatedTicketId, organizationId: req.user.organizationId } })
+    ]);
+
+    if (!ticket || !relatedTicket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Verificar se já existe relacionamento
+    const existing = await TicketRelationship.findOne({
+      where: {
+        [Op.or]: [
+          { ticketId, relatedTicketId },
+          { ticketId: relatedTicketId, relatedTicketId: ticketId }
+        ]
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: 'Relacionamento já existe' });
+    }
+
+    // Criar relacionamento
+    const relationship = await TicketRelationship.create({
+      ticketId,
+      relatedTicketId,
+      relationshipType: relationshipType || 'related',
+      notes
+    });
+
+    logger.info(`Relacionamento criado entre tickets ${ticketId} e ${relatedTicketId}`);
+
+    res.json({
+      success: true,
+      relationship
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Obter tickets relacionados
+export const getRelatedTickets = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    const relationships = await TicketRelationship.findAll({
+      where: {
+        [Op.or]: [
+          { ticketId },
+          { relatedTicketId: ticketId }
+        ]
+      }
+    });
+
+    // Buscar detalhes dos tickets relacionados
+    const relatedTicketIds = relationships.map(r => 
+      r.ticketId === ticketId ? r.relatedTicketId : r.ticketId
+    );
+
+    const tickets = await Ticket.findAll({
+      where: {
+        id: relatedTicketIds,
+        organizationId: req.user.organizationId
+      },
+      include: [
+        {
+          model: User,
+          as: 'requester',
+          attributes: ['id', 'name']
+        },
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name']
+        }
+      ]
+    });
+
+    // Mapear com tipo de relacionamento
+    const result = tickets.map(ticket => {
+      const rel = relationships.find(r => 
+        r.ticketId === ticket.id || r.relatedTicketId === ticket.id
+      );
+      return {
+        ...ticket.toJSON(),
+        relationshipType: rel.relationshipType,
+        relationshipNotes: rel.notes,
+        relationshipId: rel.id
+      };
+    });
+
+    res.json({
+      success: true,
+      tickets: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Remover relacionamento
+export const removeRelationship = async (req, res, next) => {
+  try {
+    const { relationshipId } = req.params;
+
+    const relationship = await TicketRelationship.findByPk(relationshipId);
+
+    if (!relationship) {
+      return res.status(404).json({ error: 'Relacionamento não encontrado' });
+    }
+
+    await relationship.destroy();
+
+    res.json({
+      success: true,
+      message: 'Relacionamento removido'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Obter histórico de um ticket
+export const getHistory = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { limit = 100, offset = 0, action } = req.query;
+
+    // Verificar se ticket existe e pertence à organização
+    const ticket = await Ticket.findOne({
+      where: { id: ticketId, organizationId: req.user.organizationId }
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    const history = await getTicketHistory(ticketId, req.user.organizationId, {
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      action
+    });
+
+    res.json({
+      success: true,
+      history,
+      total: history.length
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Transferir ticket para outra área
+export const transferTicket = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { ticketId } = req.params;
+    const { 
+      directionId, 
+      departmentId, 
+      sectionId, 
+      assigneeId, 
+      reason,
+      categoryId,
+      type
+    } = req.body;
+
+    const ticket = await Ticket.findOne({
+      where: { id: ticketId, organizationId: req.user.organizationId },
+      transaction
+    });
+
+    if (!ticket) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Salvar valores antigos
+    const oldValues = {
+      directionId: ticket.directionId,
+      departmentId: ticket.departmentId,
+      sectionId: ticket.sectionId,
+      assigneeId: ticket.assigneeId,
+      categoryId: ticket.categoryId,
+      type: ticket.type
+    };
+
+    // Atualizar ticket (converter strings vazias em null para campos UUID)
+    const updates = {};
+    if (directionId !== undefined) updates.directionId = directionId || null;
+    if (departmentId !== undefined) updates.departmentId = departmentId || null;
+    if (sectionId !== undefined) updates.sectionId = sectionId || null;
+    if (assigneeId !== undefined) updates.assigneeId = assigneeId || null;
+    if (categoryId !== undefined) updates.categoryId = categoryId || null;
+    if (type !== undefined) updates.type = type || null;
+
+    await ticket.update(updates, { transaction });
+
+    // Registrar transferência no histórico
+    let description = 'Ticket transferido';
+    if (reason) description += `: ${reason}`;
+
+    await logTicketChange(
+      ticketId,
+      req.user.id,
+      req.user.organizationId,
+      {
+        action: 'transferred',
+        field: 'transfer',
+        oldValue: oldValues,
+        newValue: updates,
+        description,
+        metadata: { reason }
+      },
+      transaction
+    );
+
+    // Adicionar comentário sobre a transferência
+    await Comment.create({
+      ticketId,
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      content: `🔄 Ticket transferido${reason ? ': ' + reason : ''}`,
+      isInternal: true,
+      isPrivate: false
+    }, { transaction });
+
+    await transaction.commit();
+
+    logger.info(`Ticket ${ticket.ticketNumber} transferido por ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Ticket transferido com sucesso',
+      ticket
+    });
+  } catch (error) {
+    await transaction.rollback();
+    next(error);
+  }
+};
+
+// Atualizar prioridade interna
+export const updateInternalPriority = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { ticketId } = req.params;
+    const { internalPriority, reason } = req.body;
+
+    const ticket = await Ticket.findOne({
+      where: { id: ticketId, organizationId: req.user.organizationId },
+      transaction
+    });
+
+    if (!ticket) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    const oldPriority = ticket.internalPriority;
+
+    await ticket.update({ internalPriority }, { transaction });
+
+    // Registrar no histórico
+    const priorityDescription = `Prioridade interna alterada de "${oldPriority || 'Não definida'}" para "${internalPriority}"` + (reason ? ': ' + reason : '');
+    
+    await logTicketChange(
+      ticketId,
+      req.user.id,
+      req.user.organizationId,
+      {
+        action: 'priority_updated',
+        field: 'internalPriority',
+        oldValue: oldPriority,
+        newValue: internalPriority,
+        description: priorityDescription,
+        metadata: { reason }
+      },
+      transaction
+    );
+
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      message: 'Prioridade interna atualizada',
+      ticket
+    });
+  } catch (error) {
+    await transaction.rollback();
+    next(error);
+  }
+};
+
+// Atualizar estado de resolução
+export const updateResolutionStatus = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { ticketId } = req.params;
+    const { resolutionStatus, notes } = req.body;
+
+    const ticket = await Ticket.findOne({
+      where: { id: ticketId, organizationId: req.user.organizationId },
+      transaction
+    });
+
+    if (!ticket) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    const oldStatus = ticket.resolutionStatus;
+
+    await ticket.update({ resolutionStatus }, { transaction });
+
+    // Registrar no histórico
+    const statusLabels = {
+      pendente: 'Pendente',
+      em_analise: 'Em Análise',
+      aguardando_terceiro: 'Aguardando Terceiro',
+      solucao_proposta: 'Solução Proposta',
+      resolvido: 'Resolvido',
+      nao_resolvido: 'Não Resolvido',
+      workaround: 'Workaround Aplicado'
+    };
+
+    const resolutionDescription = `Estado de resolução alterado para "${statusLabels[resolutionStatus] || resolutionStatus}"` + (notes ? ': ' + notes : '');
+    
+    await logTicketChange(
+      ticketId,
+      req.user.id,
+      req.user.organizationId,
+      {
+        action: 'resolution_updated',
+        field: 'resolutionStatus',
+        oldValue: oldStatus,
+        newValue: resolutionStatus,
+        description: resolutionDescription,
+        metadata: { notes }
+      },
+      transaction
+    );
+
+    // Adicionar comentário se houver notas
+    if (notes) {
+      await Comment.create({
+        ticketId,
+        userId: req.user.id,
+        organizationId: req.user.organizationId,
+        content: `📝 Estado de resolução: ${statusLabels[resolutionStatus]}\n${notes}`,
+        isInternal: true,
+        isPrivate: false
+      }, { transaction });
+    }
+
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      message: 'Estado de resolução atualizado',
+      ticket
+    });
+  } catch (error) {
+    await transaction.rollback();
     next(error);
   }
 };

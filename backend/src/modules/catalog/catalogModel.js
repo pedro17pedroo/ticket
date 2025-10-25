@@ -12,7 +12,7 @@ export const CatalogCategory = sequelize.define('CatalogCategory', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'users',
+      model: 'organizations',
       key: 'id'
     }
   },
@@ -52,7 +52,7 @@ export const CatalogItem = sequelize.define('CatalogItem', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'users',
+      model: 'organizations',
       key: 'id'
     }
   },
@@ -180,7 +180,7 @@ export const ServiceRequest = sequelize.define('ServiceRequest', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'users',
+      model: 'organizations',
       key: 'id'
     }
   },

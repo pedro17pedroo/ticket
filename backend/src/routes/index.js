@@ -27,6 +27,8 @@ import * as tagController from '../modules/tags/tagController.js';
 import * as templateController from '../modules/templates/templateController.js';
 import * as ticketMergeController from '../modules/tickets/ticketMergeController.js';
 import * as catalogController from '../modules/catalog/catalogController.js';
+import * as notificationController from '../modules/notifications/notificationController.js';
+import * as inventoryController from '../modules/inventory/inventoryController.js';
 
 const router = express.Router();
 
@@ -77,6 +79,20 @@ router.post('/tickets/:ticketId/upload', authenticate, uploadConfig.array('files
 router.get('/tickets/:ticketId/attachments', authenticate, ticketController.getAttachments);
 router.get('/tickets/:ticketId/attachments/:attachmentId/download', authenticate, ticketController.downloadAttachment);
 router.delete('/tickets/:ticketId/attachments/:attachmentId', authenticate, auditLog('delete', 'attachment'), ticketController.deleteAttachment);
+
+// Client History
+router.get('/users/:userId/tickets/history', authenticate, ticketController.getClientHistory);
+
+// Ticket Relationships
+router.post('/tickets/:ticketId/relationships', authenticate, ticketController.addRelationship);
+router.get('/tickets/:ticketId/relationships', authenticate, ticketController.getRelatedTickets);
+router.delete('/relationships/:relationshipId', authenticate, ticketController.removeRelationship);
+
+// Ticket History & Management
+router.get('/tickets/:ticketId/history', authenticate, ticketController.getHistory);
+router.post('/tickets/:ticketId/transfer', authenticate, auditLog('transfer', 'ticket'), ticketController.transferTicket);
+router.patch('/tickets/:ticketId/internal-priority', authenticate, auditLog('update_internal_priority', 'ticket'), ticketController.updateInternalPriority);
+router.patch('/tickets/:ticketId/resolution-status', authenticate, auditLog('update_resolution_status', 'ticket'), ticketController.updateResolutionStatus);
 
 // ==================== DIRECTIONS ====================
 router.get('/directions', authenticate, directionController.getDirections);
@@ -241,5 +257,37 @@ router.post('/catalog/requests/:id/approve', authenticate, authorize('admin-org'
 
 // Estatísticas
 router.get('/catalog/statistics', authenticate, catalogController.getCatalogStatistics);
+
+// ==================== NOTIFICATIONS ====================
+router.get('/notifications', authenticate, notificationController.getNotifications);
+router.get('/notifications/unread-count', authenticate, notificationController.getUnreadCount);
+router.patch('/notifications/:id/read', authenticate, notificationController.markAsRead);
+router.patch('/notifications/mark-all-read', authenticate, notificationController.markAllAsRead);
+router.delete('/notifications/:id', authenticate, notificationController.deleteNotification);
+
+// ==================== INVENTORY ====================
+// Assets
+router.get('/inventory/assets', authenticate, inventoryController.getAssets);
+router.get('/inventory/assets/:id', authenticate, inventoryController.getAssetById);
+router.post('/inventory/assets', authenticate, authorize('admin-org', 'agente'), auditLog('create', 'asset'), inventoryController.createAsset);
+router.put('/inventory/assets/:id', authenticate, authorize('admin-org', 'agente'), auditLog('update', 'asset'), inventoryController.updateAsset);
+router.delete('/inventory/assets/:id', authenticate, authorize('admin-org'), auditLog('delete', 'asset'), inventoryController.deleteAsset);
+
+// Software
+router.get('/inventory/software', authenticate, inventoryController.getSoftware);
+router.post('/inventory/software', authenticate, authorize('admin-org', 'agente'), auditLog('create', 'software'), inventoryController.addSoftware);
+router.delete('/inventory/software/:id', authenticate, authorize('admin-org', 'agente'), auditLog('delete', 'software'), inventoryController.deleteSoftware);
+
+// Licenses
+router.get('/inventory/licenses', authenticate, inventoryController.getLicenses);
+router.get('/inventory/licenses/:id', authenticate, inventoryController.getLicenseById);
+router.post('/inventory/licenses', authenticate, authorize('admin-org', 'agente'), auditLog('create', 'license'), inventoryController.createLicense);
+router.put('/inventory/licenses/:id', authenticate, authorize('admin-org', 'agente'), auditLog('update', 'license'), inventoryController.updateLicense);
+router.delete('/inventory/licenses/:id', authenticate, authorize('admin-org'), auditLog('delete', 'license'), inventoryController.deleteLicense);
+router.post('/inventory/licenses/:id/assign', authenticate, authorize('admin-org', 'agente'), auditLog('update', 'license'), inventoryController.assignLicense);
+router.post('/inventory/licenses/:id/unassign', authenticate, authorize('admin-org', 'agente'), auditLog('update', 'license'), inventoryController.unassignLicense);
+
+// Statistics
+router.get('/inventory/statistics', authenticate, inventoryController.getStatistics);
 
 export default router;

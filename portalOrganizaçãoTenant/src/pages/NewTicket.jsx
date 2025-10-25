@@ -6,6 +6,7 @@ import api from '../services/api'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import FileUpload from '../components/FileUpload'
+import RichTextEditor from '../components/RichTextEditor'
 
 const NewTicket = () => {
   const navigate = useNavigate()
@@ -15,7 +16,8 @@ const NewTicket = () => {
   const [categories, setCategories] = useState([])
   const [agents, setAgents] = useState([])
   const [attachments, setAttachments] = useState([])
-  const { register, handleSubmit, formState: { errors } } = useForm()
+  const [description, setDescription] = useState('')
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm()
 
   useEffect(() => {
     loadFormData()
@@ -47,8 +49,19 @@ const NewTicket = () => {
   const onSubmit = async (data) => {
     setLoading(true)
     try {
-      // Criar ticket
-      const response = await ticketService.create(data)
+      // Validar descrição
+      if (!description || description.trim() === '' || description === '<p><br></p>') {
+        toast.error('Descrição é obrigatória')
+        setLoading(false)
+        return
+      }
+
+      // Criar ticket com descrição HTML
+      const ticketData = {
+        ...data,
+        description
+      }
+      const response = await ticketService.create(ticketData)
       const ticketId = response.ticket.id
 
       // Upload de anexos se houver
@@ -121,21 +134,26 @@ const NewTicket = () => {
           {/* Description */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              Descrição <span className="text-red-500">*</span>
+              Descrição Detalhada <span className="text-red-500">*</span>
             </label>
-            <textarea
-              {...register('description', { 
-                required: 'Descrição é obrigatória',
-                minLength: { value: 10, message: 'Mínimo 10 caracteres' }
-              })}
-              rows={6}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-              placeholder="Descreva detalhadamente o problema, incluindo passos para reproduzir (se aplicável)"
+            <RichTextEditor
+              value={description}
+              onChange={setDescription}
+              placeholder="Descreva detalhadamente o problema, incluindo passos para reproduzir (se aplicável)...
+
+Você pode usar:
+• Negrito, itálico, sublinhado
+• Listas e numeração
+• Cores e destaques
+• Links"
             />
-            {errors.description && (
-              <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>
-            )}
+            <p className="text-xs text-gray-500 mt-2">
+              💡 Use a barra de ferramentas para formatar o texto
+            </p>
           </div>
+
+          {/* Spacer */}
+          <div className="h-4"></div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Priority */}

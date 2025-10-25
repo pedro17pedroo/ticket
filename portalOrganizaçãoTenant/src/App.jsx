@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store/authStore'
+import { SocketProvider } from './contexts/SocketContext'
+import { NotificationProvider } from './contexts/NotificationContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -20,6 +22,12 @@ import Priorities from './pages/Priorities'
 import Types from './pages/Types'
 import HoursBank from './pages/HoursBank'
 import Settings from './pages/Settings'
+import ServiceCatalog from './pages/ServiceCatalog'
+import Tags from './pages/Tags'
+import Templates from './pages/Templates'
+import Inventory from './pages/Inventory'
+import InventoryDetail from './pages/InventoryDetail'
+import Licenses from './pages/Licenses'
 
 // Componente de rota protegida
 const PrivateRoute = ({ children }) => {
@@ -29,8 +37,15 @@ const PrivateRoute = ({ children }) => {
 
 function App() {
   return (
-    <Router>
-      <Toaster 
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
+      <SocketProvider>
+        <NotificationProvider>
+          <Toaster 
         position="top-right"
         toastOptions={{
           duration: 3000,
@@ -78,6 +93,12 @@ function App() {
                   <Route path="/priorities" element={<Priorities />} />
                   <Route path="/types" element={<Types />} />
                   <Route path="/hours-bank" element={<HoursBank />} />
+                  <Route path="/catalog" element={<ServiceCatalog />} />
+                  <Route path="/tags" element={<Tags />} />
+                  <Route path="/templates" element={<Templates />} />
+                  <Route path="/inventory" element={<Inventory />} />
+                  <Route path="/inventory/:id" element={<InventoryDetail />} />
+                  <Route path="/inventory/licenses" element={<Licenses />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
@@ -86,6 +107,8 @@ function App() {
           }
         />
       </Routes>
+        </NotificationProvider>
+      </SocketProvider>
     </Router>
   )
 }

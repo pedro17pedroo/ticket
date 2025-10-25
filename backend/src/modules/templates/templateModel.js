@@ -11,7 +11,7 @@ export const ResponseTemplate = sequelize.define('ResponseTemplate', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'users',
+      model: 'organizations',
       key: 'id'
     }
   },
