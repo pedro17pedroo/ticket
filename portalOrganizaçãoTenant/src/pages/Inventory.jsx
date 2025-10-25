@@ -313,13 +313,13 @@ const Inventory = () => {
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Cliente
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Asset
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Tipo
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Cliente
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Especificações
@@ -355,6 +355,23 @@ const Inventory = () => {
             ) : (
               assets.map((asset) => (
                 <tr key={asset.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <td className="px-6 py-4 text-sm">
+                    {asset.user ? (
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{asset.user.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{asset.user.email}</p>
+                      </div>
+                    ) : asset.client ? (
+                      <Link
+                        to={`/clients/${asset.client.id}`}
+                        className="text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium"
+                      >
+                        {asset.client.name}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
@@ -362,7 +379,7 @@ const Inventory = () => {
                       </div>
                       <div>
                         <p className="font-medium">{asset.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{asset.hostname}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{asset.assetTag || asset.hostname}</p>
                       </div>
                     </div>
                   </td>
@@ -371,29 +388,17 @@ const Inventory = () => {
                     <p className="text-gray-500 dark:text-gray-400">{asset.model}</p>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    {asset.client ? (
-                      <Link
-                        to={`/clients/${asset.client.id}`}
-                        className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
-                      >
-                        {asset.client.name}
-                      </Link>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
                     <div className="space-y-1">
                       {asset.processor && (
                         <p className="text-gray-700 dark:text-gray-300">
-                          {asset.processor.substring(0, 30)}...
+                          {asset.processor.length > 30 ? asset.processor.substring(0, 30) + '...' : asset.processor}
                         </p>
                       )}
                       {asset.ram && (
-                        <p className="text-gray-500 dark:text-gray-400">{asset.ram} RAM</p>
+                        <p className="text-gray-500 dark:text-gray-400">{asset.ram}</p>
                       )}
                       {asset.os && (
-                        <p className="text-gray-500 dark:text-gray-400">{asset.os}</p>
+                        <p className="text-gray-500 dark:text-gray-400">{asset.os} {asset.osVersion}</p>
                       )}
                     </div>
                   </td>

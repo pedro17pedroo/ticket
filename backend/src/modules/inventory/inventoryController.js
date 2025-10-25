@@ -96,21 +96,14 @@ export const getAssetById = async (req, res, next) => {
         {
           model: User,
           as: 'client',
-          attributes: ['id', 'name', 'email', 'phone']
+          attributes: ['id', 'name', 'email', 'phone'],
+          required: false
         },
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email']
-        },
-        {
-          model: Software,
-          as: 'software'
-        },
-        {
-          model: License,
-          as: 'licenses',
-          through: { attributes: ['assignedDate', 'isActive'] }
+          attributes: ['id', 'name', 'email'],
+          required: false
         }
       ]
     });
