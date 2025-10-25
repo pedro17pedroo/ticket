@@ -738,6 +738,8 @@ export const browserCollect = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const { inventory, source } = req.body;
 
+    logger.info('Browser collect request:', { userId, organizationId, hasInventory: !!inventory });
+
     if (!inventory) {
       return res.status(400).json({ error: 'Dados de inventário não fornecidos' });
     }
@@ -759,6 +761,8 @@ export const browserCollect = async (req, res, next) => {
       }
     });
 
+    logger.info('Asset lookup result:', { found: !!asset, assetTag: `BROWSER-${userId}` });
+
     // Montar especificações
     const specifications = {
       os: inventory.os,
@@ -779,6 +783,7 @@ export const browserCollect = async (req, res, next) => {
 
     if (asset) {
       // Atualizar asset existente
+      logger.info('Updating existing asset:', asset.id);
       await asset.update({
         name: `${inventory.browser} - ${inventory.os}`,
         type: deviceType,
@@ -790,12 +795,20 @@ export const browserCollect = async (req, res, next) => {
       logger.info(`Asset atualizado via navegador: ${asset.assetTag}`);
     } else {
       // Buscar clientId do usuário (se for cliente)
+      logger.info('Fetching user data for clientId:', userId);
       const user = await User.findByPk(userId);
       
+      if (!user) {
+        logger.error('User not found:', userId);
+        return res.status(404).json({ error: 'Usuário não encontrado' });
+      }
+
+      logger.info('User found:', { userId, clientId: user.clientId, role: user.role });
+      
       // Criar novo asset
-      asset = await Asset.create({
+      const assetData = {
         organizationId,
-        clientId: user.clientId || null, // Pode ser null se não for cliente
+        clientId: user.clientId || null,
         userId,
         assetTag: `BROWSER-${userId}`,
         name: `${inventory.browser} - ${inventory.os}`,
@@ -807,7 +820,11 @@ export const browserCollect = async (req, res, next) => {
         status: 'active',
         lastSeen: new Date(),
         lastInventoryUpdate: new Date()
-      });
+      };
+
+      logger.info('Creating asset with data:', assetData);
+      
+      asset = await Asset.create(assetData);
 
       logger.info(`Novo asset criado via navegador: ${asset.assetTag}`);
     }
@@ -824,7 +841,11 @@ export const browserCollect = async (req, res, next) => {
       }
     });
   } catch (error) {
-    logger.error('Erro ao processar coleta via navegador:', error);
+    logger.error('Erro ao processar coleta via navegador:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     next(error);
   }
 };
