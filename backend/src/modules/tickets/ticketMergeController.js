@@ -3,7 +3,7 @@ import { TicketTag } from '../tags/tagModel.js';
 import { TimeTracking } from '../timeTracking/timeTrackingModel.js';
 import { HoursTransaction } from '../hours/hoursBankModel.js';
 import logger from '../../config/logger.js';
-import sequelize from '../../config/database.js';
+import { sequelize } from '../../config/database.js';
 import { Op } from 'sequelize';
 
 // Fusão de tickets duplicados
