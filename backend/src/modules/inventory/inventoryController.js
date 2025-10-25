@@ -763,34 +763,32 @@ export const browserCollect = async (req, res, next) => {
 
     logger.info('Asset lookup result:', { found: !!asset, assetTag: `BROWSER-${userId}` });
 
-    // Montar especificações
-    const specifications = {
+    // Preparar dados do asset
+    const assetData = {
+      name: `${inventory.browser} - ${inventory.os}`,
+      type: deviceType,
+      manufacturer: 'Browser Detection',
+      model: `${inventory.browser} ${inventory.browserVersion}`,
       os: inventory.os,
       osVersion: inventory.osVersion,
-      architecture: inventory.architecture,
-      browser: inventory.browser,
-      browserVersion: inventory.browserVersion,
-      cpu: `${inventory.hardware?.cpuCores || 'Unknown'} cores`,
-      ram: inventory.hardware?.memory || 'Unknown',
-      gpu: inventory.hardware?.gpu || 'Unknown',
-      screenResolution: inventory.hardware?.screenResolution,
-      colorDepth: inventory.hardware?.colorDepth,
-      timezone: inventory.locale?.timezone,
-      language: inventory.locale?.language,
-      collectionMethod: 'browser',
-      userAgent: inventory.userAgent
+      processor: inventory.hardware?.gpu || null,
+      processorCores: inventory.hardware?.cpuCores || null,
+      ram: inventory.hardware?.memory || null,
+      graphicsCard: inventory.hardware?.gpu || null,
+      hostname: inventory.userAgent?.split(' ')[0] || null,
+      lastSeen: new Date(),
+      lastInventoryScan: new Date(),
+      collectionMethod: 'web',
+      rawData: {
+        ...inventory,
+        collectedAt: new Date().toISOString()
+      }
     };
 
     if (asset) {
       // Atualizar asset existente
       logger.info('Updating existing asset:', asset.id);
-      await asset.update({
-        name: `${inventory.browser} - ${inventory.os}`,
-        type: deviceType,
-        specifications,
-        lastSeen: new Date(),
-        lastInventoryUpdate: new Date()
-      });
+      await asset.update(assetData);
 
       logger.info(`Asset atualizado via navegador: ${asset.assetTag}`);
     } else {
@@ -805,26 +803,20 @@ export const browserCollect = async (req, res, next) => {
 
       logger.info('User found:', { userId, clientId: user.clientId, role: user.role });
       
-      // Criar novo asset
-      const assetData = {
+      // Criar novo asset com todos os dados
+      const newAssetData = {
         organizationId,
         clientId: user.clientId || null,
         userId,
         assetTag: `BROWSER-${userId}`,
-        name: `${inventory.browser} - ${inventory.os}`,
-        type: deviceType,
-        brand: 'Unknown',
-        model: `${inventory.browser} ${inventory.browserVersion}`,
         serialNumber: `BROWSER-${Date.now()}`,
-        specifications,
         status: 'active',
-        lastSeen: new Date(),
-        lastInventoryUpdate: new Date()
+        ...assetData
       };
 
-      logger.info('Creating asset with data:', assetData);
+      logger.info('Creating asset with data');
       
-      asset = await Asset.create(assetData);
+      asset = await Asset.create(newAssetData);
 
       logger.info(`Novo asset criado via navegador: ${asset.assetTag}`);
     }
