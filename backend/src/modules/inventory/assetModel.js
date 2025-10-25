@@ -153,8 +153,9 @@ const Asset = sequelize.define('Asset', {
     allowNull: true
   },
   antivirusUpdated: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Data da última atualização do antivírus'
   },
   hasFirewall: {
     type: DataTypes.BOOLEAN,
