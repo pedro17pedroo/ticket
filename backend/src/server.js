@@ -7,6 +7,7 @@ import { connectPostgreSQL, connectMongoDB, syncDatabase } from './config/databa
 import { connectRedis } from './config/redis.js';
 import { setupAssociations } from './modules/models/index.js';
 import { initializeSocket } from './socket/index.js';
+import emailInboxService from './services/emailInboxService.js';
 import logger from './config/logger.js';
 
 const PORT = process.env.PORT || 3000;
@@ -46,6 +47,13 @@ const startServer = async () => {
       logger.info(`🔗 API: http://localhost:${PORT}/api`);
       logger.info(`🔌 WebSocket: ws://localhost:${PORT}`);
       logger.info(`❤️  Health: http://localhost:${PORT}/api/health`);
+      
+      // Inicializar serviço de e-mail inbox
+      if (process.env.ENABLE_EMAIL_INBOX === 'true') {
+        emailInboxService.initialize();
+      } else {
+        logger.info('📧 Serviço de e-mail inbox desativado (ENABLE_EMAIL_INBOX=false)');
+      }
     });
   } catch (error) {
     logger.error('❌ Erro ao iniciar servidor:', error);
