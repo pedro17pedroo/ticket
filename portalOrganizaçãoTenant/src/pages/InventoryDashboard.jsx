@@ -150,20 +150,37 @@ const InventoryDashboard = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
               <h3 className="text-lg font-semibold mb-4">Assets por Tipo</h3>
               <div className="space-y-3">
-                {statistics.assets.byType && Object.entries(statistics.assets.byType).map(([type, count]) => (
-                  <div key={type} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <span className="text-sm capitalize">{type}</span>
-                      <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div
-                          className="bg-primary-600 h-2 rounded-full"
-                          style={{ width: `${(count / statistics.assets.total) * 100}%` }}
-                        ></div>
+                {statistics.assets.byType && Array.isArray(statistics.assets.byType) ? (
+                  statistics.assets.byType.map((item) => (
+                    <div key={item.type} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <span className="text-sm capitalize">{item.type}</span>
+                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div
+                            className="bg-primary-600 h-2 rounded-full"
+                            style={{ width: `${(item.count / statistics.assets.total) * 100}%` }}
+                          ></div>
+                        </div>
                       </div>
+                      <span className="text-sm font-medium w-12 text-right">{item.count}</span>
                     </div>
-                    <span className="text-sm font-medium w-12 text-right">{count}</span>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  statistics.assets.byType && Object.entries(statistics.assets.byType).map(([type, count]) => (
+                    <div key={type} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <span className="text-sm capitalize">{type}</span>
+                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div
+                            className="bg-primary-600 h-2 rounded-full"
+                            style={{ width: `${(count / statistics.assets.total) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium w-12 text-right">{count}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
