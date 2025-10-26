@@ -1,9 +1,8 @@
 import Imap from 'node-imap';
 import { simpleParser } from 'mailparser';
 import logger from '../config/logger.js';
-import { Ticket } from '../modules/tickets/ticketModel.js';
-import { User } from '../modules/users/userModel.js';
-import { Organization } from '../modules/organizations/organizationModel.js';
+import Ticket from '../modules/tickets/ticketModel.js';
+import User from '../modules/users/userModel.js';
 
 class EmailInboxService {
   constructor() {
