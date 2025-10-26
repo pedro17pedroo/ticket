@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import * as ticketService from '../services/ticketService';
+import { ticketService } from '../services/api';
 
 const TicketsKanban = () => {
   const [tickets, setTickets] = useState([]);
