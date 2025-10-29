@@ -31,6 +31,10 @@ import InventoryDashboard from './pages/InventoryDashboard'
 import InventoryDetail from './pages/InventoryDetail'
 import AssetForm from './pages/AssetForm'
 import Licenses from './pages/Licenses'
+import OrganizationInventory from './pages/OrganizationInventory'
+import ClientsInventory from './pages/ClientsInventory'
+import UserInventoryDetail from './pages/UserInventoryDetail'
+import ClientInventoryDetail from './pages/ClientInventoryDetail'
 
 // Componente de rota protegida
 const PrivateRoute = ({ children }) => {
@@ -101,6 +105,11 @@ function App() {
                   <Route path="/tags" element={<Tags />} />
                   <Route path="/templates" element={<Templates />} />
                   <Route path="/inventory" element={<InventoryDashboard />} />
+                  <Route path="/inventory/organization" element={<OrganizationInventory />} />
+                  <Route path="/inventory/organization/:userId" element={<UserInventoryDetail />} />
+                  <Route path="/inventory/clients" element={<ClientsInventory />} />
+                  <Route path="/inventory/clients/:clientId" element={<ClientInventoryDetail />} />
+                  <Route path="/inventory/clients/:clientId/users/:userId" element={<UserInventoryDetail />} />
                   <Route path="/inventory/assets" element={<Inventory />} />
                   <Route path="/inventory/new" element={<AssetForm />} />
                   <Route path="/inventory/licenses" element={<Licenses />} />

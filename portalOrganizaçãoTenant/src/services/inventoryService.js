@@ -88,6 +88,45 @@ export const getStatistics = async (params = {}) => {
   return response.data;
 };
 
+// ==================== ORGANIZATION INVENTORY ====================
+
+export const getOrganizationUsers = async () => {
+  const response = await api.get('/inventory/organization/users');
+  return response.data;
+};
+
+export const getOrganizationInventoryStats = async () => {
+  const response = await api.get('/inventory/organization/statistics');
+  return response.data;
+};
+
+export const getUserInventory = async (userId) => {
+  const response = await api.get(`/inventory/organization/users/${userId}`);
+  return response.data;
+};
+
+// ==================== CLIENTS INVENTORY ====================
+
+export const getClientsWithInventory = async () => {
+  const response = await api.get('/inventory/clients');
+  return response.data;
+};
+
+export const getClientsInventoryStats = async () => {
+  const response = await api.get('/inventory/clients/statistics');
+  return response.data;
+};
+
+export const getClientInventory = async (clientId) => {
+  const response = await api.get(`/inventory/clients/${clientId}`);
+  return response.data;
+};
+
+export const getClientUserInventory = async (clientId, userId) => {
+  const response = await api.get(`/inventory/clients/${clientId}/users/${userId}`);
+  return response.data;
+};
+
 export default {
   getAssets,
   getAssetById,
@@ -104,5 +143,14 @@ export default {
   deleteLicense,
   assignLicense,
   unassignLicense,
-  getStatistics
+  getStatistics,
+  // Organization
+  getOrganizationUsers,
+  getOrganizationInventoryStats,
+  getUserInventory,
+  // Clients
+  getClientsWithInventory,
+  getClientsInventoryStats,
+  getClientInventory,
+  getClientUserInventory
 };
