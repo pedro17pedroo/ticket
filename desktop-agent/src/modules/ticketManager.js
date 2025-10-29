@@ -65,9 +65,13 @@ class TicketManager extends EventEmitter {
         }
       });
 
-      this.user = response.data;
+      // A API retorna { user: {...} }, não diretamente o user
+      this.user = response.data.user || response.data;
+      
       console.log('✅ Informações do usuário carregadas:', { 
+        id: this.user.id,
         name: this.user.name, 
+        email: this.user.email,
         role: this.user.role 
       });
       return this.user;
