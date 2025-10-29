@@ -10,3 +10,10 @@ build/
 # Electron
 out/
 release/
+# Ficheiros temporários
+create-icons.js
+create-proper-icons.js
+create-valid-icons.js
+*-old.js
+*-old.html
+*-old.css
