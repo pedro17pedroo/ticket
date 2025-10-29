@@ -293,4 +293,7 @@ router.get('/inventory/statistics', authenticate, inventoryController.getStatist
 // Browser Collection
 router.post('/inventory/browser-collect', authenticate, inventoryController.browserCollect);
 
+// Desktop Agent Collection
+router.post('/inventory/agent-collect', authenticate, inventoryController.agentCollect);
+
 export default router;

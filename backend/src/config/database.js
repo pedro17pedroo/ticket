@@ -54,8 +54,9 @@ export const connectPostgreSQL = async () => {
 export const syncDatabase = async () => {
   if (process.env.NODE_ENV === 'development') {
     try {
-      await sequelize.sync({ alter: true });
-      console.log('✅ Modelos sincronizados com PostgreSQL');
+      // Desabilitado - usar migrations para mudanças de schema
+      // await sequelize.sync({ alter: true });
+      console.log('✅ Modelos carregados (sync desabilitado)');
     } catch (error) {
       console.error('❌ Erro ao sincronizar modelos:', error.message);
     }
