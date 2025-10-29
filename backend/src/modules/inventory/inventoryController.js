@@ -843,6 +843,144 @@ export const browserCollect = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/inventory/agent-collect
+ * Receber dados coletados pelo Desktop Agent
+ */
+export const agentCollect = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const organizationId = req.user.organizationId;
+    const { inventory, source } = req.body;
+
+    logger.info('Agent collect request:', { userId, organizationId, machineId: inventory.machineId });
+
+    if (!inventory) {
+      return res.status(400).json({ error: 'Dados de inventário não fornecidos' });
+    }
+
+    // Verificar se já existe um asset com este machineId
+    let asset = await Asset.findOne({
+      where: {
+        organizationId,
+        assetTag: inventory.machineId
+      }
+    });
+
+    // Buscar usuário para obter clientId
+    const user = await User.findByPk(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    // Preparar dados do asset
+    const assetData = {
+      name: inventory.hostname || `${inventory.manufacturer} ${inventory.model}`,
+      type: inventory.type || 'desktop',
+      manufacturer: inventory.manufacturer,
+      model: inventory.model,
+      serialNumber: inventory.serialNumber,
+      os: inventory.os,
+      osVersion: inventory.osVersion,
+      osBuild: inventory.osBuild,
+      osArchitecture: inventory.osArchitecture?.toLowerCase() === 'arm64' ? 'ARM64' : 
+                       inventory.osArchitecture?.toLowerCase() === 'arm' ? 'ARM' :
+                       inventory.osArchitecture?.toLowerCase() === 'x64' ? 'x64' : 'x86',
+      processor: inventory.processor,
+      processorCores: inventory.processorCores,
+      ram: inventory.ram,
+      ramGB: inventory.ramGB,
+      storage: inventory.storage,
+      storageGB: inventory.storageGB,
+      storageType: inventory.storageType?.toUpperCase(),
+      graphicsCard: inventory.graphicsCard,
+      hostname: inventory.hostname,
+      ipAddress: inventory.ipAddress,
+      macAddress: inventory.macAddress,
+      domain: inventory.domain || null,
+      hasAntivirus: inventory.security?.hasAntivirus || false,
+      antivirusName: inventory.security?.antivirusName,
+      antivirusVersion: inventory.security?.antivirusVersion,
+      antivirusUpdated: inventory.security?.antivirusUpdated,
+      hasFirewall: inventory.security?.hasFirewall || false,
+      isEncrypted: inventory.security?.isEncrypted || false,
+      lastSeen: new Date(),
+      lastInventoryScan: new Date(),
+      collectionMethod: inventory.collectionMethod || 'agent',
+      rawData: {
+        ...inventory,
+        collectedAt: new Date().toISOString()
+      }
+    };
+
+    if (asset) {
+      // Atualizar asset existente
+      await asset.update(assetData);
+      logger.info(`Asset atualizado via desktop agent: ${asset.assetTag}`);
+    } else {
+      // Criar novo asset
+      const newAssetData = {
+        organizationId,
+        clientId: user.clientId || null,
+        userId,
+        assetTag: inventory.machineId,
+        status: 'active',
+        ...assetData
+      };
+
+      asset = await Asset.create(newAssetData);
+      logger.info(`Novo asset criado via desktop agent: ${asset.assetTag}`);
+    }
+
+    // Processar software instalado
+    if (inventory.software && inventory.software.length > 0) {
+      // Remover software antigo
+      await Software.destroy({
+        where: { assetId: asset.id }
+      });
+
+      // Adicionar novo software - TODAS as aplicações
+      const softwarePromises = inventory.software.map(sw => {
+        return Software.create({
+          assetId: asset.id,
+          organizationId,
+          name: sw.name,
+          version: sw.version,
+          publisher: sw.publisher || sw.vendor,
+          category: sw.category || 'application',
+          installDate: sw.installDate,
+          size: sw.size
+        });
+      });
+
+      await Promise.all(softwarePromises);
+      logger.info(`${softwarePromises.length} aplicações registradas para asset ${asset.id}`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Inventário recebido e processado com sucesso',
+      asset: {
+        id: asset.id,
+        assetTag: asset.assetTag,
+        name: asset.name,
+        type: asset.type
+      }
+    });
+  } catch (error) {
+    logger.error('Erro ao processar coleta via desktop agent:', {
+      message: error.message,
+      stack: error.stack
+    });
+    
+    res.status(500).json({
+      error: 'Erro ao processar inventário',
+      message: error.message
+    });
+  }
+};
+
 export default {
   getAssets,
   getAssetById,
@@ -860,5 +998,6 @@ export default {
   assignLicense,
   unassignLicense,
   getStatistics,
-  browserCollect
+  browserCollect,
+  agentCollect
 };
