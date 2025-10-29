@@ -49,6 +49,16 @@ class TicketManager extends EventEmitter {
    */
   async fetchUserInfo() {
     try {
+      // Verificar se há token
+      if (!this.token) {
+        throw new Error('Token de autenticação não encontrado');
+      }
+      
+      // Verificar se há baseUrl
+      if (!this.baseUrl) {
+        throw new Error('URL do servidor não configurada');
+      }
+      
       const response = await axios.get(`${this.baseUrl}/api/auth/profile`, {
         headers: {
           Authorization: `Bearer ${this.token}`
@@ -56,9 +66,13 @@ class TicketManager extends EventEmitter {
       });
 
       this.user = response.data;
+      console.log('✅ Informações do usuário carregadas:', { 
+        name: this.user.name, 
+        role: this.user.role 
+      });
       return this.user;
     } catch (error) {
-      console.error('Erro ao buscar usuário:', error);
+      console.error('Erro ao buscar usuário:', error.message);
       throw error;
     }
   }
@@ -68,6 +82,17 @@ class TicketManager extends EventEmitter {
    */
   async fetchTickets(filters = {}) {
     try {
+      // Verificar se o usuário está carregado
+      if (!this.user) {
+        console.warn('⚠️ Usuário não carregado. Tentando carregar...');
+        try {
+          await this.fetchUserInfo();
+        } catch (error) {
+          console.error('Erro ao carregar informações do usuário:', error);
+          return { success: false, tickets: [], error: 'Usuário não autenticado' };
+        }
+      }
+      
       const params = new URLSearchParams();
       
       // Filtros baseados no papel do usuário

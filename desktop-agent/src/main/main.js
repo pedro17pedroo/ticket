@@ -494,13 +494,21 @@ ipcMain.on('show-notification', (event, data) => {
 ipcMain.handle('tickets:fetch', async (event, filters) => {
   try {
     if (!ticketManager) {
-      return { success: false, error: 'Ticket manager não inicializado' };
+      console.warn('⚠️ Ticket manager não inicializado');
+      return { success: false, tickets: [], error: 'Ticket manager não inicializado' };
+    }
+    
+    // Verificar se o ticketManager tem token
+    if (!ticketManager.token) {
+      console.warn('⚠️ Ticket manager sem token de autenticação');
+      return { success: false, tickets: [], error: 'Não autenticado' };
     }
     
     const tickets = await ticketManager.fetchTickets(filters);
     return { success: true, tickets };
   } catch (error) {
-    return { success: false, error: error.message };
+    console.error('Erro ao buscar tickets:', error);
+    return { success: false, tickets: [], error: error.message };
   }
 });
 
