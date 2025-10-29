@@ -466,6 +466,14 @@ body {
   padding: 16px;
   border: 1px solid var(--border-color);
   border-radius: 10px;
+  transition: all 0.2s ease;
+  background: var(--bg-primary);
+}
+
+.ticket-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  transform: translateY(-1px);
 }
 
 .ticket-title {
@@ -492,15 +500,21 @@ body {
   color: var(--text-primary);
 }
 
+.badge-status.status-novo { background: #e0e7ff; color: #4c51bf; }
 .badge-status.status-open { background: #ebf8ff; color: #2b6cb0; }
+.badge-status.status-in_progress { background: #fffaf0; color: #b7791f; }
 .badge-status.status-inProgress { background: #fffaf0; color: #b7791f; }
 .badge-status.status-pending { background: #fefcbf; color: #975a16; }
 .badge-status.status-resolved { background: #f0fff4; color: #2f855a; }
 .badge-status.status-closed { background: #edf2f7; color: #4a5568; }
 
+.badge-priority.priority-none { background: #edf2f7; color: #718096; }
 .badge-priority.priority-low { background: #edf2f7; color: #4a5568; }
 .badge-priority.priority-normal { background: #ebf8ff; color: #2b6cb0; }
+.badge-priority.priority-media { background: #ebf8ff; color: #2b6cb0; }
 .badge-priority.priority-high { background: #fff5f5; color: #c53030; }
+.badge-priority.priority-alta { background: #fff5f5; color: #c53030; }
+.badge-priority.priority-critical { background: #fed7d7; color: #9b2c2c; }
 
 .badge-unread { background: #fde8e8; color: #c53030; }
 

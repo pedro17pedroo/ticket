@@ -422,8 +422,21 @@ async function loadDashboard() {
     // Status
     document.getElementById('statStatus').textContent = status.connected ? 'Ativo' : 'Inativo';
     
-    // Tickets (simulado por enquanto)
-    document.getElementById('statTickets').textContent = state.tickets.length || '0';
+    // Carregar tickets para atualizar estatísticas
+    const { success, tickets } = await window.electronAPI.fetchTickets({});
+    if (success && tickets) {
+      state.tickets = tickets;
+      document.getElementById('statTickets').textContent = tickets.length.toString();
+      
+      // Atualizar badge no menu
+      const badge = document.querySelector('[data-page="tickets"] .badge');
+      if (badge && tickets.length > 0) {
+        badge.textContent = tickets.length.toString();
+        badge.style.display = 'flex';
+      }
+    } else {
+      document.getElementById('statTickets').textContent = '0';
+    }
     
   } catch (error) {
     console.error('Erro ao carregar dashboard:', error);
@@ -808,12 +821,34 @@ function renderTicketsList() {
     const status = (t.status || 'open');
     const priority = (t.priority || 'normal');
     const unread = t.unreadCount || 0;
+    
+    // Tradução dos status
+    const statusLabels = {
+      'novo': 'Novo',
+      'open': 'Aberto',
+      'in_progress': 'Em Progresso',
+      'pending': 'Pendente',
+      'resolved': 'Resolvido',
+      'closed': 'Fechado'
+    };
+    
+    // Tradução das prioridades
+    const priorityLabels = {
+      'none': 'Sem prioridade',
+      'low': 'Baixa',
+      'normal': 'Média',
+      'media': 'Média',
+      'alta': 'Alta',
+      'high': 'Alta',
+      'critical': 'Crítica'
+    };
+    
     return `
-      <div class="ticket-item">
+      <div class="ticket-item" data-ticket-id="${t.id}" style="cursor: pointer;">
         <div class="ticket-title">${escapeHTML(t.subject || 'Sem título')}</div>
         <div class="ticket-meta">
-          <span class="badge badge-status status-${status}">${status}</span>
-          <span class="badge badge-priority priority-${priority}">${priority}</span>
+          <span class="badge badge-status status-${status}">${statusLabels[status] || status}</span>
+          <span class="badge badge-priority priority-${priority}">${priorityLabels[priority] || priority}</span>
           <span class="meta">Criado: ${created}</span>
           ${unread > 0 ? `<span class="badge badge-unread">${unread} não lida(s)</span>` : ''}
         </div>
@@ -822,6 +857,14 @@ function renderTicketsList() {
   }).join('');
 
   container.innerHTML = `<div class="ticket-list">${rows}</div>`;
+  
+  // Adicionar event listeners para cada ticket
+  container.querySelectorAll('.ticket-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const ticketId = item.dataset.ticketId;
+      showTicketDetails(ticketId);
+    });
+  });
 }
 
 function escapeHTML(str) {
@@ -831,6 +874,181 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// Mostrar detalhes de um ticket
+async function showTicketDetails(ticketId) {
+  const ticket = state.tickets.find(t => t.id === ticketId);
+  if (!ticket) {
+    showNotification('Ticket não encontrado', 'error');
+    return;
+  }
+  
+  // Tradução dos status
+  const statusLabels = {
+    'novo': 'Novo',
+    'open': 'Aberto',
+    'in_progress': 'Em Progresso',
+    'pending': 'Pendente',
+    'resolved': 'Resolvido',
+    'closed': 'Fechado'
+  };
+  
+  // Tradução das prioridades
+  const priorityLabels = {
+    'none': 'Sem prioridade',
+    'low': 'Baixa',
+    'normal': 'Média',
+    'media': 'Média',
+    'alta': 'Alta',
+    'high': 'Alta',
+    'critical': 'Crítica'
+  };
+  
+  const created = ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('pt-PT') : '-';
+  const updated = ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString('pt-PT') : '-';
+  const status = statusLabels[ticket.status] || ticket.status || 'Aberto';
+  const priority = priorityLabels[ticket.priority] || ticket.priority || 'Média';
+  
+  // Criar modal de detalhes
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header" style="position: sticky; top: 0; background: white; z-index: 10; border-bottom: 1px solid #e2e8f0;">
+        <h2 style="margin: 0; font-size: 1.5rem;">Detalhes do Ticket #${ticket.id}</h2>
+        <button class="modal-close" id="closeTicketModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <!-- Informações Principais -->
+        <div style="margin-bottom: 2rem;">
+          <h3 style="font-size: 1.25rem; margin-bottom: 1rem; color: #1e293b;">${escapeHTML(ticket.subject || 'Sem título')}</h3>
+          
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+            <div>
+              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Status</span>
+              <span class="badge badge-status status-${ticket.status}" style="font-size: 0.875rem;">${status}</span>
+            </div>
+            <div>
+              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Prioridade</span>
+              <span class="badge badge-priority priority-${ticket.priority}" style="font-size: 0.875rem;">${priority}</span>
+            </div>
+            <div>
+              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Criado em</span>
+              <span style="font-size: 0.875rem; color: #1e293b;">${created}</span>
+            </div>
+            <div>
+              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Atualizado em</span>
+              <span style="font-size: 0.875rem; color: #1e293b;">${updated}</span>
+            </div>
+          </div>
+          
+          ${ticket.category ? `
+            <div style="margin-bottom: 1rem;">
+              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Categoria</span>
+              <span style="font-size: 0.875rem; color: #1e293b;">${escapeHTML(ticket.category)}</span>
+            </div>
+          ` : ''}
+          
+          ${ticket.type ? `
+            <div style="margin-bottom: 1rem;">
+              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Tipo</span>
+              <span style="font-size: 0.875rem; color: #1e293b;">${escapeHTML(ticket.type)}</span>
+            </div>
+          ` : ''}
+        </div>
+        
+        <!-- Descrição -->
+        <div style="margin-bottom: 2rem;">
+          <h4 style="font-size: 1rem; margin-bottom: 0.75rem; color: #1e293b;">Descrição</h4>
+          <div style="background: #f8fafc; padding: 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
+            ${ticket.description || ticket.descriptionHtml || '<p style="color: #64748b;">Sem descrição</p>'}
+          </div>
+        </div>
+        
+        <!-- Mensagens/Respostas -->
+        ${ticket.messages && ticket.messages.length > 0 ? `
+          <div style="margin-bottom: 1.5rem;">
+            <h4 style="font-size: 1rem; margin-bottom: 0.75rem; color: #1e293b;">Histórico de Mensagens (${ticket.messages.length})</h4>
+            <div style="space-y: 1rem;">
+              ${ticket.messages.map(msg => `
+                <div style="background: ${msg.isInternal ? '#fef3c7' : '#f8fafc'}; padding: 1rem; border-radius: 0.5rem; border: 1px solid ${msg.isInternal ? '#fbbf24' : '#e2e8f0'}; margin-bottom: 1rem;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="font-weight: 600; font-size: 0.875rem; color: #1e293b;">${escapeHTML(msg.author || 'Usuário')}</span>
+                    <span style="font-size: 0.75rem; color: #64748b;">${msg.createdAt ? new Date(msg.createdAt).toLocaleString('pt-PT') : ''}</span>
+                  </div>
+                  <div style="font-size: 0.875rem; color: #334155;">
+                    ${msg.message || msg.content || ''}
+                  </div>
+                  ${msg.isInternal ? '<span style="font-size: 0.75rem; color: #92400e; font-weight: 500;">📌 Nota Interna</span>' : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Anexos -->
+        ${ticket.attachments && ticket.attachments.length > 0 ? `
+          <div style="margin-bottom: 1.5rem;">
+            <h4 style="font-size: 1rem; margin-bottom: 0.75rem; color: #1e293b;">Anexos (${ticket.attachments.length})</h4>
+            <div style="display: grid; gap: 0.5rem;">
+              ${ticket.attachments.map(att => `
+                <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #f8fafc; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
+                  <svg style="width: 1.25rem; height: 1.25rem; color: #64748b;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span style="font-size: 0.875rem; color: #1e293b; flex: 1;">${escapeHTML(att.filename || att.name)}</span>
+                  ${att.size ? `<span style="font-size: 0.75rem; color: #64748b;">${formatFileSize(att.size)}</span>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+      <div class="modal-footer" style="position: sticky; bottom: 0; background: white; border-top: 1px solid #e2e8f0; padding: 1rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button id="addMessageBtn" class="btn btn-secondary">
+          <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+          Adicionar Mensagem
+        </button>
+        <button id="closeTicketModalBtn" class="btn btn-primary">Fechar</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Event listeners
+  document.getElementById('closeTicketModal').addEventListener('click', () => {
+    modal.remove();
+  });
+  
+  document.getElementById('closeTicketModalBtn').addEventListener('click', () => {
+    modal.remove();
+  });
+  
+  document.getElementById('addMessageBtn').addEventListener('click', () => {
+    modal.remove();
+    // TODO: Abrir formulário de adicionar mensagem
+    showNotification('Funcionalidade em desenvolvimento', 'info');
+  });
+  
+  // Fechar ao clicar fora
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
+}
+
+// Formatar tamanho de arquivo
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
 function showNewTicketForm() {
