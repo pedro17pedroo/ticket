@@ -859,9 +859,17 @@ function renderTicketsList() {
   container.innerHTML = `<div class="ticket-list">${rows}</div>`;
   
   // Adicionar event listeners para cada ticket
-  container.querySelectorAll('.ticket-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const ticketId = item.dataset.ticketId;
+  const ticketItems = container.querySelectorAll('.ticket-item');
+  console.log(`📋 Adicionando listeners a ${ticketItems.length} tickets`);
+  
+  ticketItems.forEach((item, index) => {
+    const ticketId = item.dataset.ticketId;
+    console.log(`  - Ticket ${index}: ID = ${ticketId}`);
+    
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log(`🖱️ Clique no ticket ID: ${ticketId}`);
       showTicketDetails(ticketId);
     });
   });
@@ -878,11 +886,19 @@ function escapeHTML(str) {
 
 // Mostrar detalhes de um ticket
 async function showTicketDetails(ticketId) {
-  const ticket = state.tickets.find(t => t.id === ticketId);
+  console.log('🔍 showTicketDetails chamado com ID:', ticketId);
+  console.log('📊 Total de tickets em state:', state.tickets.length);
+  console.log('📝 IDs dos tickets:', state.tickets.map(t => ({ id: t.id, subject: t.subject })));
+  
+  const ticket = state.tickets.find(t => t.id == ticketId); // Usar == para comparar string com number
+  
   if (!ticket) {
+    console.error('❌ Ticket não encontrado! ID procurado:', ticketId);
     showNotification('Ticket não encontrado', 'error');
     return;
   }
+  
+  console.log('✅ Ticket encontrado:', ticket.subject);
   
   // Tradução dos status
   const statusLabels = {
