@@ -1,6 +1,10 @@
 // Configuração
 const SERVER_URL = 'http://localhost:3000';
 
+// Log de versão
+console.log('🚀 TatuTicket Desktop Agent v2.0 - COM DETALHES DE TICKETS');
+console.log('📅 Versão atualizada: 30/10/2025 00:30');
+
 // Estado global
 const state = {
   user: null,
@@ -803,6 +807,9 @@ async function handleNewTicket() {
 
 // Renderização da lista de tickets
 function renderTicketsList() {
+  console.log('🎨 renderTicketsList chamada - Versão atualizada com cliques');
+  console.log('📊 Tickets a renderizar:', state.tickets.length);
+  
   const container = document.getElementById('ticketsList');
   if (!state.tickets || state.tickets.length === 0) {
     container.innerHTML = `
