@@ -907,8 +907,11 @@ async function showTicketDetails(ticketId) {
   
   console.log('✅ Ticket encontrado:', ticket.subject);
   
-  // Tradução dos status
-  const statusLabels = {
+  try {
+    console.log('🎨 Criando modal de detalhes...');
+    
+    // Tradução dos status
+    const statusLabels = {
     'novo': 'Novo',
     'open': 'Aberto',
     'in_progress': 'Em Progresso',
@@ -1063,6 +1066,14 @@ async function showTicketDetails(ticketId) {
       modal.remove();
     }
   });
+  
+  console.log('✅ Modal criado e adicionado ao DOM');
+  
+  } catch (error) {
+    console.error('❌ Erro ao criar modal:', error);
+    console.error('Stack trace:', error.stack);
+    showNotification('Erro ao exibir detalhes do ticket', 'error');
+  }
 }
 
 // Formatar tamanho de arquivo
