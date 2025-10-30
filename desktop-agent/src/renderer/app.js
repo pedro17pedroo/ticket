@@ -906,6 +906,7 @@ async function showTicketDetails(ticketId) {
   }
   
   console.log('✅ Ticket encontrado:', ticket.subject);
+  console.log('📋 Dados completos do ticket:', ticket);
   
   try {
     console.log('🎨 Criando modal de detalhes...');
@@ -936,53 +937,145 @@ async function showTicketDetails(ticketId) {
   const status = statusLabels[ticket.status] || ticket.status || 'Aberto';
   const priority = priorityLabels[ticket.priority] || ticket.priority || 'Média';
   
+  // Extrair informações adicionais
+  const ticketNumber = ticket.ticketNumber || ticket.number || `#${ticket.id.substring(0, 8)}`;
+  const requester = ticket.requester || ticket.client || ticket.user || {};
+  const assignedTo = ticket.assignedTo || ticket.agent || {};
+  const sla = ticket.sla || {};
+  const category = ticket.category || {};
+  const requesterDept = requester.department || {};
+  const assignedDept = assignedTo.department || {};
+  
   // Criar modal de detalhes
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   modal.innerHTML = `
-    <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
       <div class="modal-header" style="position: sticky; top: 0; background: white; z-index: 10; border-bottom: 1px solid #e2e8f0;">
-        <h2 style="margin: 0; font-size: 1.5rem;">Detalhes do Ticket #${ticket.id}</h2>
+        <div>
+          <h2 style="margin: 0; font-size: 1.5rem; color: #1e293b;">Ticket ${ticketNumber}</h2>
+          <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #64748b;">ID: ${ticket.id}</p>
+        </div>
         <button class="modal-close" id="closeTicketModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
       </div>
       <div class="modal-body" style="padding: 1.5rem;">
-        <!-- Informações Principais -->
-        <div style="margin-bottom: 2rem;">
-          <h3 style="font-size: 1.25rem; margin-bottom: 1rem; color: #1e293b;">${escapeHTML(ticket.subject || 'Sem título')}</h3>
-          
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
-            <div>
-              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Status</span>
-              <span class="badge badge-status status-${ticket.status}" style="font-size: 0.875rem;">${status}</span>
+        <!-- Título -->
+        <h3 style="font-size: 1.25rem; margin-bottom: 1.5rem; color: #1e293b; font-weight: 600;">${escapeHTML(ticket.subject || 'Sem título')}</h3>
+        
+        <!-- Grid de Informações Principais -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+          <div>
+            <span style="font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 0.25rem; text-transform: uppercase; font-weight: 600;">Status</span>
+            <span class="badge badge-status status-${ticket.status}" style="font-size: 0.875rem;">${status}</span>
+          </div>
+          <div>
+            <span style="font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 0.25rem; text-transform: uppercase; font-weight: 600;">Prioridade</span>
+            <span class="badge badge-priority priority-${ticket.priority}" style="font-size: 0.875rem;">${priority}</span>
+          </div>
+          <div>
+            <span style="font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 0.25rem; text-transform: uppercase; font-weight: 600;">Tipo</span>
+            <span style="font-size: 0.875rem; color: #1e293b;">${escapeHTML(ticket.type || 'Suporte')}</span>
+          </div>
+          <div>
+            <span style="font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 0.25rem; text-transform: uppercase; font-weight: 600;">Categoria</span>
+            <span style="font-size: 0.875rem; color: #1e293b;">${escapeHTML(typeof category === 'object' ? category.name : category || 'Geral')}</span>
+          </div>
+          <div>
+            <span style="font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 0.25rem; text-transform: uppercase; font-weight: 600;">Criado em</span>
+            <span style="font-size: 0.875rem; color: #1e293b;">${created}</span>
+          </div>
+          <div>
+            <span style="font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 0.25rem; text-transform: uppercase; font-weight: 600;">Atualizado</span>
+            <span style="font-size: 0.875rem; color: #1e293b;">${updated}</span>
+          </div>
+        </div>
+        
+        <!-- Solicitante e Responsável -->
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+          <!-- Solicitante -->
+          <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+            <h4 style="font-size: 0.875rem; font-weight: 600; color: #1e293b; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <svg style="width: 1rem; height: 1rem; color: #667eea;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Solicitante
+            </h4>
+            <div style="font-size: 0.875rem; color: #1e293b; margin-bottom: 0.5rem; font-weight: 500;">
+              ${escapeHTML(requester.name || ticket.clientName || 'Não especificado')}
             </div>
-            <div>
-              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Prioridade</span>
-              <span class="badge badge-priority priority-${ticket.priority}" style="font-size: 0.875rem;">${priority}</span>
-            </div>
-            <div>
-              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Criado em</span>
-              <span style="font-size: 0.875rem; color: #1e293b;">${created}</span>
-            </div>
-            <div>
-              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Atualizado em</span>
-              <span style="font-size: 0.875rem; color: #1e293b;">${updated}</span>
-            </div>
+            ${requester.email || ticket.clientEmail ? `
+              <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem;">
+                📧 ${escapeHTML(requester.email || ticket.clientEmail)}
+              </div>
+            ` : ''}
+            ${requesterDept.name || ticket.requesterDepartment ? `
+              <div style="font-size: 0.75rem; color: #64748b;">
+                🏢 ${escapeHTML(requesterDept.name || ticket.requesterDepartment)}
+              </div>
+            ` : ''}
+            ${requesterDept.direction || ticket.requesterDirection ? `
+              <div style="font-size: 0.75rem; color: #64748b;">
+                📍 Direção: ${escapeHTML(requesterDept.direction || ticket.requesterDirection)}
+              </div>
+            ` : ''}
+            ${requesterDept.section || ticket.requesterSection ? `
+              <div style="font-size: 0.75rem; color: #64748b;">
+                📂 Secção: ${escapeHTML(requesterDept.section || ticket.requesterSection)}
+              </div>
+            ` : ''}
           </div>
           
-          ${ticket.category ? `
-            <div style="margin-bottom: 1rem;">
-              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Categoria</span>
-              <span style="font-size: 0.875rem; color: #1e293b;">${escapeHTML(ticket.category)}</span>
-            </div>
-          ` : ''}
-          
-          ${ticket.type ? `
-            <div style="margin-bottom: 1rem;">
-              <span style="font-size: 0.875rem; color: #64748b; display: block; margin-bottom: 0.25rem;">Tipo</span>
-              <span style="font-size: 0.875rem; color: #1e293b;">${escapeHTML(ticket.type)}</span>
-            </div>
-          ` : ''}
+          <!-- Responsável -->
+          <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+            <h4 style="font-size: 0.875rem; font-weight: 600; color: #1e293b; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <svg style="width: 1rem; height: 1rem; color: #48bb78;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              Responsável
+            </h4>
+            ${assignedTo.name || ticket.agentName ? `
+              <div style="font-size: 0.875rem; color: #1e293b; margin-bottom: 0.5rem; font-weight: 500;">
+                ${escapeHTML(assignedTo.name || ticket.agentName)}
+              </div>
+              ${assignedTo.email || ticket.agentEmail ? `
+                <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem;">
+                  📧 ${escapeHTML(assignedTo.email || ticket.agentEmail)}
+                </div>
+              ` : ''}
+              ${assignedDept.name || ticket.agentDepartment ? `
+                <div style="font-size: 0.75rem; color: #64748b;">
+                  🏢 ${escapeHTML(assignedDept.name || ticket.agentDepartment)}
+                </div>
+              ` : ''}
+            ` : `
+              <div style="font-size: 0.875rem; color: #94a3b8; font-style: italic;">
+                Não atribuído
+              </div>
+            `}
+          </div>
         </div>
+        
+        <!-- SLA -->
+        ${sla.name || ticket.slaName || ticket.sla ? `
+          <div style="padding: 1rem; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 0.5rem; margin-bottom: 2rem;">
+            <h4 style="font-size: 0.875rem; font-weight: 600; color: #92400e; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              SLA: ${escapeHTML(typeof sla === 'object' ? sla.name : sla || ticket.slaName || ticket.sla)}
+            </h4>
+            ${sla.responseTime || ticket.slaResponseTime ? `
+              <div style="font-size: 0.75rem; color: #92400e;">
+                ⏱️ Tempo de Resposta: ${escapeHTML(sla.responseTime || ticket.slaResponseTime)}
+              </div>
+            ` : ''}
+            ${sla.resolutionTime || ticket.slaResolutionTime ? `
+              <div style="font-size: 0.75rem; color: #92400e;">
+                ✅ Tempo de Resolução: ${escapeHTML(sla.resolutionTime || ticket.slaResolutionTime)}
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
         
         <!-- Descrição -->
         <div style="margin-bottom: 2rem;">
@@ -992,26 +1085,64 @@ async function showTicketDetails(ticketId) {
           </div>
         </div>
         
-        <!-- Mensagens/Respostas -->
-        ${ticket.messages && ticket.messages.length > 0 ? `
-          <div style="margin-bottom: 1.5rem;">
-            <h4 style="font-size: 1rem; margin-bottom: 0.75rem; color: #1e293b;">Histórico de Mensagens (${ticket.messages.length})</h4>
-            <div style="space-y: 1rem;">
-              ${ticket.messages.map(msg => `
-                <div style="background: ${msg.isInternal ? '#fef3c7' : '#f8fafc'}; padding: 1rem; border-radius: 0.5rem; border: 1px solid ${msg.isInternal ? '#fbbf24' : '#e2e8f0'}; margin-bottom: 1rem;">
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <span style="font-weight: 600; font-size: 0.875rem; color: #1e293b;">${escapeHTML(msg.author || 'Usuário')}</span>
-                    <span style="font-size: 0.75rem; color: #64748b;">${msg.createdAt ? new Date(msg.createdAt).toLocaleString('pt-PT') : ''}</span>
+        <!-- Histórico de Conversa -->
+        <div style="margin-bottom: 2rem;">
+          <h4 style="font-size: 1rem; margin-bottom: 0.75rem; color: #1e293b; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+            <svg style="width: 1.25rem; height: 1.25rem; color: #667eea;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Histórico de Conversa ${ticket.messages && ticket.messages.length > 0 ? `(${ticket.messages.length})` : ''}
+          </h4>
+          
+          <!-- Mensagens -->
+          <div id="messagesContainer" style="max-height: 400px; overflow-y: auto; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
+            ${ticket.messages && ticket.messages.length > 0 ? ticket.messages.map(msg => `
+              <div style="background: white; padding: 1rem; border-radius: 0.5rem; margin-bottom: 0.75rem; border-left: 3px solid ${msg.isInternal ? '#fbbf24' : '#667eea'};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: ${msg.isInternal ? '#fef3c7' : '#e0e7ff'}; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; color: ${msg.isInternal ? '#92400e' : '#4c51bf'};">
+                      ${(msg.author || 'U').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style="font-weight: 600; font-size: 0.875rem; color: #1e293b;">${escapeHTML(msg.author || msg.userName || 'Usuário')}</div>
+                      <div style="font-size: 0.7rem; color: #64748b;">${msg.createdAt ? new Date(msg.createdAt).toLocaleString('pt-PT') : ''}</div>
+                    </div>
                   </div>
-                  <div style="font-size: 0.875rem; color: #334155;">
-                    ${msg.message || msg.content || ''}
-                  </div>
-                  ${msg.isInternal ? '<span style="font-size: 0.75rem; color: #92400e; font-weight: 500;">📌 Nota Interna</span>' : ''}
+                  ${msg.isInternal ? '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 600;">📌 INTERNA</span>' : ''}
                 </div>
-              `).join('')}
+                <div style="font-size: 0.875rem; color: #334155; line-height: 1.5;">
+                  ${msg.message || msg.content || msg.text || ''}
+                </div>
+              </div>
+            `).join('') : '<div style="text-align: center; padding: 2rem; color: #94a3b8; font-style: italic;">Nenhuma mensagem ainda</div>'}
+          </div>
+          
+          <!-- Campo de Resposta -->
+          <div style="background: white; border: 2px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem;">
+            <label style="font-size: 0.875rem; font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Adicionar Resposta</label>
+            <textarea 
+              id="replyMessage" 
+              placeholder="Digite sua mensagem aqui..."
+              style="width: 100%; min-height: 100px; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.375rem; font-size: 0.875rem; resize: vertical; font-family: inherit;"
+            ></textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem;">
+              <div style="display: flex; gap: 0.5rem;">
+                <button id="attachFileBtn" class="btn btn-secondary" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                  <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  Anexar
+                </button>
+              </div>
+              <button id="sendReplyBtn" class="btn btn-primary" style="font-size: 0.875rem; padding: 0.5rem 1.5rem;">
+                <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                Enviar
+              </button>
             </div>
           </div>
-        ` : ''}
+        </div>
         
         <!-- Anexos -->
         ${ticket.attachments && ticket.attachments.length > 0 ? `
@@ -1031,13 +1162,10 @@ async function showTicketDetails(ticketId) {
           </div>
         ` : ''}
       </div>
-      <div class="modal-footer" style="position: sticky; bottom: 0; background: white; border-top: 1px solid #e2e8f0; padding: 1rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
-        <button id="addMessageBtn" class="btn btn-secondary">
-          <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-          </svg>
-          Adicionar Mensagem
-        </button>
+      <div class="modal-footer" style="position: sticky; bottom: 0; background: white; border-top: 1px solid #e2e8f0; padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 0.875rem; color: #64748b;">
+          Ticket ${ticketNumber} • ${status}
+        </div>
         <button id="closeTicketModalBtn" class="btn btn-primary">Fechar</button>
       </div>
     </div>
@@ -1054,10 +1182,33 @@ async function showTicketDetails(ticketId) {
     modal.remove();
   });
   
-  document.getElementById('addMessageBtn').addEventListener('click', () => {
-    modal.remove();
-    // TODO: Abrir formulário de adicionar mensagem
-    showNotification('Funcionalidade em desenvolvimento', 'info');
+  // Enviar resposta
+  document.getElementById('sendReplyBtn').addEventListener('click', async () => {
+    const message = document.getElementById('replyMessage').value.trim();
+    
+    if (!message) {
+      showNotification('Por favor, digite uma mensagem', 'warning');
+      return;
+    }
+    
+    try {
+      console.log('📤 Enviando mensagem para ticket:', ticketId);
+      
+      // TODO: Implementar envio de mensagem via API
+      showNotification('Funcionalidade de envio em desenvolvimento', 'info');
+      
+      // Limpar campo após envio
+      // document.getElementById('replyMessage').value = '';
+      
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      showNotification('Erro ao enviar mensagem', 'error');
+    }
+  });
+  
+  // Anexar arquivo
+  document.getElementById('attachFileBtn').addEventListener('click', () => {
+    showNotification('Funcionalidade de anexo em desenvolvimento', 'info');
   });
   
   // Fechar ao clicar fora
