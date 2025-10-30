@@ -144,32 +144,33 @@ body {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+/* Buttons */
+button {
+  font-family: inherit;
+}
+
 .btn {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  justify-content: center;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .btn-primary {
   background: var(--color-primary);
   color: white;
+  border-color: var(--color-primary);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+.btn-primary:hover {
+  background: #5a67d8;
+  border-color: #5a67d8;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
@@ -177,10 +178,48 @@ body {
 .btn-secondary {
   background: var(--bg-tertiary);
   color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
-.btn-secondary:hover:not(:disabled) {
-  background: var(--border-color);
+.btn-secondary:hover {
+  background: var(--bg-secondary);
+  border-color: var(--color-primary);
+}
+
+.btn-success {
+  background: #48bb78;
+  color: white;
+  border-color: #48bb78;
+}
+
+.btn-success:hover {
+  background: #38a169;
+  border-color: #38a169;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+}
+
+.btn-danger {
+  background: #f56565;
+  color: white;
+  border-color: #f56565;
+}
+
+.btn-danger:hover {
+  background: #e53e3e;
+  border-color: #e53e3e;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.4);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-block {
@@ -1140,6 +1179,15 @@ body {
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 

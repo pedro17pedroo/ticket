@@ -433,6 +433,39 @@ class TicketManager extends EventEmitter {
   }
 
   /**
+   * Alterar status do ticket
+   */
+  async changeTicketStatus(ticketId, status) {
+    try {
+      const response = await axios.put(
+        `${this.baseUrl}/api/tickets/${ticketId}/status`,
+        { status },
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        }
+      );
+
+      const updatedTicket = response.data;
+      
+      // Atualizar no cache
+      const index = this.tickets.findIndex(t => t.id === ticketId);
+      if (index !== -1) {
+        this.tickets[index] = updatedTicket;
+      }
+
+      this.emit('ticket-status-changed', updatedTicket);
+      this.emit('tickets-updated', this.tickets);
+      
+      return updatedTicket;
+    } catch (error) {
+      console.error('Erro ao alterar status do ticket:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Atualizar contador de mensagens não lidas
    */
   updateUnreadCount() {

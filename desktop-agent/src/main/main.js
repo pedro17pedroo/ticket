@@ -629,6 +629,19 @@ ipcMain.handle('tickets:get-categories', async () => {
   }
 });
 
+ipcMain.handle('tickets:change-status', async (event, ticketId, status) => {
+  try {
+    if (!ticketManager) {
+      return { success: false, error: 'Ticket manager não inicializado' };
+    }
+    
+    const ticket = await ticketManager.changeTicketStatus(ticketId, status);
+    return { success: true, ticket };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('tickets:get-stats', () => {
   try {
     if (!ticketManager) {

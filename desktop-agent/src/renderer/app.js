@@ -11,6 +11,12 @@ const state = {
   connected: false,
   systemInfo: null,
   tickets: [],
+  filteredTickets: [],
+  filters: {
+    search: '',
+    status: '',
+    priority: ''
+  },
   lastSync: null,
   newTicketFiles: []
 };
@@ -69,13 +75,19 @@ async function init() {
     showApp();
     await loadUserData();
     await performAutoScan(); // Scan automático ao iniciar
-    setupAutoSync(); // Configurar sync periódico
-    setupTicketRealtime(); // Eventos de tickets em tempo real
+    setupAutoSync();
   } else {
     // Mostrar tela de login
     showLogin();
   }
   
+  // Configurar navegação
+  setupNavigation();
+  
+  // Configurar filtros de tickets
+  setupTicketFilters();
+  
+  // Eventos de tickets em tempo real
   setupEventListeners();
 }
 
@@ -805,13 +817,126 @@ async function handleNewTicket() {
   showNewTicketForm();
 }
 
+// Configurar filtros de tickets
+function setupTicketFilters() {
+  // Busca em tempo real
+  const searchInput = document.getElementById('ticketSearchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      state.filters.search = e.target.value;
+      // Aplicar filtro com debounce
+      clearTimeout(state.searchTimeout);
+      state.searchTimeout = setTimeout(() => {
+        applyFilters();
+      }, 300);
+    });
+  }
+  
+  // Filtro de status
+  const statusFilter = document.getElementById('filterStatus');
+  if (statusFilter) {
+    statusFilter.addEventListener('change', (e) => {
+      state.filters.status = e.target.value;
+      applyFilters();
+    });
+  }
+  
+  // Filtro de prioridade
+  const priorityFilter = document.getElementById('filterPriority');
+  if (priorityFilter) {
+    priorityFilter.addEventListener('change', (e) => {
+      state.filters.priority = e.target.value;
+      applyFilters();
+    });
+  }
+  
+  // Botão aplicar filtros
+  const applyBtn = document.getElementById('applyFiltersBtn');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      applyFilters();
+    });
+  }
+  
+  // Botão limpar filtros
+  const clearBtn = document.getElementById('clearFiltersBtn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      // Limpar todos os filtros
+      state.filters = { search: '', status: '', priority: '' };
+      state.filteredTickets = [];
+      
+      // Limpar inputs
+      if (searchInput) searchInput.value = '';
+      if (statusFilter) statusFilter.value = '';
+      if (priorityFilter) priorityFilter.value = '';
+      
+      // Ocultar contador
+      const filterResults = document.getElementById('filterResults');
+      if (filterResults) filterResults.style.display = 'none';
+      
+      // Re-renderizar
+      renderTicketsList();
+    });
+  }
+}
+
+// Aplicar filtros aos tickets
+function applyFilters() {
+  const { search, status, priority } = state.filters;
+  
+  let filtered = [...state.tickets];
+  
+  // Filtro de busca
+  if (search) {
+    const searchLower = search.toLowerCase();
+    filtered = filtered.filter(t => 
+      (t.subject && t.subject.toLowerCase().includes(searchLower)) ||
+      (t.description && t.description.toLowerCase().includes(searchLower)) ||
+      (t.clientName && t.clientName.toLowerCase().includes(searchLower)) ||
+      (t.id && t.id.toLowerCase().includes(searchLower))
+    );
+  }
+  
+  // Filtro de status
+  if (status) {
+    filtered = filtered.filter(t => t.status === status);
+  }
+  
+  // Filtro de prioridade
+  if (priority) {
+    filtered = filtered.filter(t => t.priority === priority);
+  }
+  
+  state.filteredTickets = filtered;
+  
+  // Atualizar contador
+  const filterResults = document.getElementById('filterResults');
+  if (filterResults) {
+    const hasFilters = search || status || priority;
+    if (hasFilters) {
+      filterResults.style.display = 'block';
+      document.getElementById('filteredCount').textContent = filtered.length;
+      document.getElementById('totalCount').textContent = state.tickets.length;
+    } else {
+      filterResults.style.display = 'none';
+    }
+  }
+  
+  renderTicketsList();
+}
+
 // Renderização da lista de tickets
 function renderTicketsList() {
   console.log('🎨 renderTicketsList chamada - Versão atualizada com cliques');
-  console.log('📊 Tickets a renderizar:', state.tickets.length);
+  console.log('📊 Tickets a renderizar:', state.filteredTickets.length || state.tickets.length);
   
   const container = document.getElementById('ticketsList');
-  if (!state.tickets || state.tickets.length === 0) {
+  const ticketsToRender = state.filteredTickets.length > 0 || Object.values(state.filters).some(f => f) 
+    ? state.filteredTickets 
+    : state.tickets;
+    
+  if (!ticketsToRender || ticketsToRender.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
@@ -823,7 +948,7 @@ function renderTicketsList() {
     return;
   }
 
-  const rows = state.tickets.map((t) => {
+  const rows = ticketsToRender.map((t) => {
     const created = t.createdAt ? formatRelativeTime(new Date(t.createdAt)) : '-';
     const status = (t.status || 'open');
     const priority = (t.priority || 'normal');
@@ -952,9 +1077,42 @@ async function showTicketDetails(ticketId) {
   modal.innerHTML = `
     <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
       <div class="modal-header" style="position: sticky; top: 0; background: white; z-index: 10; border-bottom: 1px solid #e2e8f0;">
-        <div>
-          <h2 style="margin: 0; font-size: 1.5rem; color: #1e293b;">Ticket ${ticketNumber}</h2>
-          <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #64748b;">ID: ${ticket.id}</p>
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div>
+              <h2 style="margin: 0; font-size: 1.5rem; color: #1e293b;">Ticket ${ticketNumber}</h2>
+              <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #64748b;">ID: ${ticket.id}</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-left: auto; margin-right: 1rem;">
+              ${ticket.status !== 'closed' && ticket.status !== 'resolved' ? `
+                <button id="assignTicketBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                  <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Atribuir
+                </button>
+                <button id="resolveTicketBtn" class="btn btn-success" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #48bb78; border-color: #48bb78;">
+                  <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Resolver
+                </button>
+                <button id="closeTicketBtn" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #f56565; border-color: #f56565;">
+                  <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Fechar
+                </button>
+              ` : `
+                <button id="reopenTicketBtn" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                  <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Reabrir
+                </button>
+              `}
+            </div>
+          </div>
         </div>
         <button class="modal-close" id="closeTicketModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
       </div>
@@ -1125,6 +1283,16 @@ async function showTicketDetails(ticketId) {
               placeholder="Digite sua mensagem aqui..."
               style="width: 100%; min-height: 100px; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.375rem; font-size: 0.875rem; resize: vertical; font-family: inherit;"
             ></textarea>
+            
+            <!-- Área de preview de anexos -->
+            <div id="attachmentsPreview" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: #f8fafc; border-radius: 0.375rem;">
+              <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem;">Anexos:</div>
+              <div id="attachmentsList" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+            </div>
+            
+            <!-- Input file oculto -->
+            <input type="file" id="fileInput" multiple style="display: none;" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar">
+            
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem;">
               <div style="display: flex; gap: 0.5rem;">
                 <button id="attachFileBtn" class="btn btn-secondary" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
@@ -1184,7 +1352,9 @@ async function showTicketDetails(ticketId) {
   
   // Enviar resposta
   document.getElementById('sendReplyBtn').addEventListener('click', async () => {
-    const message = document.getElementById('replyMessage').value.trim();
+    const messageInput = document.getElementById('replyMessage');
+    const message = messageInput.value.trim();
+    const sendBtn = document.getElementById('sendReplyBtn');
     
     if (!message) {
       showNotification('Por favor, digite uma mensagem', 'warning');
@@ -1192,24 +1362,271 @@ async function showTicketDetails(ticketId) {
     }
     
     try {
+      // Desabilitar botão e mostrar loading
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = `
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem; animation: spin 1s linear infinite;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Enviando...
+      `;
+      
       console.log('📤 Enviando mensagem para ticket:', ticketId);
+      console.log('📎 Anexos:', selectedFiles.length);
       
-      // TODO: Implementar envio de mensagem via API
-      showNotification('Funcionalidade de envio em desenvolvimento', 'info');
+      // Enviar mensagem via API (com anexos se houver)
+      const result = await window.electronAPI.sendTicketMessage(ticketId, message, selectedFiles);
       
-      // Limpar campo após envio
-      // document.getElementById('replyMessage').value = '';
-      
+      if (result.success) {
+        // Limpar campo e anexos após envio
+        messageInput.value = '';
+        const attachmentNames = selectedFiles.map(f => f.name);
+        selectedFiles = [];
+        document.getElementById('attachmentsPreview').style.display = 'none';
+        
+        // Adicionar mensagem ao container
+        const messagesContainer = document.getElementById('messagesContainer');
+        const attachmentsHtml = attachmentNames.length > 0 ? `
+          <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0;">
+            <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.25rem;">Anexos:</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+              ${attachmentNames.map(name => `
+                <span style="font-size: 0.7rem; padding: 0.125rem 0.375rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.25rem;">
+                  📎 ${escapeHTML(name)}
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        ` : '';
+        
+        const newMessageHtml = `
+          <div style="background: white; padding: 1rem; border-radius: 0.5rem; margin-bottom: 0.75rem; border-left: 3px solid #667eea;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: #e0e7ff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; color: #4c51bf;">
+                  ${(state.user?.name || 'U').substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.875rem; color: #1e293b;">${escapeHTML(state.user?.name || 'Você')}</div>
+                  <div style="font-size: 0.7rem; color: #64748b;">Agora mesmo</div>
+                </div>
+              </div>
+            </div>
+            <div style="font-size: 0.875rem; color: #334155; line-height: 1.5;">
+              ${escapeHTML(message)}
+            </div>
+            ${attachmentsHtml}
+          </div>
+        `;
+        
+        // Remover mensagem "Nenhuma mensagem ainda" se existir
+        if (messagesContainer.innerHTML.includes('Nenhuma mensagem ainda')) {
+          messagesContainer.innerHTML = newMessageHtml;
+        } else {
+          messagesContainer.insertAdjacentHTML('beforeend', newMessageHtml);
+        }
+        
+        // Scroll para a última mensagem
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        
+        showNotification('Mensagem enviada com sucesso', 'success');
+        
+        // Atualizar ticket no state
+        const ticketIndex = state.tickets.findIndex(t => t.id === ticketId);
+        if (ticketIndex !== -1 && result.message) {
+          if (!state.tickets[ticketIndex].messages) {
+            state.tickets[ticketIndex].messages = [];
+          }
+          state.tickets[ticketIndex].messages.push(result.message);
+        }
+      } else {
+        showNotification(result.error || 'Erro ao enviar mensagem', 'error');
+      }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
       showNotification('Erro ao enviar mensagem', 'error');
+    } finally {
+      // Restaurar botão
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = `
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+        </svg>
+        Enviar
+      `;
     }
   });
   
   // Anexar arquivo
+  let selectedFiles = [];
+  
   document.getElementById('attachFileBtn').addEventListener('click', () => {
-    showNotification('Funcionalidade de anexo em desenvolvimento', 'info');
+    document.getElementById('fileInput').click();
   });
+  
+  document.getElementById('fileInput').addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    
+    if (files.length === 0) return;
+    
+    // Adicionar arquivos à lista
+    selectedFiles = [...selectedFiles, ...files];
+    
+    // Limitar a 10 arquivos
+    if (selectedFiles.length > 10) {
+      selectedFiles = selectedFiles.slice(0, 10);
+      showNotification('Máximo de 10 arquivos permitidos', 'warning');
+    }
+    
+    // Limitar tamanho total a 25MB
+    const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > 25 * 1024 * 1024) {
+      showNotification('Tamanho total dos anexos não pode exceder 25MB', 'warning');
+      selectedFiles = [];
+      e.target.value = '';
+      document.getElementById('attachmentsPreview').style.display = 'none';
+      return;
+    }
+    
+    // Mostrar preview
+    const previewContainer = document.getElementById('attachmentsPreview');
+    const listContainer = document.getElementById('attachmentsList');
+    
+    if (selectedFiles.length > 0) {
+      previewContainer.style.display = 'block';
+      
+      listContainer.innerHTML = selectedFiles.map((file, index) => {
+        const isImage = file.type.startsWith('image/');
+        const icon = isImage ? '🖼️' : 
+                     file.type.includes('pdf') ? '📄' :
+                     file.type.includes('zip') || file.type.includes('rar') ? '📦' :
+                     file.name.includes('.doc') ? '📝' :
+                     file.name.includes('.xls') ? '📊' : '📎';
+        
+        return `
+          <div style="display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; background: white; border: 1px solid #e2e8f0; border-radius: 0.25rem; font-size: 0.75rem;">
+            <span>${icon}</span>
+            <span style="color: #1e293b; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(file.name)}">
+              ${escapeHTML(file.name)}
+            </span>
+            <span style="color: #64748b;">(${formatFileSize(file.size)})</span>
+            <button onclick="removeAttachment(${index})" style="background: none; border: none; color: #f56565; cursor: pointer; padding: 0 0.25rem;">✕</button>
+          </div>
+        `;
+      }).join('');
+    } else {
+      previewContainer.style.display = 'none';
+    }
+    
+    // Limpar input para permitir re-seleção
+    e.target.value = '';
+  });
+  
+  // Função global para remover anexo
+  window.removeAttachment = (index) => {
+    selectedFiles.splice(index, 1);
+    
+    if (selectedFiles.length === 0) {
+      document.getElementById('attachmentsPreview').style.display = 'none';
+    } else {
+      // Re-renderizar preview
+      document.getElementById('fileInput').dispatchEvent(new Event('change'));
+    }
+  };
+  
+  // Botões de ação do ticket
+  if (document.getElementById('resolveTicketBtn')) {
+    document.getElementById('resolveTicketBtn').addEventListener('click', async () => {
+      if (confirm('Tem certeza que deseja marcar este ticket como resolvido?')) {
+        try {
+          const result = await window.electronAPI.changeTicketStatus(ticketId, 'resolved');
+          if (result.success) {
+            showNotification('Ticket marcado como resolvido', 'success');
+            modal.remove();
+            // Atualizar lista
+            await loadTickets();
+          } else {
+            showNotification(result.error || 'Erro ao resolver ticket', 'error');
+          }
+        } catch (error) {
+          console.error('Erro ao resolver ticket:', error);
+          showNotification('Erro ao resolver ticket', 'error');
+        }
+      }
+    });
+  }
+  
+  if (document.getElementById('closeTicketBtn')) {
+    document.getElementById('closeTicketBtn').addEventListener('click', async () => {
+      if (confirm('Tem certeza que deseja fechar este ticket?')) {
+        try {
+          const result = await window.electronAPI.changeTicketStatus(ticketId, 'closed');
+          if (result.success) {
+            showNotification('Ticket fechado com sucesso', 'success');
+            modal.remove();
+            // Atualizar lista
+            await loadTickets();
+          } else {
+            showNotification(result.error || 'Erro ao fechar ticket', 'error');
+          }
+        } catch (error) {
+          console.error('Erro ao fechar ticket:', error);
+          showNotification('Erro ao fechar ticket', 'error');
+        }
+      }
+    });
+  }
+  
+  if (document.getElementById('reopenTicketBtn')) {
+    document.getElementById('reopenTicketBtn').addEventListener('click', async () => {
+      if (confirm('Tem certeza que deseja reabrir este ticket?')) {
+        try {
+          const result = await window.electronAPI.changeTicketStatus(ticketId, 'open');
+          if (result.success) {
+            showNotification('Ticket reaberto com sucesso', 'success');
+            modal.remove();
+            // Atualizar lista
+            await loadTickets();
+          } else {
+            showNotification(result.error || 'Erro ao reabrir ticket', 'error');
+          }
+        } catch (error) {
+          console.error('Erro ao reabrir ticket:', error);
+          showNotification('Erro ao reabrir ticket', 'error');
+        }
+      }
+    });
+  }
+  
+  if (document.getElementById('assignTicketBtn')) {
+    document.getElementById('assignTicketBtn').addEventListener('click', async () => {
+      // Buscar lista de agentes
+      try {
+        const result = await window.electronAPI.getAgents();
+        if (result.success && result.agents && result.agents.length > 0) {
+          // Criar select de agentes
+          const agents = result.agents.map(a => `<option value="${a.id}">${escapeHTML(a.name)}</option>`).join('');
+          const agentSelector = `
+            <div style="padding: 1rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Selecione um agente:</label>
+              <select id="agentSelect" style="width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 0.375rem;">
+                <option value="">-- Selecione --</option>
+                ${agents}
+              </select>
+            </div>
+          `;
+          
+          // TODO: Implementar modal de seleção de agente
+          showNotification('Seleção de agente em desenvolvimento', 'info');
+        } else {
+          showNotification('Nenhum agente disponível', 'warning');
+        }
+      } catch (error) {
+        console.error('Erro ao buscar agentes:', error);
+        showNotification('Erro ao buscar agentes', 'error');
+      }
+    });
+  }
   
   // Fechar ao clicar fora
   modal.addEventListener('click', (e) => {

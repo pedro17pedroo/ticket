@@ -250,6 +250,68 @@
               Novo Ticket
             </button>
           </div>
+          
+          <!-- Barra de Filtros -->
+          <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-body" style="padding: 1rem;">
+              <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <!-- Busca -->
+                <div style="flex: 1; min-width: 200px;">
+                  <input 
+                    type="text" 
+                    id="ticketSearchInput" 
+                    placeholder="🔍 Buscar tickets..." 
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.875rem;"
+                  />
+                </div>
+                
+                <!-- Filtro Status -->
+                <div style="min-width: 150px;">
+                  <select id="filterStatus" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.875rem; background: white;">
+                    <option value="">Todos os Status</option>
+                    <option value="open">Aberto</option>
+                    <option value="in_progress">Em Progresso</option>
+                    <option value="pending">Pendente</option>
+                    <option value="resolved">Resolvido</option>
+                    <option value="closed">Fechado</option>
+                  </select>
+                </div>
+                
+                <!-- Filtro Prioridade -->
+                <div style="min-width: 150px;">
+                  <select id="filterPriority" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.875rem; background: white;">
+                    <option value="">Todas as Prioridades</option>
+                    <option value="critical">Crítica</option>
+                    <option value="high">Alta</option>
+                    <option value="normal">Média</option>
+                    <option value="low">Baixa</option>
+                  </select>
+                </div>
+                
+                <!-- Botões de Ação -->
+                <div style="display: flex; gap: 0.5rem;">
+                  <button id="applyFiltersBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="margin-right: 0.25rem;">
+                      <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    Filtrar
+                  </button>
+                  <button id="clearFiltersBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="margin-right: 0.25rem;">
+                      <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    Limpar
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Contador de resultados -->
+              <div id="filterResults" style="margin-top: 0.75rem; font-size: 0.875rem; color: var(--text-secondary); display: none;">
+                Mostrando <span id="filteredCount">0</span> de <span id="totalCount">0</span> tickets
+              </div>
+            </div>
+          </div>
+          
           <div class="card">
             <div class="card-body">
               <div id="ticketsList">
