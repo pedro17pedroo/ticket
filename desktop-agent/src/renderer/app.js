@@ -512,6 +512,42 @@ function showApp() {
   document.getElementById('mainApp').classList.add('active');
 }
 
+function showPage(pageName) {
+  // Remover active de todas as páginas
+  document.querySelectorAll('.page').forEach(page => {
+    page.classList.remove('active');
+  });
+  
+  // Adicionar active na página selecionada
+  const pageId = `${pageName}Page`;
+  const targetPage = document.getElementById(pageId);
+  if (targetPage) {
+    targetPage.classList.add('active');
+  }
+  
+  // Atualizar menu de navegação
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  
+  const navItem = document.querySelector(`[data-page="${pageName}"]`);
+  if (navItem) {
+    navItem.classList.add('active');
+  }
+  
+  // Atualizar título da página
+  const pageTitle = document.getElementById('pageTitle');
+  if (pageTitle) {
+    const titles = {
+      dashboard: 'Dashboard',
+      tickets: 'Tickets',
+      newTicket: 'Novo Ticket',
+      settings: 'Configurações'
+    };
+    pageTitle.textContent = titles[pageName] || 'TatuTicket Agent';
+  }
+}
+
 function navigateTo(pageName) {
   // Atualizar navegação ativa
   document.querySelectorAll('.nav-item').forEach(item => {
@@ -596,6 +632,8 @@ function getRoleLabel(role) {
 function updateConnectionStatus(connected) {
   const statusText = document.getElementById('connectionStatus');
   const statusDot = document.querySelector('.status-dot');
+  
+  if (!statusText || !statusDot) return; // Elementos não existem
   
   if (connected) {
     statusText.textContent = 'Conectado';
