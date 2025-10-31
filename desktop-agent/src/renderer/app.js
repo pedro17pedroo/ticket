@@ -179,7 +179,7 @@ async function checkExistingSession() {
       
       if (result.success) {
         // Token válido - ir para dashboard
-        showMainScreen();
+        showApp();
         await loadUserData();
         showPage('dashboard');
       } else {
@@ -395,7 +395,7 @@ async function handleLogin(e) {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // 7. Mostrar dashboard
-    showMainScreen();
+    showApp();
     showPage('dashboard');
     
   } catch (error) {
@@ -661,6 +661,28 @@ async function handleManualScan() {
   }
 }
 
+function updateLastSync() {
+  const lastSyncEl = document.getElementById('statLastSync');
+  if (!lastSyncEl) return;
+  
+  if (state.lastSync) {
+    const now = new Date();
+    const diff = now - state.lastSync;
+    const minutes = Math.floor(diff / 60000);
+    
+    if (minutes < 1) {
+      lastSyncEl.textContent = 'Agora mesmo';
+    } else if (minutes < 60) {
+      lastSyncEl.textContent = `Há ${minutes} minuto${minutes > 1 ? 's' : ''}`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      lastSyncEl.textContent = `Há ${hours} hora${hours > 1 ? 's' : ''}`;
+    }
+  } else {
+    lastSyncEl.textContent = 'Nunca';
+  }
+}
+
 function setupAutoSync() {
   // Limpar timer existente se houver
   if (state.syncTimer) {
@@ -676,6 +698,7 @@ function setupAutoSync() {
   }, 60 * 60 * 1000);
   
   // Sync inicial
+  state.lastSync = new Date();
   performAutoScan();
   updateLastSync();
 }
@@ -690,21 +713,32 @@ async function loadDashboard() {
     
     // Atualizar stats
     if (systemInfo) {
-      document.getElementById('statSystem').textContent = `${systemInfo.os} ${systemInfo.osVersion}`;
-      document.getElementById('infoHostname').textContent = systemInfo.hostname || '-';
-      document.getElementById('infoOS').textContent = `${systemInfo.os} ${systemInfo.osVersion}` || '-';
-      document.getElementById('infoCPU').textContent = systemInfo.processor || '-';
-      document.getElementById('infoRAM').textContent = systemInfo.ram || '-';
+      const statSystem = document.getElementById('statSystem');
+      if (statSystem) statSystem.textContent = `${systemInfo.os} ${systemInfo.osVersion}`;
+      
+      const infoHostname = document.getElementById('infoHostname');
+      if (infoHostname) infoHostname.textContent = systemInfo.hostname || '-';
+      
+      const infoOS = document.getElementById('infoOS');
+      if (infoOS) infoOS.textContent = `${systemInfo.os} ${systemInfo.osVersion}` || '-';
+      
+      const infoCPU = document.getElementById('infoCPU');
+      if (infoCPU) infoCPU.textContent = systemInfo.processor || '-';
+      
+      const infoRAM = document.getElementById('infoRAM');
+      if (infoRAM) infoRAM.textContent = systemInfo.ram || '-';
     }
     
     // Última sincronização
     if (status.lastSync) {
       const lastSync = new Date(status.lastSync);
-      document.getElementById('statLastSync').textContent = formatRelativeTime(lastSync);
+      const statLastSync = document.getElementById('statLastSync');
+      if (statLastSync) statLastSync.textContent = formatRelativeTime(lastSync);
     }
     
     // Status
-    document.getElementById('statStatus').textContent = status.connected ? 'Ativo' : 'Inativo';
+    const statStatus = document.getElementById('statStatus');
+    if (statStatus) statStatus.textContent = status.connected ? 'Ativo' : 'Inativo';
     
     // Carregar tickets para atualizar estatísticas
     const { success, tickets } = await window.electronAPI.fetchTickets({});
@@ -2782,6 +2816,7 @@ async function handleSaveSettings() {
 // ============================================
 function addActivity(text, type = 'info') {
   const activityList = document.getElementById('activityList');
+  if (!activityList) return; // Elemento não existe ainda
   
   const icons = {
     success: '✓',
