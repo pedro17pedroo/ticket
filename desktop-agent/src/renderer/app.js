@@ -405,7 +405,6 @@ function showLoginScreen() {
 function setupEventListeners() {
   // Login
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
-  document.getElementById('signupLink').addEventListener('click', openSignup);
   document.getElementById('forgotPasswordLink').addEventListener('click', openForgotPassword);
   
   // Navegação
@@ -582,11 +581,6 @@ function showLoginError(message) {
 function hideLoginError() {
   const errorDiv = document.getElementById('loginError');
   errorDiv.style.display = 'none';
-}
-
-function openSignup(e) {
-  e.preventDefault();
-  window.electronAPI.openExternal(`${SERVER_URL}/register`);
 }
 
 function openForgotPassword(e) {
