@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:3000;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:3000;">
   <title>TatuTicket Agent</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div id="app">
@@ -181,32 +182,78 @@
                 <div class="stat-value" id="statLastSync">Nunca</div>
               </div>
             </div>
-
-            <div class="stat-card">
-              <div class="stat-icon stat-icon-orange">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2"/>
+            <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+              <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                  <h3 style="font-size: 0.875rem; margin-bottom: 0.5rem; opacity: 0.9;">Resolvidos</h3>
+                  <p class="stat-value" id="statResolved" style="font-size: 2rem; font-weight: bold;">0</p>
+                </div>
+                <svg style="width: 32px; height: 32px; opacity: 0.8;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-              </div>
-              <div class="stat-content">
-                <div class="stat-label">Status</div>
-                <div class="stat-value" id="statStatus">Ativo</div>
               </div>
             </div>
           </div>
 
-          <div class="dashboard-grid">
+          <!-- Gráficos -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+            <!-- Gráfico de Status -->
             <div class="card">
-              <div class="card-header">
-                <h3>Atividade Recente</h3>
-              </div>
               <div class="card-body">
-                <div class="activity-list" id="activityList">
-                  <div class="activity-item">
-                    <div class="activity-icon activity-icon-success">✓</div>
-                    <div class="activity-content">
-                      <div class="activity-title">Sistema conectado</div>
-                      <div class="activity-time">Agora</div>
+                <h3 style="font-size: 1rem; margin-bottom: 1rem; color: #1e293b;">Distribuição por Status</h3>
+                <canvas id="statusChart" style="max-height: 300px;"></canvas>
+              </div>
+            </div>
+            
+            <!-- Gráfico de Prioridades -->
+            <div class="card">
+              <div class="card-body">
+                <h3 style="font-size: 1rem; margin-bottom: 1rem; color: #1e293b;">Distribuição por Prioridade</h3>
+                <canvas id="priorityChart" style="max-height: 300px;"></canvas>
+              </div>
+            </div>
+            
+            <!-- Gráfico de Tendência -->
+            <div class="card" style="grid-column: span 2;">
+              <div class="card-body">
+                <h3 style="font-size: 1rem; margin-bottom: 1rem; color: #1e293b;">Tendência dos Últimos 7 Dias</h3>
+                <canvas id="trendChart" style="max-height: 250px;"></canvas>
+              </div>
+            </div>
+            
+            <!-- Indicadores de SLA -->
+            <div class="card">
+              <div class="card-body">
+                <h3 style="font-size: 1rem; margin-bottom: 1rem; color: #1e293b;">Status de SLA</h3>
+                <div id="slaIndicators" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                  <div style="padding: 0.75rem; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 0.375rem;">
+                    <div style="font-size: 0.875rem; color: #065f46;">No Prazo</div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #059669;" id="slaNormal">0</div>
+                  </div>
+                  <div style="padding: 0.75rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.375rem;">
+                    <div style="font-size: 0.875rem; color: #92400e;">Atenção</div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #d97706;" id="slaWarning">0</div>
+                  </div>
+                  <div style="padding: 0.75rem; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 0.375rem;">
+                    <div style="font-size: 0.875rem; color: #991b1b;">Expirado</div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #dc2626;" id="slaExpired">0</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Performance -->
+            <div class="card">
+              <div class="card-body">
+                <h3 style="font-size: 1rem; margin-bottom: 1rem; color: #1e293b;">Performance</h3>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                  <div>
+                    <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.25rem;">Taxa de Resolução</div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <div style="flex: 1; background: #e2e8f0; border-radius: 1rem; height: 8px;">
+                        <div id="resolutionRate" style="background: #667eea; height: 100%; border-radius: 1rem; width: 0%; transition: width 0.3s;"></div>
+                      </div>
+                      <span id="resolutionRateText" style="font-size: 0.875rem; font-weight: 600;">0%</span>
                     </div>
                   </div>
                 </div>
@@ -286,6 +333,19 @@
                     <option value="high">Alta</option>
                     <option value="normal">Média</option>
                     <option value="low">Baixa</option>
+                  </select>
+                </div>
+                
+                <!-- Ordenação -->
+                <div style="min-width: 150px;">
+                  <select id="sortBy" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.875rem; background: white;">
+                    <option value="createdAt-desc">Mais recente</option>
+                    <option value="createdAt-asc">Mais antigo</option>
+                    <option value="priority-desc">Prioridade ↑</option>
+                    <option value="priority-asc">Prioridade ↓</option>
+                    <option value="status-asc">Status A-Z</option>
+                    <option value="sla-urgent">SLA urgente</option>
+                    <option value="unread">Não lidas primeiro</option>
                   </select>
                 </div>
                 

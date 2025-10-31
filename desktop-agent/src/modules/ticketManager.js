@@ -35,6 +35,9 @@ class TicketManager extends EventEmitter {
       // Carregar tickets
       await this.fetchTickets();
       
+      // Iniciar monitoramento de SLA
+      this.startSLAMonitoring();
+      
       this.emit('initialized', { user: this.user });
       return true;
     } catch (error) {
@@ -42,6 +45,78 @@ class TicketManager extends EventEmitter {
       this.emit('error', error);
       return false;
     }
+  }
+  
+  /**
+   * Monitorar SLAs próximos ao vencimento
+   */
+  startSLAMonitoring() {
+    // Limpar timer existente se houver
+    if (this.slaTimer) {
+      clearInterval(this.slaTimer);
+    }
+    
+    // Verificar SLAs a cada 5 minutos
+    this.slaTimer = setInterval(() => {
+      this.checkSLAWarnings();
+    }, 5 * 60 * 1000);
+    
+    // Executar primeira verificação
+    this.checkSLAWarnings();
+  }
+  
+  /**
+   * Verificar tickets com SLA próximo ao vencimento
+   */
+  checkSLAWarnings() {
+    const now = new Date();
+    const warnedTickets = new Set(this.slaWarned || []);
+    
+    this.tickets.forEach(ticket => {
+      if (!ticket.sla || ticket.status === 'closed' || ticket.status === 'resolved') {
+        return;
+      }
+      
+      const created = new Date(ticket.createdAt);
+      const responseTime = parseInt(ticket.sla.responseTime) || 0;
+      const resolutionTime = parseInt(ticket.sla.resolutionTime) || 0;
+      
+      // Verificar tempo de resposta (se ainda não respondido)
+      if (!ticket.firstResponseAt && responseTime > 0) {
+        const responseDeadline = new Date(created.getTime() + responseTime * 60000);
+        const remainingMinutes = Math.floor((responseDeadline - now) / 60000);
+        
+        // Avisar quando restar menos de 30 minutos
+        if (remainingMinutes <= 30 && remainingMinutes > 0 && !warnedTickets.has(ticket.id + '-response')) {
+          this.emit('notification', {
+            title: '⚠️ SLA de Resposta Próximo',
+            body: `Ticket "${ticket.subject}" - ${remainingMinutes} minutos restantes para resposta`,
+            ticketId: ticket.id,
+            urgency: 'critical'
+          });
+          warnedTickets.add(ticket.id + '-response');
+        }
+      }
+      
+      // Verificar tempo de resolução
+      if (resolutionTime > 0) {
+        const resolutionDeadline = new Date(created.getTime() + resolutionTime * 60000);
+        const remainingMinutes = Math.floor((resolutionDeadline - now) / 60000);
+        
+        // Avisar quando restar menos de 60 minutos
+        if (remainingMinutes <= 60 && remainingMinutes > 0 && !warnedTickets.has(ticket.id + '-resolution')) {
+          this.emit('notification', {
+            title: '⚠️ SLA de Resolução Próximo',
+            body: `Ticket "${ticket.subject}" - ${remainingMinutes} minutos restantes para resolução`,
+            ticketId: ticket.id,
+            urgency: remainingMinutes <= 30 ? 'critical' : 'normal'
+          });
+          warnedTickets.add(ticket.id + '-resolution');
+        }
+      }
+    });
+    
+    this.slaWarned = Array.from(warnedTickets);
   }
 
   /**

@@ -240,6 +240,59 @@ async function initialize() {
       // Listeners de tickets
       setupTicketListeners();
       
+      // Configurar event listeners do ticketManager
+      ticketManager.on('notification', (notification) => {
+        sendNotification('info', notification.body, {
+          desktop: true,
+          title: notification.title,
+          ticketId: notification.ticketId,
+          navigateTo: 'tickets'
+        });
+        
+        // Enviar para renderer
+        mainWindow.webContents.send('ticket-notification', notification);
+      });
+      
+      ticketManager.on('tickets-updated', (tickets) => {
+        mainWindow.webContents.send('tickets-updated', tickets);
+      });
+      
+      ticketManager.on('ticket-created', (ticket) => {
+        // Notificação de novo ticket
+        sendNotification('info', `Novo ticket: ${ticket.subject}`, {
+          desktop: true,
+          title: 'Novo Ticket Criado',
+          ticketId: ticket.id,
+          urgency: ticket.priority === 'high' || ticket.priority === 'critical' ? 'critical' : 'normal'
+        });
+        
+        mainWindow.webContents.send('ticket-created', ticket);
+      });
+      
+      ticketManager.on('new-message', (data) => {
+        const { ticketId, message } = data;
+        
+        // Notificação de nova mensagem
+        sendNotification('info', `Nova mensagem no ticket: ${message.substring(0, 100)}...`, {
+          desktop: true,
+          title: 'Nova Mensagem',
+          ticketId: ticketId,
+          badge: ticketManager.unreadCount
+        });
+        
+        mainWindow.webContents.send('new-message', data);
+      });
+      
+      ticketManager.on('unread-count-changed', (count) => {
+        // Atualizar badge
+        app.setBadgeCount(count);
+        mainWindow.webContents.send('unread-count-changed', count);
+      });
+      
+      ticketManager.on('error', (error) => {
+        sendNotification('error', `Erro no TicketManager: ${error.message}`);
+      });
+      
     } catch (error) {
       console.error('Erro ao conectar:', error);
     }
@@ -256,8 +309,6 @@ function setupTicketListeners() {
   });
 
   ticketManager.on('ticket-created', (ticket) => {
-    mainWindow.webContents.send('ticket-created', ticket);
-    
     // Notificação desktop
     if (ticket.clientId === ticketManager.user?.id) {
       new Notification({
@@ -266,6 +317,8 @@ function setupTicketListeners() {
         silent: false
       }).show();
     }
+    
+    mainWindow.webContents.send('ticket-created', ticket);
   });
 
   ticketManager.on('new-message', (data) => {
@@ -677,9 +730,42 @@ ipcMain.handle('tickets:get-user-info', () => {
 });
 
 // Enviar notificações para renderer
-function sendNotification(type, message) {
+function sendNotification(type, message, options = {}) {
   if (mainWindow) {
     mainWindow.webContents.send('notification', { type, message });
+    
+    // Notificação desktop nativa
+    if (options.desktop) {
+      const notification = new Notification({
+        title: options.title || 'TatuTicket',
+        body: message,
+        icon: path.join(__dirname, '../assets/icon.png'),
+        silent: false,
+        urgency: options.urgency || 'normal'
+      });
+      
+      notification.on('click', () => {
+        mainWindow.show();
+        mainWindow.focus();
+        
+        // Navegar para a página específica se fornecida
+        if (options.navigateTo) {
+          mainWindow.webContents.send('navigate-to', options.navigateTo);
+        }
+        
+        // Abrir ticket específico se fornecido
+        if (options.ticketId) {
+          mainWindow.webContents.send('open-ticket', options.ticketId);
+        }
+      });
+      
+      notification.show();
+      
+      // Atualizar badge no dock/taskbar
+      if (options.badge) {
+        app.setBadgeCount(options.badge);
+      }
+    }
   }
 }
 

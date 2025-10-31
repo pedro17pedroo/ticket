@@ -18,7 +18,8 @@ const state = {
   filters: {
     search: '',
     status: '',
-    priority: ''
+    priority: '',
+    sortBy: 'createdAt-desc'
   },
   lastSync: null,
   newTicketFiles: []
@@ -214,6 +215,7 @@ function setupTicketRealtime() {
       state.tickets = tickets || [];
       renderTicketsList();
       document.getElementById('statTickets').textContent = state.tickets.length.toString();
+      updateDashboard();
     });
 
     window.electronAPI.onTicketCreated((ticket) => {
@@ -322,18 +324,6 @@ async function handleLogin(e) {
     state.user = user;
     state.connected = true;
     
-    console.log('🎨 Mostrando aplicação...');
-    
-    // 4. Mostrar app
-    showApp();
-    
-    console.log('📊 Carregando dados do usuário...');
-    await loadUserData();
-    
-    console.log('🔄 Executando scan automático...');
-    // 5. Executar scan automático (silenciosamente)
-    await performAutoScan();
-    
     console.log('⏰ Configurando sync automático...');
     // 6. Configurar sync automático
     setupAutoSync();
@@ -412,14 +402,15 @@ function navigateTo(pageName) {
 
 async function loadPageData(pageName) {
   switch (pageName) {
+    case 'dashboard':
+      updateDashboard();
+      break;
     case 'tickets':
       await loadTickets();
+      updateDashboard();
       break;
     case 'info':
       await loadSystemInfo();
-      break;
-    case 'dashboard':
-      await loadDashboard();
       break;
   }
 }
@@ -909,6 +900,271 @@ function renderSecurityInfo(systemInfo) {
 }
 
 // ============================================
+// DASHBOARD E GRÁFICOS
+// ============================================
+
+// Variáveis globais para gráficos
+let statusChart = null;
+let priorityChart = null;
+let trendChart = null;
+
+// Atualizar dashboard com gráficos e estatísticas
+function updateDashboard() {
+  const stats = calculateStatistics();
+  
+  // Atualizar cards de estatísticas
+  const statTotal = document.getElementById('statTotal');
+  if (statTotal) statTotal.textContent = stats.total;
+  
+  const statOpen = document.getElementById('statOpen');
+  if (statOpen) statOpen.textContent = stats.open;
+  
+  const statHighPriority = document.getElementById('statHighPriority');
+  if (statHighPriority) statHighPriority.textContent = stats.highPriority;
+  
+  const statResolved = document.getElementById('statResolved');
+  if (statResolved) statResolved.textContent = stats.resolved;
+  
+  // Atualizar indicadores de SLA
+  const slaNormal = document.getElementById('slaNormal');
+  if (slaNormal) slaNormal.textContent = stats.slaNormal;
+  
+  const slaWarning = document.getElementById('slaWarning');
+  if (slaWarning) slaWarning.textContent = stats.slaWarning;
+  
+  const slaExpired = document.getElementById('slaExpired');
+  if (slaExpired) slaExpired.textContent = stats.slaExpired;
+  
+  // Atualizar taxa de resolução
+  const resolutionRate = stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0;
+  const resolutionRateBar = document.getElementById('resolutionRate');
+  if (resolutionRateBar) resolutionRateBar.style.width = `${resolutionRate}%`;
+  
+  const resolutionRateText = document.getElementById('resolutionRateText');
+  if (resolutionRateText) resolutionRateText.textContent = `${resolutionRate}%`;
+  
+  // Criar gráficos apenas se Chart.js estiver disponível
+  if (typeof Chart === 'undefined') return;
+  
+  // Criar/Atualizar gráfico de status
+  const statusCtx = document.getElementById('statusChart');
+  if (statusCtx) {
+    if (statusChart) statusChart.destroy();
+    
+    statusChart = new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Aberto', 'Em Progresso', 'Pendente', 'Resolvido', 'Fechado'],
+        datasets: [{
+          data: [stats.open, stats.inProgress, stats.pending, stats.resolved, stats.closed],
+          backgroundColor: ['#667eea', '#3b82f6', '#f59e0b', '#10b981', '#6b7280'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { padding: 15, font: { size: 12 } }
+          }
+        }
+      }
+    });
+  }
+  
+  // Criar/Atualizar gráfico de prioridades
+  const priorityCtx = document.getElementById('priorityChart');
+  if (priorityCtx) {
+    if (priorityChart) priorityChart.destroy();
+    
+    priorityChart = new Chart(priorityCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Crítica', 'Alta', 'Média', 'Baixa'],
+        datasets: [{
+          label: 'Tickets',
+          data: [stats.critical, stats.high, stats.normal, stats.low],
+          backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#6b7280']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
+  
+  // Criar/Atualizar gráfico de tendência
+  const trendCtx = document.getElementById('trendChart');
+  if (trendCtx) {
+    if (trendChart) trendChart.destroy();
+    
+    const trendData = calculateTrendData();
+    
+    trendChart = new Chart(trendCtx, {
+      type: 'line',
+      data: {
+        labels: trendData.labels,
+        datasets: [{
+          label: 'Novos',
+          data: trendData.created,
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          tension: 0.4
+        }, {
+          label: 'Resolvidos',
+          data: trendData.resolved,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { padding: 15, font: { size: 12 } }
+          }
+        }
+      }
+    });
+  }
+}
+
+// Calcular estatísticas dos tickets
+function calculateStatistics() {
+  const tickets = state.tickets;
+  const stats = {
+    total: tickets.length,
+    open: 0,
+    inProgress: 0,
+    pending: 0,
+    resolved: 0,
+    closed: 0,
+    critical: 0,
+    high: 0,
+    normal: 0,
+    low: 0,
+    highPriority: 0,
+    slaNormal: 0,
+    slaWarning: 0,
+    slaExpired: 0
+  };
+  
+  tickets.forEach(ticket => {
+    // Status
+    switch(ticket.status) {
+      case 'open':
+      case 'novo':
+        stats.open++;
+        break;
+      case 'in_progress':
+        stats.inProgress++;
+        break;
+      case 'pending':
+        stats.pending++;
+        break;
+      case 'resolved':
+        stats.resolved++;
+        break;
+      case 'closed':
+        stats.closed++;
+        break;
+    }
+    
+    // Prioridade
+    switch(ticket.priority) {
+      case 'critical':
+        stats.critical++;
+        stats.highPriority++;
+        break;
+      case 'high':
+      case 'alta':
+        stats.high++;
+        stats.highPriority++;
+        break;
+      case 'normal':
+      case 'media':
+        stats.normal++;
+        break;
+      case 'low':
+      case 'baixa':
+        stats.low++;
+        break;
+    }
+    
+    // SLA
+    const slaInfo = calculateSLARemaining(ticket);
+    if (slaInfo) {
+      if (slaInfo.expired) {
+        stats.slaExpired++;
+      } else if (slaInfo.status === 'warning' || slaInfo.status === 'critical') {
+        stats.slaWarning++;
+      } else {
+        stats.slaNormal++;
+      }
+    }
+  });
+  
+  return stats;
+}
+
+// Calcular dados de tendência dos últimos 7 dias
+function calculateTrendData() {
+  const labels = [];
+  const created = [];
+  const resolved = [];
+  const now = new Date();
+  
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    date.setHours(0, 0, 0, 0);
+    
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + 1);
+    
+    labels.push(date.toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric' }));
+    
+    // Contar tickets criados nesse dia
+    const createdCount = state.tickets.filter(t => {
+      const createdAt = new Date(t.createdAt);
+      return createdAt >= date && createdAt < nextDate;
+    }).length;
+    created.push(createdCount);
+    
+    // Contar tickets resolvidos nesse dia
+    const resolvedCount = state.tickets.filter(t => {
+      if (!t.resolvedAt) return false;
+      const resolvedAt = new Date(t.resolvedAt);
+      return resolvedAt >= date && resolvedAt < nextDate;
+    }).length;
+    resolved.push(resolvedCount);
+  }
+  
+  return { labels, created, resolved };
+}
+
+// ============================================
 // TICKETS
 // ============================================
 async function loadTickets() {
@@ -934,6 +1190,7 @@ async function loadTickets() {
     console.log('🔍 Primeiro ticket com SLA:', state.tickets.find(t => t.sla));
     renderTicketsList();
     document.getElementById('statTickets').textContent = state.tickets.length.toString();
+    updateDashboard();
   } catch (error) {
     console.error('Erro ao carregar tickets:', error);
   } finally {
@@ -986,18 +1243,28 @@ function setupTicketFilters() {
     });
   }
   
+  // Dropdown de ordenação
+  const sortDropdown = document.getElementById('sortBy');
+  if (sortDropdown) {
+    sortDropdown.addEventListener('change', (e) => {
+      state.filters.sortBy = e.target.value;
+      applyFilters();
+    });
+  }
+  
   // Botão limpar filtros
   const clearBtn = document.getElementById('clearFiltersBtn');
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       // Limpar todos os filtros
-      state.filters = { search: '', status: '', priority: '' };
+      state.filters = { search: '', status: '', priority: '', sortBy: 'createdAt-desc' };
       state.filteredTickets = [];
       
       // Limpar inputs
       if (searchInput) searchInput.value = '';
       if (statusFilter) statusFilter.value = '';
       if (priorityFilter) priorityFilter.value = '';
+      if (sortDropdown) sortDropdown.value = 'createdAt-desc';
       
       // Ocultar contador
       const filterResults = document.getElementById('filterResults');
@@ -1009,9 +1276,94 @@ function setupTicketFilters() {
   }
 }
 
+// Marcar ticket como lido
+async function markTicketAsRead(ticketId) {
+  try {
+    const result = await window.electronAPI.markAsRead(ticketId);
+    
+    if (result.success) {
+      // Atualizar contador local
+      const ticketIndex = state.tickets.findIndex(t => t.id === ticketId);
+      if (ticketIndex !== -1) {
+        state.tickets[ticketIndex].unreadCount = 0;
+      }
+      
+      // Atualizar badge se houver
+      const badge = document.getElementById('ticketsBadge');
+      if (badge) {
+        const totalUnread = state.tickets.reduce((sum, t) => sum + (t.unreadCount || 0), 0);
+        if (totalUnread > 0) {
+          badge.textContent = totalUnread.toString();
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+      
+      console.log('✅ Ticket marcado como lido');
+    }
+  } catch (error) {
+    console.error('Erro ao marcar ticket como lido:', error);
+  }
+}
+
+// Ordenar tickets
+function sortTickets(tickets, sortBy) {
+  const priorityOrder = { critical: 4, high: 3, normal: 2, media: 2, low: 1, none: 0 };
+  const statusOrder = { novo: 0, open: 1, in_progress: 2, pending: 3, resolved: 4, closed: 5 };
+  
+  return [...tickets].sort((a, b) => {
+    switch(sortBy) {
+      case 'createdAt-desc':
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      
+      case 'createdAt-asc':
+        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      
+      case 'priority-desc':
+        return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+      
+      case 'priority-asc':
+        return (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0);
+      
+      case 'status-asc':
+        return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
+      
+      case 'sla-urgent':
+        // Ordenar por tempo restante de SLA (urgentes primeiro)
+        const slaA = calculateSLARemaining(a);
+        const slaB = calculateSLARemaining(b);
+        
+        if (!slaA && !slaB) return 0;
+        if (!slaA) return 1;
+        if (!slaB) return -1;
+        
+        // Expirados primeiro
+        if (slaA.expired && !slaB.expired) return -1;
+        if (!slaA.expired && slaB.expired) return 1;
+        
+        // Menor tempo restante primeiro
+        return slaA.remaining - slaB.remaining;
+      
+      case 'unread':
+        // Não lidas primeiro
+        const unreadA = a.unreadCount || 0;
+        const unreadB = b.unreadCount || 0;
+        if (unreadB !== unreadA) {
+          return unreadB - unreadA;
+        }
+        // Se igual, ordenar por data
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      
+      default:
+        return 0;
+    }
+  });
+}
+
 // Aplicar filtros aos tickets
 function applyFilters() {
-  const { search, status, priority } = state.filters;
+  const { search, status, priority, sortBy } = state.filters;
   
   let filtered = [...state.tickets];
   
@@ -1035,6 +1387,9 @@ function applyFilters() {
   if (priority) {
     filtered = filtered.filter(t => t.priority === priority);
   }
+  
+  // Aplicar ordenação
+  filtered = sortTickets(filtered, sortBy);
   
   state.filteredTickets = filtered;
   
@@ -1190,6 +1545,11 @@ async function showTicketDetails(ticketId) {
   
   console.log('✅ Ticket encontrado:', ticket.subject);
   console.log('📋 Dados completos do ticket:', ticket);
+  
+  // Marcar mensagens como lidas
+  if (ticket.unreadCount && ticket.unreadCount > 0) {
+    markTicketAsRead(ticketId);
+  }
   
   try {
     console.log('🎨 Criando modal de detalhes...');
