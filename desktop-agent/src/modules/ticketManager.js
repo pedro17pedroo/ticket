@@ -349,14 +349,23 @@ class TicketManager extends EventEmitter {
    */
   async sendMessage(ticketId, message, attachments = []) {
     try {
+      const FormData = require('form-data');
       const formData = new FormData();
       formData.append('message', message);
       formData.append('isInternal', 'false');
 
-      // Anexos (se houver)
-      attachments.forEach(file => {
-        formData.append('attachments', file);
-      });
+      // Anexos (se houver) - converter de array serializado para Buffer
+      if (attachments && attachments.length > 0) {
+        attachments.forEach(att => {
+          if (att.data && att.name) {
+            const buffer = Buffer.from(att.data);
+            formData.append('attachments', buffer, {
+              filename: att.name,
+              contentType: att.type || 'application/octet-stream'
+            });
+          }
+        });
+      }
 
       const response = await axios.post(
         `${this.baseUrl}/api/tickets/${ticketId}/messages`,
@@ -364,7 +373,7 @@ class TicketManager extends EventEmitter {
         {
           headers: {
             Authorization: `Bearer ${this.token}`,
-            'Content-Type': 'multipart/form-data'
+            ...formData.getHeaders()
           }
         }
       );
@@ -393,10 +402,12 @@ class TicketManager extends EventEmitter {
         }
       );
 
-      return response.data;
+      // Retornar em formato compatível com o renderer
+      const messages = response.data.messages || response.data || [];
+      return { success: true, messages };
     } catch (error) {
-      console.error('Erro ao buscar mensagens:', error);
-      throw error;
+      console.error('Erro ao buscar mensagens:', error.message);
+      return { success: false, error: error.message, messages: [] };
     }
   }
 
