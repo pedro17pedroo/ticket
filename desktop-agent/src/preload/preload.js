@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendMessage: (ticketId, message, attachments) => ipcRenderer.invoke('tickets:send-message', ticketId, message, attachments),
   sendTicketMessage: (ticketId, message, attachments) => ipcRenderer.invoke('tickets:send-message', ticketId, message, attachments),
   getMessages: (ticketId) => ipcRenderer.invoke('tickets:get-messages', ticketId),
+  fetchTicketMessages: (ticketId) => ipcRenderer.invoke('tickets:get-messages', ticketId),
   markAsRead: (ticketId) => ipcRenderer.invoke('tickets:mark-as-read', ticketId),
   
   // Status do ticket

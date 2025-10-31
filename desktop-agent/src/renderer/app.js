@@ -1944,6 +1944,18 @@ async function showTicketDetails(ticketId) {
   }
   
   try {
+    console.log('🎨 Buscando mensagens do ticket...');
+    
+    // Buscar mensagens do ticket
+    const messagesResult = await window.electronAPI.fetchTicketMessages(ticketId);
+    if (messagesResult.success && messagesResult.messages) {
+      ticket.messages = messagesResult.messages;
+      console.log('✅ Mensagens carregadas:', ticket.messages.length);
+    } else {
+      console.warn('⚠️ Não foi possível carregar mensagens:', messagesResult.error);
+      ticket.messages = [];
+    }
+    
     console.log('🎨 Criando modal de detalhes...');
     
     // Tradução dos status
@@ -2340,8 +2352,20 @@ async function showTicketDetails(ticketId) {
       console.log('📤 Enviando mensagem para ticket:', ticketId);
       console.log('📎 Anexos:', selectedFiles.length);
       
+      // Converter arquivos para ArrayBuffer
+      const attachments = [];
+      for (const file of selectedFiles) {
+        const arrayBuffer = await file.arrayBuffer();
+        attachments.push({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: Array.from(new Uint8Array(arrayBuffer))
+        });
+      }
+      
       // Enviar mensagem via API (com anexos se houver)
-      const result = await window.electronAPI.sendTicketMessage(ticketId, message, selectedFiles);
+      const result = await window.electronAPI.sendTicketMessage(ticketId, message, attachments);
       
       if (result.success) {
         // Limpar campo e anexos após envio
