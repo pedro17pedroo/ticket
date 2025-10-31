@@ -515,8 +515,12 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
 // Handler para conectar o agent após login
 ipcMain.handle('connect-agent', async (event, { serverUrl, token }) => {
   try {
-    // Atualizar configuração
-    apiClient.updateConfig(serverUrl, token);
+    // Criar ou atualizar apiClient
+    if (!apiClient) {
+      apiClient = new ApiClient(serverUrl, token);
+    } else {
+      apiClient.updateConfig(serverUrl, token);
+    }
     
     // Inicializar ticket manager
     if (!ticketManager) {
