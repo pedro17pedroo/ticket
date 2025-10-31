@@ -1799,7 +1799,6 @@ function applyFilters() {
 // Renderização da lista de tickets
 function renderTicketsList() {
   console.log('🎨 renderTicketsList chamada - Versão atualizada com cliques');
-  console.log('📊 Tickets a renderizar:', state.filteredTickets.length || state.tickets.length);
   
   const container = document.getElementById('ticketsList');
   
@@ -1808,9 +1807,18 @@ function renderTicketsList() {
     return;
   }
   
-  const ticketsToRender = state.filteredTickets.length > 0 || Object.values(state.filters).some(f => f) 
-    ? state.filteredTickets 
-    : state.tickets;
+  // Verificar se há filtros ativos (excluindo sortBy que não é realmente um filtro)
+  const hasActiveFilters = state.filters.search || 
+                          (state.filters.status && state.filters.status !== 'all' && state.filters.status !== '') ||
+                          (state.filters.priority && state.filters.priority !== 'all' && state.filters.priority !== '');
+  
+  // Se há filtros ativos, usar filteredTickets, senão usar todos os tickets
+  const ticketsToRender = hasActiveFilters ? state.filteredTickets : state.tickets;
+  
+  console.log('📊 Filtros ativos:', hasActiveFilters);
+  console.log('📊 state.tickets:', state.tickets.length);
+  console.log('📊 state.filteredTickets:', state.filteredTickets.length);
+  console.log('📊 Tickets a renderizar:', ticketsToRender.length);
     
   if (!ticketsToRender || ticketsToRender.length === 0) {
     container.innerHTML = `
