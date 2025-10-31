@@ -1671,15 +1671,6 @@ function renderTicketsList() {
   });
 }
 
-function escapeHTML(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
 // Mostrar detalhes de um ticket
 async function showTicketDetails(ticketId) {
   console.log('🔍 showTicketDetails chamado com ID:', ticketId);
