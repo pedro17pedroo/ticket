@@ -326,11 +326,11 @@ async function handleLogin(e) {
   
   console.log('🔐 Iniciando processo de login...');
   
-  const serverUrl = document.getElementById('serverUrl').value;
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const serverUrl = 'http://localhost:3000'; // URL do servidor fixo
   
-  if (!serverUrl || !username || !password) {
+  if (!email || !password) {
     showLoginError('Por favor, preencha todos os campos');
     return;
   }
@@ -346,7 +346,7 @@ async function handleLogin(e) {
     
     const { success: loginSuccess, token, user, error: loginError } = await window.electronAPI.login({
       serverUrl,
-      username,
+      username: email,
       password
     });
     
