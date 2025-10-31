@@ -2778,29 +2778,6 @@ async function handleSaveSettings() {
 }
 
 // ============================================
-// LOGOUT
-// ============================================
-async function handleLogout() {
-  if (!confirm('Tem certeza que deseja sair?')) {
-    return;
-  }
-  
-  try {
-    await window.electronAPI.disconnect();
-    state.user = null;
-    state.connected = false;
-    showLogin();
-    
-    // Limpar formulário
-    document.getElementById('loginEmail').value = '';
-    document.getElementById('loginPassword').value = '';
-    
-  } catch (error) {
-    console.error('Erro ao fazer logout:', error);
-  }
-}
-
-// ============================================
 // UTILS
 // ============================================
 function addActivity(text, type = 'info') {
