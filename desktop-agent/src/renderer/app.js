@@ -1948,8 +1948,8 @@ async function showTicketDetails(ticketId) {
     
     // Buscar mensagens do ticket
     const messagesResult = await window.electronAPI.fetchTicketMessages(ticketId);
-    if (messagesResult.success && messagesResult.messages) {
-      ticket.messages = messagesResult.messages;
+    if (messagesResult.success) {
+      ticket.messages = Array.isArray(messagesResult.messages) ? messagesResult.messages : [];
       console.log('✅ Mensagens carregadas:', ticket.messages.length);
     } else {
       console.warn('⚠️ Não foi possível carregar mensagens:', messagesResult.error);
@@ -2423,11 +2423,17 @@ async function showTicketDetails(ticketId) {
         
         // Atualizar ticket no state
         const ticketIndex = state.tickets.findIndex(t => t.id === ticketId);
-        if (ticketIndex !== -1 && ticketIndex < state.tickets.length && result.message) {
-          if (!state.tickets[ticketIndex].messages) {
+        if (ticketIndex !== -1) {
+          // Inicializar messages se não existir
+          if (!Array.isArray(state.tickets[ticketIndex].messages)) {
             state.tickets[ticketIndex].messages = [];
           }
-          state.tickets[ticketIndex].messages.push(result.message);
+          
+          // Adicionar mensagem retornada pelo servidor
+          const newMessage = result.comment || result.message || result;
+          if (newMessage && newMessage.id) {
+            state.tickets[ticketIndex].messages.push(newMessage);
+          }
         }
       } else {
         showNotification(result.error || 'Erro ao enviar mensagem', 'error');
