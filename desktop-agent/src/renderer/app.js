@@ -213,8 +213,8 @@ async function handleInvalidToken() {
   showLoginError('Sessão expirada. Por favor, faça login novamente.');
 }
 
-// Mostrar tela de carregamento
-function showLoadingScreen(message = 'Carregando...') {
+// Mostrar tela de carregamento com progress bar
+function showLoadingScreen(message = 'Carregando...', progress = 0) {
   // Ocultar todas as telas
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   
@@ -225,6 +225,53 @@ function showLoadingScreen(message = 'Carregando...') {
     loadingScreen.id = 'loadingScreen';
     loadingScreen.className = 'screen';
     loadingScreen.innerHTML = `
+      <style>
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        .loading-step {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem;
+          margin: 0.5rem 0;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 0.5rem;
+          transition: all 0.3s ease;
+        }
+        .loading-step.active {
+          background: rgba(255, 255, 255, 0.2);
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+        .loading-step.completed {
+          background: rgba(76, 175, 80, 0.2);
+        }
+        .step-icon {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+        }
+        .step-icon.pending {
+          border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        .step-icon.active {
+          border: 2px solid white;
+          animation: spin 1s linear infinite;
+        }
+        .step-icon.completed {
+          background: #4CAF50;
+          color: white;
+        }
+      </style>
       <div class="loading-container" style="
         display: flex;
         flex-direction: column;
@@ -232,28 +279,114 @@ function showLoadingScreen(message = 'Carregando...') {
         justify-content: center;
         height: 100vh;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
       ">
         <div class="loading-content" style="
           text-align: center;
           color: white;
+          max-width: 500px;
+          width: 100%;
         ">
-          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" style="
-            animation: spin 2s linear infinite;
-            margin-bottom: 1.5rem;
+          <div style="margin-bottom: 2rem;">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-bottom: 1rem;">
+              <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/>
+              <path d="M9 3v18M15 3v18M3 9h18M3 15h18" stroke-width="2"/>
+            </svg>
+            <h2 style="font-size: 1.75rem; margin-bottom: 0.5rem; font-weight: 600;">TatuTicket Agent</h2>
+            <p style="font-size: 0.875rem; opacity: 0.8;">Iniciando sistema...</p>
+          </div>
+          
+          <!-- Progress Bar -->
+          <div style="
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 2rem;
           ">
-            <path d="M12 2v4m0 12v4m10-10h-4M6 12H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">TatuTicket Agent</h2>
-          <p id="loadingMessage" style="font-size: 1rem; opacity: 0.9;">${message}</p>
+            <div id="loadingProgressBar" style="
+              height: 100%;
+              background: white;
+              width: 0%;
+              transition: width 0.3s ease;
+              border-radius: 2px;
+            "></div>
+          </div>
+          
+          <!-- Steps -->
+          <div id="loadingSteps" style="text-align: left;">
+            <div class="loading-step" data-step="auth">
+              <div class="step-icon pending" id="stepIcon1">○</div>
+              <span id="stepText1">Autenticando...</span>
+            </div>
+            <div class="loading-step" data-step="connect">
+              <div class="step-icon pending" id="stepIcon2">○</div>
+              <span id="stepText2">Conectando ao servidor...</span>
+            </div>
+            <div class="loading-step" data-step="sync">
+              <div class="step-icon pending" id="stepIcon3">○</div>
+              <span id="stepText3">Sincronizando dados...</span>
+            </div>
+            <div class="loading-step" data-step="dashboard">
+              <div class="step-icon pending" id="stepIcon4">○</div>
+              <span id="stepText4">Preparando dashboard...</span>
+            </div>
+          </div>
+          
+          <p id="loadingMessage" style="
+            font-size: 0.875rem;
+            opacity: 0.7;
+            margin-top: 1.5rem;
+          ">${message}</p>
         </div>
       </div>
     `;
     document.getElementById('app').appendChild(loadingScreen);
   } else {
-    document.getElementById('loadingMessage').textContent = message;
+    const msgEl = document.getElementById('loadingMessage');
+    if (msgEl) msgEl.textContent = message;
+    
+    const progressBar = document.getElementById('loadingProgressBar');
+    if (progressBar) progressBar.style.width = `${progress}%`;
   }
   
   loadingScreen.classList.add('active');
+}
+
+// Atualizar etapa de loading
+function updateLoadingStep(stepNumber, status = 'active', text = null) {
+  const stepIcon = document.getElementById(`stepIcon${stepNumber}`);
+  const stepText = document.getElementById(`stepText${stepNumber}`);
+  const stepEl = document.querySelector(`[data-step]`);
+  
+  if (!stepIcon || !stepText) return;
+  
+  // Atualizar texto se fornecido
+  if (text) stepText.textContent = text;
+  
+  // Remover classes anteriores
+  stepIcon.classList.remove('pending', 'active', 'completed');
+  
+  // Adicionar nova classe e ícone
+  if (status === 'active') {
+    stepIcon.classList.add('active');
+    stepIcon.textContent = '⟳';
+  } else if (status === 'completed') {
+    stepIcon.classList.add('completed');
+    stepIcon.textContent = '✓';
+  } else {
+    stepIcon.classList.add('pending');
+    stepIcon.textContent = '○';
+  }
+  
+  // Atualizar estilo do step
+  const step = stepIcon.closest('.loading-step');
+  if (step) {
+    step.classList.remove('active', 'completed');
+    if (status === 'active') step.classList.add('active');
+    if (status === 'completed') step.classList.add('completed');
+  }
 }
 
 // Mostrar tela de login
@@ -336,13 +469,14 @@ async function handleLogin(e) {
   }
   
   // Mostrar tela de carregamento
-  showLoadingScreen('Conectando ao servidor...');
+  showLoadingScreen('Iniciando...', 0);
   
   try {
-    // 1. Fazer login no servidor
+    // ETAPA 1: Autenticação (0-25%)
+    updateLoadingStep(1, 'active', 'Autenticando usuário...');
+    showLoadingScreen('Verificando credenciais...', 10);
+    
     console.log('🌐 Fazendo login no servidor...');
-    const loadingMsg = document.getElementById('loadingMessage');
-    if (loadingMsg) loadingMsg.textContent = 'Autenticando...';
     
     const { success: loginSuccess, token, user, error: loginError } = await window.electronAPI.login({
       serverUrl,
@@ -358,9 +492,15 @@ async function handleLogin(e) {
     console.log('✅ Login bem-sucedido! Token:', token ? 'recebido' : 'não recebido');
     console.log('👤 Dados do usuário:', user);
     
-    // 2. Conectar o agent
+    updateLoadingStep(1, 'completed', '✓ Autenticado com sucesso');
+    showLoadingScreen('Autenticado!', 25);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // ETAPA 2: Conectar Agent (25-50%)
+    updateLoadingStep(2, 'active', 'Conectando ao servidor...');
+    showLoadingScreen('Estabelecendo conexão...', 30);
+    
     console.log('🔧 Conectando o agent...');
-    if (loadingMsg) loadingMsg.textContent = 'Conectando o agent...';
     
     const result = await window.electronAPI.connectAgent({ serverUrl, token });
     
@@ -369,9 +509,6 @@ async function handleLogin(e) {
       throw new Error(result.error || 'Erro ao conectar agent');
     }
     
-    console.log('💾 Salvando dados do usuário...');
-    if (loadingMsg) loadingMsg.textContent = 'Configurando ambiente...';
-    
     // 3. Salvar dados do usuário
     state.user = user;
     state.connected = true;
@@ -379,20 +516,42 @@ async function handleLogin(e) {
     // 4. Configurar eventos em tempo real
     setupTicketRealtime();
     
+    updateLoadingStep(2, 'completed', '✓ Conectado ao servidor');
+    showLoadingScreen('Conectado!', 50);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // ETAPA 3: Sincronização (50-75%)
+    updateLoadingStep(3, 'active', 'Sincronizando dados...');
+    showLoadingScreen('Carregando informações...', 55);
+    
     console.log('⏰ Configurando sync automático...');
-    if (loadingMsg) loadingMsg.textContent = 'Sincronizando dados...';
     
     // 5. Configurar sync automático
     setupAutoSync();
     
+    showLoadingScreen('Carregando usuário...', 60);
+    
     // 6. Carregar dados iniciais
     await loadUserData();
     
-    console.log('✅ Login concluído com sucesso!');
-    if (loadingMsg) loadingMsg.textContent = 'Abrindo dashboard...';
+    showLoadingScreen('Carregando tickets...', 70);
     
-    // Pequena pausa para mostrar mensagem final
-    await new Promise(resolve => setTimeout(resolve, 500));
+    updateLoadingStep(3, 'completed', '✓ Dados sincronizados');
+    showLoadingScreen('Sincronizado!', 75);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // ETAPA 4: Dashboard (75-100%)
+    updateLoadingStep(4, 'active', 'Preparando interface...');
+    showLoadingScreen('Montando dashboard...', 85);
+    
+    console.log('✅ Login concluído com sucesso!');
+    
+    showLoadingScreen('Quase pronto...', 95);
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    updateLoadingStep(4, 'completed', '✓ Dashboard pronto');
+    showLoadingScreen('Pronto!', 100);
+    await new Promise(resolve => setTimeout(resolve, 400));
     
     // 7. Mostrar dashboard
     showApp();
