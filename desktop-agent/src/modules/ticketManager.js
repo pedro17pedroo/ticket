@@ -349,40 +349,60 @@ class TicketManager extends EventEmitter {
    */
   async sendMessage(ticketId, message, attachments = []) {
     try {
-      const FormData = require('form-data');
-      const formData = new FormData();
-      formData.append('content', message);
-      formData.append('isInternal', 'false');
-      formData.append('isPrivate', 'false');
-
-      // Anexos (se houver) - converter de array serializado para Buffer
-      if (attachments && attachments.length > 0) {
-        attachments.forEach(att => {
-          if (att.data && att.name) {
-            const buffer = Buffer.from(att.data);
-            formData.append('attachments', buffer, {
-              filename: att.name,
-              contentType: att.type || 'application/octet-stream'
-            });
-          }
-        });
-      }
-
+      // 1. Enviar comentário como JSON
       const response = await axios.post(
         `${this.baseUrl}/api/tickets/${ticketId}/comments`,
-        formData,
+        {
+          content: message,
+          isInternal: false,
+          isPrivate: false
+        },
         {
           headers: {
             Authorization: `Bearer ${this.token}`,
-            ...formData.getHeaders()
+            'Content-Type': 'application/json'
           }
         }
       );
 
-      const newMessage = response.data;
-      this.emit('message-sent', { ticketId, message: newMessage });
+      const newComment = response.data.comment || response.data;
       
-      return newMessage;
+      // 2. Se houver anexos, enviar separadamente
+      if (attachments && attachments.length > 0) {
+        try {
+          const FormData = require('form-data');
+          const formData = new FormData();
+          
+          attachments.forEach(att => {
+            if (att.data && att.name) {
+              const buffer = Buffer.from(att.data);
+              formData.append('files', buffer, {
+                filename: att.name,
+                contentType: att.type || 'application/octet-stream'
+              });
+            }
+          });
+
+          await axios.post(
+            `${this.baseUrl}/api/tickets/${ticketId}/upload`,
+            formData,
+            {
+              headers: {
+                Authorization: `Bearer ${this.token}`,
+                ...formData.getHeaders()
+              }
+            }
+          );
+          
+          console.log('✅ Anexos enviados com sucesso');
+        } catch (uploadError) {
+          console.error('⚠️ Erro ao enviar anexos:', uploadError.message);
+          // Não falhar se apenas anexos falharem
+        }
+      }
+
+      this.emit('message-sent', { ticketId, message: newComment });
+      return newComment;
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
       throw error;
@@ -394,8 +414,9 @@ class TicketManager extends EventEmitter {
    */
   async getMessages(ticketId) {
     try {
+      // Buscar o ticket completo que inclui os comentários
       const response = await axios.get(
-        `${this.baseUrl}/api/tickets/${ticketId}/comments`,
+        `${this.baseUrl}/api/tickets/${ticketId}`,
         {
           headers: {
             Authorization: `Bearer ${this.token}`
@@ -404,7 +425,8 @@ class TicketManager extends EventEmitter {
       );
 
       // Retornar em formato compatível com o renderer
-      const messages = response.data.comments || response.data || [];
+      const ticket = response.data.ticket || response.data;
+      const messages = ticket.comments || ticket.messages || [];
       return { success: true, messages };
     } catch (error) {
       console.error('Erro ao buscar mensagens:', error.message);
