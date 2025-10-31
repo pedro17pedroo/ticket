@@ -22,7 +22,8 @@ const state = {
     sortBy: 'createdAt-desc'
   },
   lastSync: null,
-  newTicketFiles: []
+  newTicketFiles: [],
+  syncTimer: null
 };
 
 // Utilitário seguro para HTML em preview
@@ -154,33 +155,111 @@ if (typeof window !== 'undefined' && !window.electronAPI) {
 }
 
 // Inicialização
-document.addEventListener('DOMContentLoaded', async () => {
-  await init();
+document.addEventListener('DOMContentLoaded', async function init() {
+  console.log('🚀 Iniciando aplicação...');
+  
+  setupEventListeners();
+  setupTicketFilters();
+  
+  // Verificar se existe sessão válida
+  await checkExistingSession();
 });
 
-async function init() {
-  // Verificar se já tem sessão
+// Verificar sessão existente
+async function checkExistingSession() {
   const config = await window.electronAPI.getConfig();
   
   if (config.token) {
-    // Já está conectado
-    showApp();
-    await loadUserData();
-    await performAutoScan(); // Scan automático ao iniciar
-    setupAutoSync();
+    // Mostrar tela de carregamento
+    showLoadingScreen('Verificando sessão...');
+    
+    try {
+      // Verificar se o token ainda é válido
+      const result = await window.electronAPI.validateToken();
+      
+      if (result.success) {
+        // Token válido - ir para dashboard
+        showMainScreen();
+        await loadUserData();
+        showPage('dashboard');
+      } else {
+        // Token inválido - limpar e ir para login
+        await handleInvalidToken();
+      }
+    } catch (error) {
+      console.error('Erro ao verificar sessão:', error);
+      await handleInvalidToken();
+    }
   } else {
-    // Mostrar tela de login
-    showLogin();
+    // Sem token - mostrar login
+    showLoginScreen();
+  }
+}
+
+// Lidar com token inválido
+async function handleInvalidToken() {
+  console.log('⚠️ Token inválido ou expirado - limpando sessão...');
+  
+  // Limpar configuração
+  await window.electronAPI.clearConfig();
+  
+  // Limpar estado local
+  state.user = null;
+  state.connected = false;
+  state.tickets = [];
+  
+  // Mostrar tela de login
+  showLoginScreen();
+  showLoginError('Sessão expirada. Por favor, faça login novamente.');
+}
+
+// Mostrar tela de carregamento
+function showLoadingScreen(message = 'Carregando...') {
+  // Ocultar todas as telas
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  
+  // Criar ou atualizar tela de carregamento
+  let loadingScreen = document.getElementById('loadingScreen');
+  if (!loadingScreen) {
+    loadingScreen = document.createElement('div');
+    loadingScreen.id = 'loadingScreen';
+    loadingScreen.className = 'screen';
+    loadingScreen.innerHTML = `
+      <div class="loading-container" style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      ">
+        <div class="loading-content" style="
+          text-align: center;
+          color: white;
+        ">
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" style="
+            animation: spin 2s linear infinite;
+            margin-bottom: 1.5rem;
+          ">
+            <path d="M12 2v4m0 12v4m10-10h-4M6 12H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">TatuTicket Agent</h2>
+          <p id="loadingMessage" style="font-size: 1rem; opacity: 0.9;">${message}</p>
+        </div>
+      </div>
+    `;
+    document.getElementById('app').appendChild(loadingScreen);
+  } else {
+    document.getElementById('loadingMessage').textContent = message;
   }
   
-  // Configurar navegação
-  setupNavigation();
-  
-  // Configurar filtros de tickets
-  setupTicketFilters();
-  
-  // Eventos de tickets em tempo real
-  setupEventListeners();
+  loadingScreen.classList.add('active');
+}
+
+// Mostrar tela de login
+function showLoginScreen() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('loginScreen').classList.add('active');
 }
 
 // Event Listeners
@@ -247,71 +326,43 @@ async function handleLogin(e) {
   
   console.log('🔐 Iniciando processo de login...');
   
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value;
+  const serverUrl = document.getElementById('serverUrl').value;
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
   
-  console.log('📧 Email:', email);
-  console.log('🔑 Senha length:', password ? password.length : 0);
-  
-  if (!email || !password) {
-    console.log('❌ Campos obrigatórios não preenchidos');
-    showLoginError('Por favor, preencha email e senha');
+  if (!serverUrl || !username || !password) {
+    showLoginError('Por favor, preencha todos os campos');
     return;
   }
   
-  const btn = document.getElementById('loginBtn');
-  btn.disabled = true;
-  btn.textContent = 'Entrando...';
-  hideLoginError();
+  // Mostrar tela de carregamento
+  showLoadingScreen('Conectando ao servidor...');
   
   try {
-    console.log('🌐 Fazendo requisição para:', `${SERVER_URL}/api/auth/login`);
-    
     // 1. Fazer login no servidor
-    const loginResponse = await fetch(`${SERVER_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+    console.log('🌐 Fazendo login no servidor...');
+    const loadingMsg = document.getElementById('loadingMessage');
+    if (loadingMsg) loadingMsg.textContent = 'Autenticando...';
+    
+    const { success: loginSuccess, token, user, error: loginError } = await window.electronAPI.login({
+      serverUrl,
+      username,
+      password
     });
     
-    console.log('📡 Resposta do servidor - Status:', loginResponse.status);
-    console.log('📡 Resposta do servidor - OK:', loginResponse.ok);
-    
-    let loginData;
-    try {
-      loginData = await loginResponse.json();
-      console.log('📄 Dados recebidos:', loginData);
-    } catch (e) {
-      console.error('❌ Erro ao parsear JSON:', e);
-      throw new Error('Erro ao comunicar com o servidor');
+    if (!loginSuccess) {
+      console.log('❌ Falha no login:', loginError);
+      throw new Error(loginError || 'Erro ao fazer login');
     }
     
-    if (!loginResponse.ok) {
-      const errorMsg = loginData.message || loginData.error || 'Credenciais inválidas';
-      console.log('❌ Login falhou:', errorMsg);
-      throw new Error(errorMsg);
-    }
-    
-    const token = loginData.token;
-    const user = loginData.user;
-    
-    console.log('🎫 Token recebido:', token ? 'SIM' : 'NÃO');
-    console.log('👤 Usuário recebido:', user);
-    
-    if (!token) {
-      console.log('❌ Token não recebido');
-      throw new Error('Token não recebido do servidor');
-    }
-    
-    console.log('🔌 Conectando agent...');
+    console.log('✅ Login bem-sucedido! Token:', token ? 'recebido' : 'não recebido');
+    console.log('👤 Dados do usuário:', user);
     
     // 2. Conectar o agent
-    const result = await window.electronAPI.connect({ 
-      serverUrl: SERVER_URL, 
-      token 
-    });
+    console.log('🔧 Conectando o agent...');
+    if (loadingMsg) loadingMsg.textContent = 'Conectando o agent...';
     
-    console.log('🔌 Resultado da conexão:', result);
+    const result = await window.electronAPI.connectAgent({ serverUrl, token });
     
     if (!result.success) {
       console.log('❌ Falha na conexão do agent:', result.error);
@@ -319,23 +370,41 @@ async function handleLogin(e) {
     }
     
     console.log('💾 Salvando dados do usuário...');
+    if (loadingMsg) loadingMsg.textContent = 'Configurando ambiente...';
     
     // 3. Salvar dados do usuário
     state.user = user;
     state.connected = true;
     
+    // 4. Configurar eventos em tempo real
+    setupTicketRealtime();
+    
     console.log('⏰ Configurando sync automático...');
-    // 6. Configurar sync automático
+    if (loadingMsg) loadingMsg.textContent = 'Sincronizando dados...';
+    
+    // 5. Configurar sync automático
     setupAutoSync();
     
+    // 6. Carregar dados iniciais
+    await loadUserData();
+    
     console.log('✅ Login concluído com sucesso!');
+    if (loadingMsg) loadingMsg.textContent = 'Abrindo dashboard...';
+    
+    // Pequena pausa para mostrar mensagem final
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // 7. Mostrar dashboard
+    showMainScreen();
+    showPage('dashboard');
     
   } catch (error) {
     console.error('❌ Erro no login:', error);
     console.error('❌ Stack trace:', error.stack);
+    
+    // Voltar para tela de login
+    showLoginScreen();
     showLoginError(error.message || 'Erro ao fazer login');
-    btn.disabled = false;
-    btn.textContent = 'Entrar';
   }
 }
 
@@ -358,6 +427,76 @@ function openSignup(e) {
 function openForgotPassword(e) {
   e.preventDefault();
   window.electronAPI.openExternal(`${SERVER_URL}/forgot-password`);
+}
+
+// Função de logout
+async function handleLogout() {
+  console.log('👋 Fazendo logout...');
+  
+  // Confirmar logout
+  const confirmLogout = confirm('Tem certeza que deseja sair?');
+  if (!confirmLogout) return;
+  
+  try {
+    // Mostrar tela de carregamento
+    showLoadingScreen('Desconectando...');
+    
+    // Desconectar do servidor se necessário
+    await window.electronAPI.disconnect();
+    
+    // Limpar configuração
+    await window.electronAPI.clearConfig();
+    
+    // Limpar estado local
+    state.user = null;
+    state.connected = false;
+    state.tickets = [];
+    state.systemInfo = null;
+    state.filteredTickets = [];
+    state.filters = {
+      search: '',
+      status: '',
+      priority: '',
+      sortBy: 'createdAt-desc'
+    };
+    
+    // Limpar timers
+    if (state.syncTimer) {
+      clearInterval(state.syncTimer);
+      state.syncTimer = null;
+    }
+    
+    console.log('✅ Logout concluído');
+    
+    // Voltar para tela de login
+    showLoginScreen();
+    
+    // Limpar mensagem de erro anterior se houver
+    hideLoginError();
+    
+    // Mostrar mensagem de sucesso
+    const loginScreen = document.getElementById('loginScreen');
+    if (loginScreen) {
+      const successMsg = document.createElement('div');
+      successMsg.className = 'alert alert-success';
+      successMsg.textContent = 'Logout realizado com sucesso!';
+      successMsg.style.cssText = 'background: #d4edda; color: #155724; padding: 0.75rem; border-radius: 0.375rem; margin-bottom: 1rem;';
+      
+      const loginBox = loginScreen.querySelector('.login-box');
+      if (loginBox) {
+        const existingAlert = loginBox.querySelector('.alert-success');
+        if (existingAlert) existingAlert.remove();
+        loginBox.insertBefore(successMsg, loginBox.firstChild);
+        
+        // Remover mensagem após 3 segundos
+        setTimeout(() => successMsg.remove(), 3000);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Erro ao fazer logout:', error);
+    showNotification('Erro ao fazer logout', 'error');
+  }
 }
 
 // ============================================
@@ -523,10 +662,22 @@ async function handleManualScan() {
 }
 
 function setupAutoSync() {
+  // Limpar timer existente se houver
+  if (state.syncTimer) {
+    clearInterval(state.syncTimer);
+  }
+  
   // Sync automático a cada 1 hora
-  setInterval(async () => {
+  state.syncTimer = setInterval(async () => {
     await performAutoScan();
+    await loadTickets();
+    state.lastSync = new Date();
+    updateLastSync();
   }, 60 * 60 * 1000);
+  
+  // Sync inicial
+  performAutoScan();
+  updateLastSync();
 }
 
 // ============================================

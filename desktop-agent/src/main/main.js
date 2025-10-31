@@ -341,24 +341,38 @@ function setupTicketListeners() {
   });
 }
 
+// Setup Tray (stub por enquanto)
+function setupTray() {
+  // TODO: Implementar tray icon
+  console.log('⚪ Tray icon será implementado em breve');
+}
+
+// Setup AutoLaunch (stub por enquanto)
+function setupAutoLaunch() {
+  // TODO: Implementar auto-launch
+  console.log('🚀 Auto-launch será implementado em breve');
+}
+
 // Event Listeners
 app.whenReady().then(async () => {
   createWindow();
-  createTray();
-  await initialize();
-
-  // Verificar auto-launch
-  const autoLaunchEnabled = store.get('autoLaunch', false);
-  if (autoLauncher) {
+  setupTray();
+  setupAutoLaunch();
+  
+  // Verificar se há token antes de inicializar
+  const token = store.get('token');
+  const serverUrl = store.get('serverUrl');
+  
+  if (token && serverUrl) {
+    // Tentar inicializar conexão
     try {
-      if (autoLaunchEnabled) {
-        await autoLauncher.enable();
-      } else {
-        await autoLauncher.disable();
-      }
+      await initialize();
     } catch (error) {
-      console.warn('⚠️  Auto-launch não disponível:', error.message);
+      console.log('⚠️ Erro na inicialização automática:', error.message);
+      console.log('💡 Aguardando login do usuário...');
     }
+  } else {
+    console.log('🔐 Nenhuma sessão encontrada. Aguardando login...');
   }
 });
 
@@ -384,6 +398,7 @@ ipcMain.handle('get-config', () => {
 });
 
 ipcMain.handle('save-config', async (event, config) => {
+  // Salvar configuraes
   // Salvar configurações
   Object.keys(config).forEach(key => {
     store.set(key, config[key]);
@@ -418,6 +433,45 @@ ipcMain.handle('save-config', async (event, config) => {
   }
 
   return { success: true };
+});
+
+ipcMain.handle('clear-config', () => {
+  store.clear();
+  // Desconectar se necessário
+  if (ticketManager) {
+    ticketManager.disconnect();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('validate-token', async () => {
+  try {
+    const token = store.get('token');
+    const serverUrl = store.get('serverUrl');
+    
+    if (!token || !serverUrl) {
+      return { success: false, error: 'Token ou servidor não configurado' };
+    }
+    
+    // Verificar token usando o ticketManager
+    if (ticketManager && ticketManager.user) {
+      // Se já temos um ticketManager com usuário, o token é válido
+      return { success: true, user: ticketManager.user };
+    }
+    
+    // Caso contrário, fazer uma chamada de teste
+    const axios = require('axios');
+    const response = await axios.get(`${serverUrl}/api/auth/profile`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    return { success: true, user: response.data.user };
+  } catch (error) {
+    console.error('Token inválido:', error.message);
+    return { success: false, error: 'Token inválido ou expirado' };
+  }
 });
 
 ipcMain.handle('connect', async (event, { serverUrl, token }) => {

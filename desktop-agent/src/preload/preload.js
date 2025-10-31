@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Configurações
   getConfig: () => ipcRenderer.invoke('get-config'),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
+  clearConfig: () => ipcRenderer.invoke('clear-config'),
+  validateToken: () => ipcRenderer.invoke('validate-token'),
   
   // Conexão
   connect: (credentials) => ipcRenderer.invoke('connect', credentials),
