@@ -474,6 +474,69 @@ ipcMain.handle('validate-token', async () => {
   }
 });
 
+// Handler de login
+ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
+  try {
+    const axios = require('axios');
+    
+    // Fazer login no servidor
+    const response = await axios.post(`${serverUrl}/api/auth/login`, {
+      email: username,
+      password: password
+    });
+    
+    if (response.data && response.data.token) {
+      const { token, user } = response.data;
+      
+      // Salvar token e serverUrl
+      store.set('serverUrl', serverUrl);
+      store.set('token', token);
+      
+      return {
+        success: true,
+        token,
+        user
+      };
+    }
+    
+    return {
+      success: false,
+      error: 'Resposta inválida do servidor'
+    };
+  } catch (error) {
+    console.error('Erro no login:', error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Erro ao fazer login'
+    };
+  }
+});
+
+// Handler para conectar o agent após login
+ipcMain.handle('connect-agent', async (event, { serverUrl, token }) => {
+  try {
+    // Atualizar configuração
+    apiClient.updateConfig(serverUrl, token);
+    
+    // Inicializar ticket manager
+    if (!ticketManager) {
+      ticketManager = new TicketManager();
+    }
+    await ticketManager.initialize({ serverUrl, token });
+    
+    // Configurar listeners
+    setupTicketListeners();
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao conectar agent:', error.message);
+    return {
+      success: false,
+      error: error.message || 'Erro ao conectar agent'
+    };
+  }
+});
+
 ipcMain.handle('connect', async (event, { serverUrl, token }) => {
   try {
     store.set('serverUrl', serverUrl);

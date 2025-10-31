@@ -8,8 +8,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearConfig: () => ipcRenderer.invoke('clear-config'),
   validateToken: () => ipcRenderer.invoke('validate-token'),
   
+  // Autenticação
+  login: (credentials) => ipcRenderer.invoke('login', credentials),
+  
   // Conexão
   connect: (credentials) => ipcRenderer.invoke('connect', credentials),
+  connectAgent: (config) => ipcRenderer.invoke('connect-agent', config),
   disconnect: () => ipcRenderer.invoke('disconnect'),
   
   // Status
