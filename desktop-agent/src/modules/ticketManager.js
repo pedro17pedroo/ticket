@@ -351,8 +351,9 @@ class TicketManager extends EventEmitter {
     try {
       const FormData = require('form-data');
       const formData = new FormData();
-      formData.append('message', message);
+      formData.append('content', message);
       formData.append('isInternal', 'false');
+      formData.append('isPrivate', 'false');
 
       // Anexos (se houver) - converter de array serializado para Buffer
       if (attachments && attachments.length > 0) {
@@ -368,7 +369,7 @@ class TicketManager extends EventEmitter {
       }
 
       const response = await axios.post(
-        `${this.baseUrl}/api/tickets/${ticketId}/messages`,
+        `${this.baseUrl}/api/tickets/${ticketId}/comments`,
         formData,
         {
           headers: {
@@ -394,7 +395,7 @@ class TicketManager extends EventEmitter {
   async getMessages(ticketId) {
     try {
       const response = await axios.get(
-        `${this.baseUrl}/api/tickets/${ticketId}/messages`,
+        `${this.baseUrl}/api/tickets/${ticketId}/comments`,
         {
           headers: {
             Authorization: `Bearer ${this.token}`
@@ -403,7 +404,7 @@ class TicketManager extends EventEmitter {
       );
 
       // Retornar em formato compatível com o renderer
-      const messages = response.data.messages || response.data || [];
+      const messages = response.data.comments || response.data || [];
       return { success: true, messages };
     } catch (error) {
       console.error('Erro ao buscar mensagens:', error.message);
