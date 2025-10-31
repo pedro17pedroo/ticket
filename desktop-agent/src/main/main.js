@@ -23,10 +23,15 @@ let ticketManager = null;
 let updateTrayMenu = () => {}; // Função vazia como fallback
 
 // Auto-launch configuration
-const autoLauncher = new AutoLaunch({
-  name: 'TatuTicket Agent',
-  isHidden: true
-});
+let autoLauncher = null;
+try {
+  autoLauncher = new AutoLaunch({
+    name: 'TatuTicket Agent',
+    isHidden: true
+  });
+} catch (error) {
+  console.warn('⚠️ Auto-launch não disponível:', error.message);
+}
 
 // Criar janela principal
 function createWindow() {
@@ -291,14 +296,16 @@ app.whenReady().then(async () => {
 
   // Verificar auto-launch
   const autoLaunchEnabled = store.get('autoLaunch', false);
-  try {
-    if (autoLaunchEnabled) {
-      await autoLauncher.enable();
-    } else {
-      await autoLauncher.disable();
+  if (autoLauncher) {
+    try {
+      if (autoLaunchEnabled) {
+        await autoLauncher.enable();
+      } else {
+        await autoLauncher.disable();
+      }
+    } catch (error) {
+      console.warn('⚠️  Auto-launch não disponível:', error.message);
     }
-  } catch (error) {
-    console.warn('⚠️  Auto-launch não disponível:', error.message);
   }
 });
 
@@ -330,14 +337,16 @@ ipcMain.handle('save-config', async (event, config) => {
   });
 
   // Aplicar auto-launch
-  try {
-    if (config.autoLaunch) {
-      await autoLauncher.enable();
-    } else {
-      await autoLauncher.disable();
+  if (autoLauncher) {
+    try {
+      if (config.autoLaunch) {
+        await autoLauncher.enable();
+      } else {
+        await autoLauncher.disable();
+      }
+    } catch (error) {
+      console.warn('⚠️  Auto-launch não disponível:', error.message);
     }
-  } catch (error) {
-    console.warn('⚠️  Auto-launch não disponível:', error.message);
   }
 
   // Reconectar se URL ou token mudaram

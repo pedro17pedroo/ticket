@@ -83,8 +83,30 @@ export const getTickets = async (req, res, next) => {
       ]
     });
 
+    // Buscar SLAs para todos os tickets
+    const ticketsWithSLA = await Promise.all(
+      tickets.map(async (ticket) => {
+        let sla = null;
+        if (ticket.priority) {
+          sla = await SLA.findOne({
+            where: {
+              organizationId: req.user.organizationId,
+              priority: ticket.priority,
+              isActive: true
+            },
+            attributes: ['id', 'name', 'responseTimeMinutes', 'resolutionTimeMinutes']
+          });
+        }
+        
+        return {
+          ...ticket.toJSON(),
+          sla: sla || null
+        };
+      })
+    );
+
     res.json({
-      tickets,
+      tickets: ticketsWithSLA,
       pagination: {
         total: count,
         page: parseInt(page),

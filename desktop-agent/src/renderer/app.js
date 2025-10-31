@@ -1,6 +1,9 @@
 // Configuração
 const SERVER_URL = 'http://localhost:3000';
 
+// Importar componentes
+import { SLAIndicator } from './components/SLAIndicator.js';
+
 // Log de versão
 console.log('🚀 TatuTicket Desktop Agent v2.0 - COM DETALHES DE TICKETS');
 console.log('📅 Versão atualizada: 30/10/2025 00:30');
@@ -29,6 +32,94 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// Calcular tempo restante do SLA
+function calculateSLARemaining(ticket) {
+  if (!ticket.sla || !ticket.createdAt) {
+    return null;
+  }
+  
+  const sla = ticket.sla;
+  const createdAt = new Date(ticket.createdAt);
+  const now = new Date();
+  
+  // Determinar qual deadline usar baseado no status
+  let deadlineMinutes;
+  let slaType;
+  
+  if (ticket.status === 'resolved' || ticket.status === 'closed') {
+    return { expired: false, message: 'Ticket finalizado', color: '#64748b' };
+  }
+  
+  // Se ainda não foi respondido, usar tempo de resposta
+  if (!ticket.firstResponseAt && sla.responseTime) {
+    deadlineMinutes = parseInt(sla.responseTime) || 0;
+    slaType = 'Resposta';
+  } 
+  // Caso contrário, usar tempo de resolução
+  else if (sla.resolutionTime) {
+    deadlineMinutes = parseInt(sla.resolutionTime) || 0;
+    slaType = 'Resolução';
+  } else {
+    return null;
+  }
+  
+  const deadlineDate = new Date(createdAt.getTime() + deadlineMinutes * 60000);
+  const remainingMs = deadlineDate - now;
+  const remainingMinutes = Math.floor(remainingMs / 60000);
+  
+  // Calcular porcentagem de tempo decorrido
+  const elapsedMs = now - createdAt;
+  const totalMs = deadlineMinutes * 60000;
+  const percentage = Math.min(100, (elapsedMs / totalMs) * 100);
+  
+  // Determinar cor baseado na porcentagem
+  let color, status;
+  if (remainingMs <= 0) {
+    color = '#f56565'; // Vermelho - expirado
+    status = 'expired';
+  } else if (percentage >= 80) {
+    color = '#f59e0b'; // Laranja - crítico
+    status = 'critical';
+  } else if (percentage >= 60) {
+    color = '#fbbf24'; // Amarelo - atenção
+    status = 'warning';
+  } else {
+    color = '#48bb78'; // Verde - ok
+    status = 'ok';
+  }
+  
+  // Formatar tempo restante
+  let timeString;
+  if (remainingMs <= 0) {
+    const overdue = Math.abs(remainingMinutes);
+    if (overdue >= 1440) {
+      timeString = `${Math.floor(overdue / 1440)}d atrasado`;
+    } else if (overdue >= 60) {
+      timeString = `${Math.floor(overdue / 60)}h atrasado`;
+    } else {
+      timeString = `${overdue}min atrasado`;
+    }
+  } else {
+    if (remainingMinutes >= 1440) {
+      timeString = `${Math.floor(remainingMinutes / 1440)}d restantes`;
+    } else if (remainingMinutes >= 60) {
+      timeString = `${Math.floor(remainingMinutes / 60)}h restantes`;
+    } else {
+      timeString = `${remainingMinutes}min restantes`;
+    }
+  }
+  
+  return {
+    expired: remainingMs <= 0,
+    remaining: remainingMinutes,
+    percentage: Math.round(percentage),
+    color,
+    status,
+    message: `${slaType}: ${timeString}`,
+    slaType
+  };
 }
 
 // Stubs opcionais para preview em navegador (sem Electron)
@@ -152,10 +243,16 @@ function setupTicketRealtime() {
 async function handleLogin(e) {
   e.preventDefault();
   
+  console.log('🔐 Iniciando processo de login...');
+  
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   
+  console.log('📧 Email:', email);
+  console.log('🔑 Senha length:', password ? password.length : 0);
+  
   if (!email || !password) {
+    console.log('❌ Campos obrigatórios não preenchidos');
     showLoginError('Por favor, preencha email e senha');
     return;
   }
@@ -166,6 +263,8 @@ async function handleLogin(e) {
   hideLoginError();
   
   try {
+    console.log('🌐 Fazendo requisição para:', `${SERVER_URL}/api/auth/login`);
+    
     // 1. Fazer login no servidor
     const loginResponse = await fetch(`${SERVER_URL}/api/auth/login`, {
       method: 'POST',
@@ -173,24 +272,36 @@ async function handleLogin(e) {
       body: JSON.stringify({ email, password })
     });
     
+    console.log('📡 Resposta do servidor - Status:', loginResponse.status);
+    console.log('📡 Resposta do servidor - OK:', loginResponse.ok);
+    
     let loginData;
     try {
       loginData = await loginResponse.json();
+      console.log('📄 Dados recebidos:', loginData);
     } catch (e) {
+      console.error('❌ Erro ao parsear JSON:', e);
       throw new Error('Erro ao comunicar com o servidor');
     }
     
     if (!loginResponse.ok) {
       const errorMsg = loginData.message || loginData.error || 'Credenciais inválidas';
+      console.log('❌ Login falhou:', errorMsg);
       throw new Error(errorMsg);
     }
     
     const token = loginData.token;
     const user = loginData.user;
     
+    console.log('🎫 Token recebido:', token ? 'SIM' : 'NÃO');
+    console.log('👤 Usuário recebido:', user);
+    
     if (!token) {
+      console.log('❌ Token não recebido');
       throw new Error('Token não recebido do servidor');
     }
+    
+    console.log('🔌 Conectando agent...');
     
     // 2. Conectar o agent
     const result = await window.electronAPI.connect({ 
@@ -198,26 +309,40 @@ async function handleLogin(e) {
       token 
     });
     
+    console.log('🔌 Resultado da conexão:', result);
+    
     if (!result.success) {
+      console.log('❌ Falha na conexão do agent:', result.error);
       throw new Error(result.error || 'Erro ao conectar agent');
     }
+    
+    console.log('💾 Salvando dados do usuário...');
     
     // 3. Salvar dados do usuário
     state.user = user;
     state.connected = true;
     
+    console.log('🎨 Mostrando aplicação...');
+    
     // 4. Mostrar app
     showApp();
+    
+    console.log('📊 Carregando dados do usuário...');
     await loadUserData();
     
+    console.log('🔄 Executando scan automático...');
     // 5. Executar scan automático (silenciosamente)
     await performAutoScan();
     
+    console.log('⏰ Configurando sync automático...');
     // 6. Configurar sync automático
     setupAutoSync();
     
+    console.log('✅ Login concluído com sucesso!');
+    
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Erro no login:', error);
+    console.error('❌ Stack trace:', error.stack);
     showLoginError(error.message || 'Erro ao fazer login');
     btn.disabled = false;
     btn.textContent = 'Entrar';
@@ -308,8 +433,9 @@ async function loadUserData() {
     const status = await window.electronAPI.getStatus();
     
     // Atualizar informações do usuário
-    if (state.user) {
-      const initials = state.user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    if (state.user && state.user.name && state.user.name.trim()) {
+      const nameParts = state.user.name.trim().split(' ').filter(part => part.length > 0);
+      const initials = nameParts.map(n => n[0]).join('').toUpperCase().substring(0, 2);
       document.getElementById('userAvatar').textContent = initials;
       document.getElementById('userName').textContent = state.user.name;
       document.getElementById('userRole').textContent = getRoleLabel(state.user.role);
@@ -804,6 +930,8 @@ async function loadTickets() {
     }
 
     state.tickets = tickets || [];
+    console.log('📋 Tickets carregados:', state.tickets.length);
+    console.log('🔍 Primeiro ticket com SLA:', state.tickets.find(t => t.sla));
     renderTicketsList();
     document.getElementById('statTickets').textContent = state.tickets.length.toString();
   } catch (error) {
@@ -975,9 +1103,39 @@ function renderTicketsList() {
       'critical': 'Crítica'
     };
     
+    // Criar indicador de SLA compacto
+    let slaIndicatorHTML = '';
+    const slaInfo = calculateSLARemaining(t);
+    if (slaInfo) {
+      const icon = slaInfo.expired ? '⚠️' : 
+                   slaInfo.status === 'critical' ? '🔴' :
+                   slaInfo.status === 'warning' ? '🟡' : '🟢';
+      
+      slaIndicatorHTML = `
+        <span class="sla-indicator" style="
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0.25rem 0.5rem;
+          background: ${slaInfo.color}15;
+          border: 1px solid ${slaInfo.color};
+          border-radius: 0.375rem;
+          font-size: 0.75rem;
+          font-weight: 500;
+          color: ${slaInfo.color};
+        ">
+          <span>${icon}</span>
+          <span>${escapeHTML(slaInfo.message)}</span>
+        </span>
+      `;
+    }
+    
     return `
       <div class="ticket-item" data-ticket-id="${t.id}" style="cursor: pointer;">
-        <div class="ticket-title">${escapeHTML(t.subject || 'Sem título')}</div>
+        <div class="ticket-header">
+          <div class="ticket-title">${escapeHTML(t.subject || 'Sem título')}</div>
+          ${slaIndicatorHTML}
+        </div>
         <div class="ticket-meta">
           <span class="badge badge-status status-${status}">${statusLabels[status] || status}</span>
           <span class="badge badge-priority priority-${priority}">${priorityLabels[priority] || priority}</span>
@@ -1214,26 +1372,82 @@ async function showTicketDetails(ticketId) {
         </div>
         
         <!-- SLA -->
-        ${sla.name || ticket.slaName || ticket.sla ? `
-          <div style="padding: 1rem; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 0.5rem; margin-bottom: 2rem;">
-            <h4 style="font-size: 0.875rem; font-weight: 600; color: #92400e; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-              <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              SLA: ${escapeHTML(typeof sla === 'object' ? sla.name : sla || ticket.slaName || ticket.sla)}
-            </h4>
-            ${sla.responseTime || ticket.slaResponseTime ? `
-              <div style="font-size: 0.75rem; color: #92400e;">
-                ⏱️ Tempo de Resposta: ${escapeHTML(sla.responseTime || ticket.slaResponseTime)}
+        ${(() => {
+          const slaInfo = calculateSLARemaining(ticket);
+          if (slaInfo) {
+            const bgColor = slaInfo.expired ? '#fee2e2' : 
+                           slaInfo.status === 'critical' ? '#fed7aa' :
+                           slaInfo.status === 'warning' ? '#fef3c7' : '#d1fae5';
+            const borderColor = slaInfo.color;
+            const textColor = slaInfo.expired ? '#991b1b' :
+                             slaInfo.status === 'critical' ? '#9a3412' :
+                             slaInfo.status === 'warning' ? '#92400e' : '#065f46';
+            
+            return `
+              <div style="padding: 1rem; background: ${bgColor}; border: 2px solid ${borderColor}; border-radius: 0.5rem; margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                  <h4 style="font-size: 0.875rem; font-weight: 600; color: ${textColor}; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    SLA: ${escapeHTML(typeof sla === 'object' ? sla.name : sla || ticket.slaName || 'Padrão')}
+                  </h4>
+                  <span style="
+                    padding: 0.25rem 0.75rem;
+                    background: ${slaInfo.color};
+                    color: white;
+                    border-radius: 1rem;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                  ">
+                    ${slaInfo.message}
+                  </span>
+                </div>
+                
+                <!-- Barra de progresso -->
+                <div style="background: rgba(255,255,255,0.5); border-radius: 1rem; height: 8px; overflow: hidden; margin-bottom: 0.5rem;">
+                  <div style="
+                    background: ${slaInfo.color};
+                    height: 100%;
+                    width: ${slaInfo.percentage}%;
+                    transition: width 0.3s ease;
+                  "></div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.75rem; color: ${textColor};">
+                  ${sla.responseTime || ticket.slaResponseTime ? `
+                    <div>⏱️ Resposta: ${escapeHTML(sla.responseTime || ticket.slaResponseTime)}</div>
+                  ` : ''}
+                  ${sla.resolutionTime || ticket.slaResolutionTime ? `
+                    <div>✅ Resolução: ${escapeHTML(sla.resolutionTime || ticket.slaResolutionTime)}</div>
+                  ` : ''}
+                </div>
               </div>
-            ` : ''}
-            ${sla.resolutionTime || ticket.slaResolutionTime ? `
-              <div style="font-size: 0.75rem; color: #92400e;">
-                ✅ Tempo de Resolução: ${escapeHTML(sla.resolutionTime || ticket.slaResolutionTime)}
+            `;
+          } else if (sla.name || ticket.slaName || ticket.sla) {
+            return `
+              <div style="padding: 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; margin-bottom: 2rem;">
+                <h4 style="font-size: 0.875rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  SLA: ${escapeHTML(typeof sla === 'object' ? sla.name : sla || ticket.slaName || ticket.sla)}
+                </h4>
+                ${sla.responseTime || ticket.slaResponseTime ? `
+                  <div style="font-size: 0.75rem; color: #64748b;">
+                    ⏱️ Tempo de Resposta: ${escapeHTML(sla.responseTime || ticket.slaResponseTime)}
+                  </div>
+                ` : ''}
+                ${sla.resolutionTime || ticket.slaResolutionTime ? `
+                  <div style="font-size: 0.75rem; color: #64748b;">
+                    ✅ Tempo de Resolução: ${escapeHTML(sla.resolutionTime || ticket.slaResolutionTime)}
+                  </div>
+                ` : ''}
               </div>
-            ` : ''}
-          </div>
-        ` : ''}
+            `;
+          }
+          return '';
+        })()}
         
         <!-- Descrição -->
         <div style="margin-bottom: 2rem;">
@@ -1433,7 +1647,7 @@ async function showTicketDetails(ticketId) {
         
         // Atualizar ticket no state
         const ticketIndex = state.tickets.findIndex(t => t.id === ticketId);
-        if (ticketIndex !== -1 && result.message) {
+        if (ticketIndex !== -1 && ticketIndex < state.tickets.length && result.message) {
           if (!state.tickets[ticketIndex].messages) {
             state.tickets[ticketIndex].messages = [];
           }
@@ -1604,20 +1818,8 @@ async function showTicketDetails(ticketId) {
       try {
         const result = await window.electronAPI.getAgents();
         if (result.success && result.agents && result.agents.length > 0) {
-          // Criar select de agentes
-          const agents = result.agents.map(a => `<option value="${a.id}">${escapeHTML(a.name)}</option>`).join('');
-          const agentSelector = `
-            <div style="padding: 1rem;">
-              <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Selecione um agente:</label>
-              <select id="agentSelect" style="width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 0.375rem;">
-                <option value="">-- Selecione --</option>
-                ${agents}
-              </select>
-            </div>
-          `;
-          
-          // TODO: Implementar modal de seleção de agente
-          showNotification('Seleção de agente em desenvolvimento', 'info');
+          // Criar modal de atribuição
+          showAssignAgentModal(ticketId, result.agents, ticket);
         } else {
           showNotification('Nenhum agente disponível', 'warning');
         }
@@ -1650,7 +1852,132 @@ function formatFileSize(bytes) {
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  const sizeIndex = Math.min(i, sizes.length - 1); // Garantir que não exceda o array
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[sizeIndex];
+}
+
+// Modal de atribuição de agente
+function showAssignAgentModal(ticketId, agents, ticket) {
+  const assignModal = document.createElement('div');
+  assignModal.className = 'modal-overlay';
+  assignModal.style.zIndex = '10001'; // Acima do modal de detalhes
+  
+  assignModal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-size: 1.25rem;">Atribuir Ticket</h3>
+        <button class="modal-close" id="closeAssignModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div style="margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
+          <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.25rem;">Ticket</div>
+          <div style="font-weight: 600; color: #1e293b;">${escapeHTML(ticket.subject || 'Sem título')}</div>
+          <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">ID: ${ticket.id}</div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">
+            Selecione um agente:
+          </label>
+          <select id="agentSelect" style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.875rem; background: white;">
+            <option value="">-- Selecione um agente --</option>
+            ${agents.map(agent => `
+              <option value="${agent.id}">
+                ${escapeHTML(agent.name)}${agent.email ? ` (${agent.email})` : ''}${agent.department ? ` - ${agent.department.name || agent.department}` : ''}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">
+            Nota (opcional):
+          </label>
+          <textarea 
+            id="assignNote" 
+            placeholder="Adicione uma nota sobre a atribuição..."
+            style="width: 100%; min-height: 80px; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.875rem; resize: vertical; font-family: inherit;"
+          ></textarea>
+        </div>
+        
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+          <button id="cancelAssignBtn" class="btn btn-secondary">
+            Cancelar
+          </button>
+          <button id="confirmAssignBtn" class="btn btn-primary">
+            <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Atribuir
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(assignModal);
+  
+  // Event listeners
+  document.getElementById('closeAssignModal').addEventListener('click', () => {
+    assignModal.remove();
+  });
+  
+  document.getElementById('cancelAssignBtn').addEventListener('click', () => {
+    assignModal.remove();
+  });
+  
+  document.getElementById('confirmAssignBtn').addEventListener('click', async () => {
+    const agentId = document.getElementById('agentSelect').value;
+    const note = document.getElementById('assignNote').value.trim();
+    
+    if (!agentId) {
+      showNotification('Por favor, selecione um agente', 'warning');
+      return;
+    }
+    
+    try {
+      const confirmBtn = document.getElementById('confirmAssignBtn');
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = `
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem; animation: spin 1s linear infinite;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Atribuindo...
+      `;
+      
+      const result = await window.electronAPI.assignTicket(ticketId, agentId);
+      
+      if (result.success) {
+        showNotification('Ticket atribuído com sucesso', 'success');
+        assignModal.remove();
+        
+        // Fechar modal de detalhes e recarregar lista
+        const detailsModal = document.querySelector('.modal-overlay');
+        if (detailsModal) detailsModal.remove();
+        
+        await loadTickets();
+      } else {
+        showNotification(result.error || 'Erro ao atribuir ticket', 'error');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = `
+          <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Atribuir
+        `;
+      }
+    } catch (error) {
+      console.error('Erro ao atribuir ticket:', error);
+      showNotification('Erro ao atribuir ticket', 'error');
+    }
+  });
+  
+  // Fechar ao clicar fora
+  assignModal.addEventListener('click', (e) => {
+    if (e.target === assignModal) {
+      assignModal.remove();
+    }
+  });
 }
 
 function showNewTicketForm() {

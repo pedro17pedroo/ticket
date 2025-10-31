@@ -34,6 +34,135 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* SLA Indicator Styles */
+.sla-indicator {
+  margin: 8px 0;
+  padding: 8px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  font-size: 12px;
+}
+
+.sla-progress-container {
+  margin-bottom: 6px;
+}
+
+.sla-progress-track {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sla-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.sla-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sla-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sla-icon {
+  font-size: 14px;
+}
+
+.sla-text {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.sla-time {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.sla-indicator-empty {
+  opacity: 0.6;
+}
+
+.sla-no-data {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+}
+
+/* SLA Indicator Compact */
+.sla-indicator-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.sla-indicator-compact:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: scale(1.05);
+}
+
+.sla-compact-icon {
+  font-size: 12px;
+}
+
+.sla-compact-time {
+  white-space: nowrap;
+}
+
+/* SLA Status Colors */
+.sla-indicator[data-status="breached"] .sla-progress-bar {
+  background-color: #ef4444;
+}
+
+.sla-indicator[data-status="critical"] .sla-progress-bar {
+  background-color: #f97316;
+}
+
+.sla-indicator[data-status="warning"] .sla-progress-bar {
+  background-color: #eab308;
+}
+
+.sla-indicator[data-status="ok"] .sla-progress-bar {
+  background-color: #22c55e;
+}
+
+.sla-indicator-compact[data-status="breached"] {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.sla-indicator-compact[data-status="critical"] {
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.1);
+}
+
+.sla-indicator-compact[data-status="warning"] {
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.1);
+}
+
+.sla-indicator-compact[data-status="ok"] {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
 #app {
   width: 100vw;
   height: 100vh;
@@ -515,11 +644,20 @@ button {
   transform: translateY(-1px);
 }
 
+.ticket-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  gap: 12px;
+}
+
 .ticket-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 6px;
+  flex: 1;
+  min-width: 0; /* Para permitir text-overflow */
 }
 
 .ticket-meta {

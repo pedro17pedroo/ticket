@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste SLA Indicator</title>
+    <link rel="stylesheet" href="src/renderer/styles.css">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .sla-indicator-compact { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .sla-critical { background-color: #fee2e2; color: #dc2626; }
+        .sla-warning { background-color: #fef3c7; color: #d97706; }
+        .sla-ok { background-color: #dcfce7; color: #16a34a; }
+        .sla-breached { background-color: #fecaca; color: #dc2626; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Teste do Indicador SLA</h1>
+    
+    <div class="test-section">
+        <h2>SLA Crítico (5 minutos restantes)</h2>
+        <div id="sla-critical"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>SLA Aviso (30 minutos restantes)</h2>
+        <div id="sla-warning"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>SLA OK (2 horas restantes)</h2>
+        <div id="sla-ok"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>SLA Violado</h2>
+        <div id="sla-breached"></div>
+    </div>
+
+    <script>
+        // Funções básicas para teste
+        function formatTimeRemaining(minutes) {
+            if (minutes <= 0) return 'Expirado';
+            if (minutes < 60) return `${Math.round(minutes)}min`;
+            const hours = Math.floor(minutes / 60);
+            const mins = Math.round(minutes % 60);
+            return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
+        }
+        
+        function calculateSLAInfo(ticket) {
+            if (!ticket.sla) return { hasValidSLA: false };
+            
+            const createdAt = new Date(ticket.createdAt);
+            const now = new Date();
+            const elapsedMinutes = (now - createdAt) / (1000 * 60);
+            
+            const targetMinutes = ticket.status === 'novo' ? 
+                ticket.sla.responseTimeMinutes : ticket.sla.resolutionTimeMinutes;
+            
+            const remainingMinutes = targetMinutes - elapsedMinutes;
+            
+            let status = 'ok';
+            if (ticket.slaBreached || remainingMinutes <= 0) {
+                status = 'breached';
+            } else if (remainingMinutes <= targetMinutes * 0.1) {
+                status = 'critical';
+            } else if (remainingMinutes <= targetMinutes * 0.25) {
+                status = 'warning';
+            }
+            
+            return {
+                hasValidSLA: true,
+                status,
+                remainingMinutes,
+                type: ticket.status === 'novo' ? 'response' : 'resolution'
+            };
+        }
+        
+        function createSLAIndicator(ticket) {
+            const slaInfo = calculateSLAInfo(ticket);
+            
+            if (!slaInfo.hasValidSLA) {
+                return document.createElement('div');
+            }
+            
+            const container = document.createElement('div');
+            container.className = `sla-indicator-compact sla-${slaInfo.status}`;
+            
+            const icon = document.createElement('span');
+            icon.innerHTML = slaInfo.status === 'breached' ? '⚠️' : 
+                            slaInfo.status === 'critical' ? '🔴' :
+                            slaInfo.status === 'warning' ? '🟡' : '🟢';
+            
+            const time = document.createElement('span');
+            time.textContent = formatTimeRemaining(slaInfo.remainingMinutes);
+            
+            container.appendChild(icon);
+            container.appendChild(time);
+            
+            return container;
+        }
+        
+        // Testes
+        const criticalTicket = {
+            sla: { name: "SLA Urgente", responseTimeMinutes: 30, resolutionTimeMinutes: 240 },
+            createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+            status: "novo"
+        };
+        document.getElementById('sla-critical').appendChild(createSLAIndicator(criticalTicket));
+        
+        const warningTicket = {
+            sla: { name: "SLA Média", responseTimeMinutes: 60, resolutionTimeMinutes: 480 },
+            createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+            status: "novo"
+        };
+        document.getElementById('sla-warning').appendChild(createSLAIndicator(warningTicket));
+        
+        const okTicket = {
+            sla: { name: "SLA Normal", responseTimeMinutes: 240, resolutionTimeMinutes: 960 },
+            createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+            status: "novo"
+        };
+        document.getElementById('sla-ok').appendChild(createSLAIndicator(okTicket));
+        
+        const breachedTicket = {
+            sla: { name: "SLA Urgente", responseTimeMinutes: 30, resolutionTimeMinutes: 240 },
+            createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+            status: "novo",
+            slaBreached: true
+        };
+        document.getElementById('sla-breached').appendChild(createSLAIndicator(breachedTicket));
+    </script>
+</body>
+</html>
