@@ -546,6 +546,9 @@ function showPage(pageName) {
     };
     pageTitle.textContent = titles[pageName] || 'TatuTicket Agent';
   }
+  
+  // Carregar dados específicos da página
+  loadPageData(pageName);
 }
 
 function navigateTo(pageName) {
@@ -1638,6 +1641,12 @@ function renderTicketsList() {
   console.log('📊 Tickets a renderizar:', state.filteredTickets.length || state.tickets.length);
   
   const container = document.getElementById('ticketsList');
+  
+  if (!container) {
+    console.warn('⚠️ Container ticketsList não encontrado no DOM');
+    return;
+  }
+  
   const ticketsToRender = state.filteredTickets.length > 0 || Object.values(state.filters).some(f => f) 
     ? state.filteredTickets 
     : state.tickets;
