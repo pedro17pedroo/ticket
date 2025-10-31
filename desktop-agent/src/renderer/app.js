@@ -215,15 +215,13 @@ async function handleInvalidToken() {
 
 // Mostrar tela de carregamento com progress bar
 function showLoadingScreen(message = 'Carregando...', progress = 0) {
-  // Ocultar todas as telas
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  
   // Criar ou atualizar tela de carregamento
   let loadingScreen = document.getElementById('loadingScreen');
   if (!loadingScreen) {
     loadingScreen = document.createElement('div');
     loadingScreen.id = 'loadingScreen';
     loadingScreen.className = 'screen';
+    loadingScreen.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;';
     loadingScreen.innerHTML = `
       <style>
         @keyframes spin {
@@ -351,6 +349,12 @@ function showLoadingScreen(message = 'Carregando...', progress = 0) {
     if (progressBar) progressBar.style.width = `${progress}%`;
   }
   
+  // Ocultar todas as outras telas
+  document.getElementById('loginScreen')?.classList.remove('active');
+  document.getElementById('mainApp')?.classList.remove('active');
+  
+  // Mostrar tela de carregamento
+  loadingScreen.style.display = 'block';
   loadingScreen.classList.add('active');
 }
 
@@ -392,6 +396,8 @@ function updateLoadingStep(stepNumber, status = 'active', text = null) {
 // Mostrar tela de login
 function showLoginScreen() {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const loadingScreen = document.getElementById('loadingScreen');
+  if (loadingScreen) loadingScreen.style.display = 'none';
   document.getElementById('loginScreen').classList.add('active');
 }
 
@@ -667,6 +673,8 @@ function showLogin() {
 }
 
 function showApp() {
+  const loadingScreen = document.getElementById('loadingScreen');
+  if (loadingScreen) loadingScreen.style.display = 'none';
   document.getElementById('loginScreen').classList.remove('active');
   document.getElementById('mainApp').classList.add('active');
 }
