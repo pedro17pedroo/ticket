@@ -1948,9 +1948,14 @@ async function showTicketDetails(ticketId) {
     
     // Buscar mensagens do ticket
     const messagesResult = await window.electronAPI.fetchTicketMessages(ticketId);
+    
     if (messagesResult.success) {
-      ticket.messages = Array.isArray(messagesResult.messages) ? messagesResult.messages : [];
-      console.log('✅ Mensagens carregadas:', ticket.messages.length);
+      const allMessages = Array.isArray(messagesResult.messages) ? messagesResult.messages : [];
+      
+      // Filtrar mensagens internas - clientes não devem ver
+      ticket.messages = allMessages.filter(msg => !msg.isInternal);
+      
+      console.log('✅ Mensagens carregadas:', ticket.messages.length, '(total:', allMessages.length, ')');
     } else {
       console.warn('⚠️ Não foi possível carregar mensagens:', messagesResult.error);
       ticket.messages = [];

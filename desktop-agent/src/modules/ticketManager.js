@@ -427,6 +427,9 @@ class TicketManager extends EventEmitter {
       // Retornar em formato compatível com o renderer
       const ticket = response.data.ticket || response.data;
       const messages = ticket.comments || ticket.messages || [];
+      
+      console.log(`✅ Carregadas ${messages.length} mensagens do ticket ${ticketId}`);
+      
       return { success: true, messages };
     } catch (error) {
       console.error('Erro ao buscar mensagens:', error.message);

@@ -766,8 +766,9 @@ ipcMain.handle('tickets:get-messages', async (event, ticketId) => {
       return { success: false, error: 'Ticket manager não inicializado' };
     }
     
-    const messages = await ticketManager.getMessages(ticketId);
-    return { success: true, messages };
+    // ticketManager.getMessages() já retorna { success, messages }
+    const result = await ticketManager.getMessages(ticketId);
+    return result;
   } catch (error) {
     return { success: false, error: error.message };
   }
