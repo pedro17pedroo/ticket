@@ -26,6 +26,7 @@ const UserInventoryDetail = () => {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState(null);
+  const [selectedSource, setSelectedSource] = useState('all'); // 'all', 'agent', 'web'
 
   useEffect(() => {
     loadUserInventory();
@@ -147,10 +148,49 @@ const UserInventoryDetail = () => {
         </div>
       </div>
 
-      {assets.length === 0 ? (
+      {/* Inventory Source Selector */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+        <div className="flex items-center gap-4">
+          <h3 className="font-semibold text-gray-700 dark:text-gray-300">Fonte de Inventário:</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedSource('all')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedSource === 'all'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              Todos ({assets.length})
+            </button>
+            <button
+              onClick={() => setSelectedSource('agent')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedSource === 'agent'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              Agent Desktop ({assets.filter(a => a.source === 'agent').length})
+            </button>
+            <button
+              onClick={() => setSelectedSource('web')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                selectedSource === 'web'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              Web ({assets.filter(a => a.source === 'web').length})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {assets.filter(a => selectedSource === 'all' || a.source === selectedSource).length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
           <Monitor className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600 dark:text-gray-400">Nenhum equipamento registado para este utilizador</p>
+          <p className="text-gray-600 dark:text-gray-400">Nenhum equipamento registado para esta fonte</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -161,7 +201,9 @@ const UserInventoryDetail = () => {
                 <h2 className="font-semibold">Equipamentos ({assets.length})</h2>
               </div>
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {assets.map((asset) => (
+                {assets
+                  .filter(a => selectedSource === 'all' || a.source === selectedSource)
+                  .map((asset) => (
                   <button
                     key={asset.id}
                     onClick={() => setSelectedAsset(asset)}
@@ -182,6 +224,9 @@ const UserInventoryDetail = () => {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{asset.name}</p>
                         <p className="text-xs text-gray-500 truncate">{asset.model || asset.manufacturer}</p>
+                        <p className="text-xs text-primary-600 dark:text-primary-400 mt-1">
+                          {asset.source === 'agent' ? '🖥️ Agent Desktop' : '🌐 Web'}
+                        </p>
                       </div>
                       {selectedAsset?.id === asset.id && (
                         <div className="w-2 h-2 bg-primary-600 rounded-full"></div>

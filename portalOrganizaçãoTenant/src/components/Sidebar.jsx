@@ -71,10 +71,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   // Submenu: Inventário
   const inventorySubmenu = [
-    { path: '/inventory', icon: BarChart3, label: 'Dashboard' },
     { path: '/inventory/organization', icon: Building2, label: 'Inventário Organização' },
     { path: '/inventory/clients', icon: Users, label: 'Inventário Clientes' },
-    { path: '/inventory/assets', icon: HardDrive, label: 'Todos os Assets' },
+    { path: '/inventory/assets', icon: HardDrive, label: 'Todos os Inventários' },
   ]
 
   // Outros menus

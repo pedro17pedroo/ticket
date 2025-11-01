@@ -26,13 +26,14 @@ const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterSource, setFilterSource] = useState(''); // 'agent' ou 'web'
   const [selectedClient, setSelectedClient] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
 
   useEffect(() => {
     loadData();
-  }, [page, filterType, filterStatus, searchTerm, selectedClient]);
+  }, [page, filterType, filterStatus, filterSource, searchTerm, selectedClient]);
 
   const loadData = async () => {
     setLoading(true);
@@ -44,6 +45,7 @@ const Inventory = () => {
           limit: 20,
           type: filterType || undefined,
           status: filterStatus || undefined,
+          source: filterSource || undefined,
           search: searchTerm || undefined,
           clientId: selectedClient || undefined
         })
@@ -124,9 +126,9 @@ const Inventory = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Inventário de TI</h1>
+          <h1 className="text-2xl font-bold">Todos os Inventários</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Gestão de equipamentos e licenças
+            Todos os equipamentos da organização e clientes
           </p>
         </div>
         <div className="flex gap-3">
@@ -291,12 +293,26 @@ const Inventory = () => {
             </select>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium mb-2">Fonte</label>
+            <select
+              value={filterSource}
+              onChange={(e) => setFilterSource(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+            >
+              <option value="">Todas</option>
+              <option value="agent">🖥️ Agent Desktop</option>
+              <option value="web">🌐 Web</option>
+            </select>
+          </div>
+
           <div className="flex items-end">
             <button
               onClick={() => {
                 setSearchTerm('');
                 setFilterType('');
                 setFilterStatus('');
+                setFilterSource('');
                 setSelectedClient('');
               }}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
