@@ -1049,7 +1049,7 @@ export const getOrganizationUsers = async (req, res, next) => {
         {
           model: Asset,
           as: 'userAssets',
-          attributes: ['id', 'type', 'source'],
+          attributes: ['id', 'type', 'collectionMethod'],
           required: false
         }
       ]
@@ -1068,8 +1068,8 @@ export const getOrganizationUsers = async (req, res, next) => {
         hasLaptop: user.userAssets?.some(a => a.type === 'laptop') || false,
         desktopCount: user.userAssets?.filter(a => a.type === 'desktop').length || 0,
         laptopCount: user.userAssets?.filter(a => a.type === 'laptop').length || 0,
-        agentCount: user.userAssets?.filter(a => a.source === 'agent').length || 0,
-        webCount: user.userAssets?.filter(a => a.source === 'web').length || 0
+        agentCount: user.userAssets?.filter(a => a.collectionMethod === 'agent').length || 0,
+        webCount: user.userAssets?.filter(a => a.collectionMethod === 'web').length || 0
       }
     }));
 
@@ -1142,7 +1142,7 @@ export const getClientsWithInventory = async (req, res, next) => {
         {
           model: Asset,
           as: 'clientAssets',
-          attributes: ['id', 'type', 'source'],
+          attributes: ['id', 'type', 'collectionMethod'],
           required: false
         }
       ]
@@ -1161,8 +1161,8 @@ export const getClientsWithInventory = async (req, res, next) => {
         hasLaptop: client.clientAssets?.some(a => a.type === 'laptop') || false,
         desktopCount: client.clientAssets?.filter(a => a.type === 'desktop').length || 0,
         laptopCount: client.clientAssets?.filter(a => a.type === 'laptop').length || 0,
-        agentCount: client.clientAssets?.filter(a => a.source === 'agent').length || 0,
-        webCount: client.clientAssets?.filter(a => a.source === 'web').length || 0
+        agentCount: client.clientAssets?.filter(a => a.collectionMethod === 'agent').length || 0,
+        webCount: client.clientAssets?.filter(a => a.collectionMethod === 'web').length || 0
       }
     }));
 
@@ -1309,7 +1309,7 @@ export const getClientInventory = async (req, res, next) => {
         {
           model: Asset,
           as: 'userAssets',
-          attributes: ['id', 'type', 'source'],
+          attributes: ['id', 'type', 'collectionMethod'],
           required: false
         }
       ]
