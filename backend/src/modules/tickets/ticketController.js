@@ -160,18 +160,11 @@ export const getTicketById = async (req, res, next) => {
         {
           model: Comment,
           as: 'comments',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['id', 'name', 'avatar']
-            },
-            {
-              model: Attachment,
-              as: 'attachments',
-              attributes: ['id', 'filename', 'size', 'mimeType', 'path', 'url']
-            }
-          ],
+          include: [{
+            model: User,
+            as: 'user',
+            attributes: ['id', 'name', 'avatar']
+          }],
           order: [['createdAt', 'ASC']]
         }
       ]

@@ -1956,16 +1956,6 @@ async function showTicketDetails(ticketId) {
       ticket.messages = allMessages.filter(msg => !msg.isInternal);
       
       console.log('✅ Mensagens carregadas:', ticket.messages.length, '(total:', allMessages.length, ')');
-      
-      // Debug: verificar anexos
-      ticket.messages.forEach((msg, idx) => {
-        console.log(`📨 Mensagem ${idx}:`, {
-          content: msg.content?.substring(0, 50),
-          hasAttachments: !!msg.attachments,
-          attachmentsLength: msg.attachments?.length,
-          attachments: msg.attachments
-        });
-      });
     } else {
       console.warn('⚠️ Não foi possível carregar mensagens:', messagesResult.error);
       ticket.messages = [];
