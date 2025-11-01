@@ -15,6 +15,15 @@ const Attachment = sequelize.define('Attachment', {
       key: 'id'
     }
   },
+  commentId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'comment_id',
+    references: {
+      model: 'comments',
+      key: 'id'
+    }
+  },
   filename: {
     type: DataTypes.STRING,
     allowNull: false

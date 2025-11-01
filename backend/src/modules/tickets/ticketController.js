@@ -160,11 +160,18 @@ export const getTicketById = async (req, res, next) => {
         {
           model: Comment,
           as: 'comments',
-          include: [{
-            model: User,
-            as: 'user',
-            attributes: ['id', 'name', 'avatar']
-          }],
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'name', 'avatar']
+            },
+            {
+              model: Attachment,
+              as: 'attachments',
+              attributes: ['id', 'filename', 'originalName', 'mimetype', 'size', 'path']
+            }
+          ],
           order: [['createdAt', 'ASC']]
         }
       ]
@@ -474,11 +481,18 @@ export const addComment = async (req, res, next) => {
     const comment = await Comment.create(commentData);
 
     const fullComment = await Comment.findByPk(comment.id, {
-      include: [{
-        model: User,
-        as: 'user',
-        attributes: ['id', 'name', 'avatar', 'role', 'email']
-      }]
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'avatar', 'role', 'email']
+        },
+        {
+          model: Attachment,
+          as: 'attachments',
+          attributes: ['id', 'filename', 'originalName', 'mimetype', 'size', 'path']
+        }
+      ]
     });
 
     logger.info(`Comentário adicionado ao ticket ${ticket.ticketNumber} por ${req.user.email}`);
@@ -576,6 +590,7 @@ export const getStatistics = async (req, res, next) => {
 export const uploadAttachments = async (req, res, next) => {
   try {
     const { ticketId } = req.params;
+    const { commentId } = req.body; // Opcional: para vincular ao comentário
     const files = req.files;
 
     if (!files || files.length === 0) {
@@ -604,11 +619,29 @@ export const uploadAttachments = async (req, res, next) => {
       });
     }
 
+    // Se commentId fornecido, verificar se existe
+    if (commentId) {
+      const comment = await Comment.findOne({
+        where: { id: commentId, ticketId }
+      });
+      
+      if (!comment) {
+        files.forEach(file => {
+          fs.unlinkSync(file.path);
+        });
+        return res.status(404).json({
+          success: false,
+          error: 'Comentário não encontrado'
+        });
+      }
+    }
+
     // Criar registos de anexos
     const attachments = await Promise.all(
       files.map(file => 
         Attachment.create({
           ticketId,
+          commentId: commentId || null, // Vincular ao comentário se fornecido
           filename: file.filename,
           originalName: file.originalname,
           mimetype: file.mimetype,

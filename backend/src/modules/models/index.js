@@ -93,10 +93,12 @@ const setupAssociations = () => {
   // Comment associations
   Comment.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   Comment.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+  Comment.hasMany(Attachment, { foreignKey: 'commentId', as: 'attachments' });
 
   // Attachment associations
   Attachment.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   Attachment.belongsTo(User, { foreignKey: 'uploadedBy', as: 'uploader' });
+  Attachment.belongsTo(Comment, { foreignKey: 'commentId', as: 'comment' });
 
   // SLA associations
   SLA.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
