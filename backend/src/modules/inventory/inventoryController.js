@@ -1029,6 +1029,318 @@ export const agentCollect = async (req, res, next) => {
   }
 };
 
+// ==================== ORGANIZATION INVENTORY ====================
+
+/**
+ * GET /api/inventory/organization/users
+ * Listar usuários da organização com contagem de assets
+ */
+export const getOrganizationUsers = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organizationId;
+
+    const users = await User.findAll({
+      where: { 
+        organizationId,
+        role: { [Op.ne]: 'cliente' } // Excluir usuários clientes
+      },
+      attributes: ['id', 'name', 'email', 'role', 'isActive'],
+      include: [
+        {
+          model: Asset,
+          as: 'userAssets',
+          attributes: ['id', 'type', 'source'],
+          required: false
+        }
+      ]
+    });
+
+    // Calcular estatísticas por usuário
+    const usersWithStats = users.map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      assetsCount: user.userAssets?.length || 0,
+      assetsSummary: {
+        hasDesktop: user.userAssets?.some(a => a.type === 'desktop') || false,
+        hasLaptop: user.userAssets?.some(a => a.type === 'laptop') || false,
+        desktopCount: user.userAssets?.filter(a => a.type === 'desktop').length || 0,
+        laptopCount: user.userAssets?.filter(a => a.type === 'laptop').length || 0,
+        agentCount: user.userAssets?.filter(a => a.source === 'agent').length || 0,
+        webCount: user.userAssets?.filter(a => a.source === 'web').length || 0
+      }
+    }));
+
+    res.json({
+      success: true,
+      users: usersWithStats
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar usuários da organização:', error);
+    next(error);
+  }
+};
+
+/**
+ * GET /api/inventory/organization/statistics
+ * Estatísticas de inventário da organização
+ */
+export const getOrganizationInventoryStats = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organizationId;
+
+    const [totalUsers, totalAssets, onlineUsers] = await Promise.all([
+      User.count({ 
+        where: { 
+          organizationId,
+          role: { [Op.ne]: 'cliente' }
+        }
+      }),
+      Asset.count({ where: { organizationId } }),
+      User.count({ 
+        where: { 
+          organizationId,
+          role: { [Op.ne]: 'cliente' },
+          // Adicionar lógica de online se tiver campo lastSeen
+        }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      statistics: {
+        totalUsers,
+        totalAssets,
+        onlineUsers: 0 // Placeholder até implementar lastSeen
+      }
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar estatísticas da organização:', error);
+    next(error);
+  }
+};
+
+// ==================== CLIENTS INVENTORY ====================
+
+/**
+ * GET /api/inventory/clients
+ * Listar clientes com informações de inventário
+ */
+export const getClientsWithInventory = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organizationId;
+
+    const clients = await User.findAll({
+      where: { 
+        organizationId,
+        role: 'cliente'
+      },
+      attributes: ['id', 'name', 'email', 'company', 'isActive'],
+      include: [
+        {
+          model: Asset,
+          as: 'clientAssets',
+          attributes: ['id', 'type', 'source'],
+          required: false
+        }
+      ]
+    });
+
+    // Calcular estatísticas por cliente
+    const clientsWithStats = clients.map(client => ({
+      id: client.id,
+      name: client.name,
+      email: client.email,
+      company: client.company,
+      isActive: client.isActive,
+      assetsCount: client.clientAssets?.length || 0,
+      assetsSummary: {
+        hasDesktop: client.clientAssets?.some(a => a.type === 'desktop') || false,
+        hasLaptop: client.clientAssets?.some(a => a.type === 'laptop') || false,
+        desktopCount: client.clientAssets?.filter(a => a.type === 'desktop').length || 0,
+        laptopCount: client.clientAssets?.filter(a => a.type === 'laptop').length || 0,
+        agentCount: client.clientAssets?.filter(a => a.source === 'agent').length || 0,
+        webCount: client.clientAssets?.filter(a => a.source === 'web').length || 0
+      }
+    }));
+
+    res.json({
+      success: true,
+      clients: clientsWithStats
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar clientes:', error);
+    next(error);
+  }
+};
+
+/**
+ * GET /api/inventory/clients/statistics
+ * Estatísticas de inventário de clientes
+ */
+export const getClientsInventoryStats = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organizationId;
+
+    const [totalClients, totalUsers, totalAssets] = await Promise.all([
+      User.count({ 
+        where: { 
+          organizationId,
+          role: 'cliente'
+        }
+      }),
+      // Total de usuários dentro de clientes (se houver sub-usuários)
+      User.count({ 
+        where: { 
+          organizationId,
+          role: 'cliente'
+        }
+      }),
+      Asset.count({ 
+        where: { organizationId },
+        include: [{
+          model: User,
+          as: 'client',
+          where: { role: 'cliente' },
+          required: true
+        }]
+      })
+    ]);
+
+    res.json({
+      success: true,
+      statistics: {
+        totalClients,
+        totalUsers,
+        totalAssets
+      }
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar estatísticas de clientes:', error);
+    next(error);
+  }
+};
+
+/**
+ * GET /api/inventory/users/:userId
+ * Obter inventário de um usuário específico
+ */
+export const getUserInventory = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const organizationId = req.user.organizationId;
+
+    const user = await User.findOne({
+      where: { id: userId, organizationId },
+      attributes: ['id', 'name', 'email', 'role', 'company', 'isActive']
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    const assets = await Asset.findAll({
+      where: { 
+        organizationId,
+        [Op.or]: [
+          { userId },
+          { clientId: userId }
+        ]
+      },
+      include: [
+        {
+          model: Software,
+          as: 'software',
+          attributes: ['id', 'name', 'vendor', 'version', 'category'],
+          required: false
+        }
+      ]
+    });
+
+    res.json({
+      success: true,
+      user,
+      assets
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar inventário do usuário:', error);
+    next(error);
+  }
+};
+
+/**
+ * GET /api/inventory/clients/:clientId
+ * Obter inventário de um cliente específico
+ */
+export const getClientInventory = async (req, res, next) => {
+  try {
+    const { clientId } = req.params;
+    const organizationId = req.user.organizationId;
+
+    const client = await User.findOne({
+      where: { 
+        id: clientId, 
+        organizationId,
+        role: 'cliente'
+      },
+      attributes: ['id', 'name', 'email', 'company', 'isActive']
+    });
+
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        error: 'Cliente não encontrado'
+      });
+    }
+
+    // Buscar sub-usuários do cliente (se houver lógica de múltiplos usuários por cliente)
+    const users = await User.findAll({
+      where: { 
+        organizationId,
+        clientId // Assumindo que existe um campo clientId para sub-usuários
+      },
+      attributes: ['id', 'name', 'email', 'isActive'],
+      include: [
+        {
+          model: Asset,
+          as: 'userAssets',
+          attributes: ['id', 'type', 'source'],
+          required: false
+        }
+      ]
+    });
+
+    // Se não houver sub-usuários, usar o próprio cliente
+    const usersWithAssets = users.length > 0 ? users.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      isActive: u.isActive,
+      assetsCount: u.userAssets?.length || 0
+    })) : [{
+      id: client.id,
+      name: client.name,
+      email: client.email,
+      isActive: client.isActive,
+      assetsCount: 0
+    }];
+
+    res.json({
+      success: true,
+      client,
+      users: usersWithAssets
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar inventário do cliente:', error);
+    next(error);
+  }
+};
+
 export default {
   getAssets,
   getAssetById,
@@ -1047,5 +1359,11 @@ export default {
   unassignLicense,
   getStatistics,
   browserCollect,
-  agentCollect
+  agentCollect,
+  getOrganizationUsers,
+  getOrganizationInventoryStats,
+  getClientsWithInventory,
+  getClientsInventoryStats,
+  getUserInventory,
+  getClientInventory
 };

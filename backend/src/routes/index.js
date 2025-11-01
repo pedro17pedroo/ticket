@@ -296,4 +296,16 @@ router.post('/inventory/browser-collect', authenticate, inventoryController.brow
 // Desktop Agent Collection
 router.post('/inventory/agent-collect', authenticate, inventoryController.agentCollect);
 
+// Organization Inventory
+router.get('/inventory/organization/users', authenticate, authorize('admin-org', 'agente'), inventoryController.getOrganizationUsers);
+router.get('/inventory/organization/statistics', authenticate, authorize('admin-org', 'agente'), inventoryController.getOrganizationInventoryStats);
+
+// Clients Inventory
+router.get('/inventory/clients', authenticate, authorize('admin-org', 'agente'), inventoryController.getClientsWithInventory);
+router.get('/inventory/clients/statistics', authenticate, authorize('admin-org', 'agente'), inventoryController.getClientsInventoryStats);
+router.get('/inventory/clients/:clientId', authenticate, authorize('admin-org', 'agente'), inventoryController.getClientInventory);
+
+// User Inventory
+router.get('/inventory/users/:userId', authenticate, authorize('admin-org', 'agente'), inventoryController.getUserInventory);
+
 export default router;
