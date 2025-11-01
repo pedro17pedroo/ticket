@@ -2028,12 +2028,6 @@ async function showTicketDetails(ticketId) {
                   </svg>
                   Resolver
                 </button>
-                <button id="closeTicketBtn" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #f56565; border-color: #f56565;">
-                  <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Fechar
-                </button>
               ` : `
                 <button id="reopenTicketBtn" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
                   <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2588,27 +2582,6 @@ async function showTicketDetails(ticketId) {
         } catch (error) {
           console.error('Erro ao resolver ticket:', error);
           showNotification('Erro ao resolver ticket', 'error');
-        }
-      }
-    });
-  }
-  
-  if (document.getElementById('closeTicketBtn')) {
-    document.getElementById('closeTicketBtn').addEventListener('click', async () => {
-      if (confirm('Tem certeza que deseja fechar este ticket?')) {
-        try {
-          const result = await window.electronAPI.changeTicketStatus(ticketId, 'closed');
-          if (result.success) {
-            showNotification('Ticket fechado com sucesso', 'success');
-            modal.remove();
-            // Atualizar lista
-            await loadTickets();
-          } else {
-            showNotification(result.error || 'Erro ao fechar ticket', 'error');
-          }
-        } catch (error) {
-          console.error('Erro ao fechar ticket:', error);
-          showNotification('Erro ao fechar ticket', 'error');
         }
       }
     });
