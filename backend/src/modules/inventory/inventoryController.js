@@ -103,6 +103,7 @@ export const getAssetById = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
+    // Buscar asset com includes básicos
     const asset = await Asset.findOne({
       where: { id, organizationId },
       include: [
@@ -117,19 +118,6 @@ export const getAssetById = async (req, res, next) => {
           as: 'user',
           attributes: ['id', 'name', 'email'],
           required: false
-        },
-        {
-          model: Software,
-          as: 'software',
-          attributes: ['id', 'name', 'vendor', 'version', 'category', 'installDate'],
-          required: false
-        },
-        {
-          model: License,
-          as: 'licenses',
-          attributes: ['id', 'name', 'vendor', 'product', 'version', 'licenseKey', 'licenseType', 'totalSeats', 'usedSeats', 'expiryDate', 'status'],
-          through: { attributes: [] }, // Não incluir atributos da tabela de junção
-          required: false
         }
       ]
     });
@@ -141,12 +129,46 @@ export const getAssetById = async (req, res, next) => {
       });
     }
 
+    // Buscar software separadamente (mais seguro)
+    try {
+      const software = await Software.findAll({
+        where: { assetId: id },
+        attributes: ['id', 'name', 'vendor', 'version', 'category', 'installDate']
+      });
+      asset.setDataValue('software', software);
+    } catch (softwareError) {
+      logger.warn('Erro ao buscar software do asset:', softwareError.message);
+      asset.setDataValue('software', []);
+    }
+
+    // Buscar licenses separadamente (mais seguro)
+    try {
+      const licenses = await License.findAll({
+        include: [{
+          model: Asset,
+          as: 'assets',
+          where: { id },
+          through: { attributes: [] },
+          attributes: []
+        }],
+        attributes: ['id', 'name', 'vendor', 'product', 'version', 'licenseKey', 'licenseType', 'totalSeats', 'usedSeats', 'expiryDate', 'status']
+      });
+      asset.setDataValue('licenses', licenses);
+    } catch (licenseError) {
+      logger.warn('Erro ao buscar licenses do asset:', licenseError.message);
+      asset.setDataValue('licenses', []);
+    }
+
     res.json({
       success: true,
       asset
     });
   } catch (error) {
-    logger.error('Erro ao buscar asset:', error);
+    logger.error('Erro ao buscar asset:', {
+      message: error.message,
+      stack: error.stack,
+      assetId: req.params.id
+    });
     next(error);
   }
 };
