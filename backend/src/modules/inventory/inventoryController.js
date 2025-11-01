@@ -58,6 +58,19 @@ export const getAssets = async (req, res, next) => {
           model: User,
           as: 'user',
           attributes: ['id', 'name', 'email']
+        },
+        {
+          model: Software,
+          as: 'software',
+          attributes: ['id', 'name', 'vendor', 'version', 'category'],
+          required: false
+        },
+        {
+          model: License,
+          as: 'licenses',
+          attributes: ['id', 'name', 'vendor'],
+          through: { attributes: [] },
+          required: false
         }
       ],
       limit: parseInt(limit),
@@ -103,6 +116,19 @@ export const getAssetById = async (req, res, next) => {
           model: User,
           as: 'user',
           attributes: ['id', 'name', 'email'],
+          required: false
+        },
+        {
+          model: Software,
+          as: 'software',
+          attributes: ['id', 'name', 'vendor', 'version', 'category', 'installDate'],
+          required: false
+        },
+        {
+          model: License,
+          as: 'licenses',
+          attributes: ['id', 'name', 'vendor', 'licenseKey', 'expiryDate', 'maxDevices', 'category'],
+          through: { attributes: [] }, // Não incluir atributos da tabela de junção
           required: false
         }
       ]
