@@ -43,10 +43,6 @@ const Comment = sequelize.define('Comment', {
   isInternal: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
-  },
-  attachments: {
-    type: DataTypes.JSONB,
-    defaultValue: []
   }
 }, {
   tableName: 'comments',
