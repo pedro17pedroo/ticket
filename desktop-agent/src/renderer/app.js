@@ -1956,6 +1956,16 @@ async function showTicketDetails(ticketId) {
       ticket.messages = allMessages.filter(msg => !msg.isInternal);
       
       console.log('✅ Mensagens carregadas:', ticket.messages.length, '(total:', allMessages.length, ')');
+      
+      // Debug: verificar anexos
+      ticket.messages.forEach((msg, idx) => {
+        console.log(`📨 Mensagem ${idx}:`, {
+          content: msg.content?.substring(0, 50),
+          hasAttachments: !!msg.attachments,
+          attachmentsLength: msg.attachments?.length,
+          attachments: msg.attachments
+        });
+      });
     } else {
       console.warn('⚠️ Não foi possível carregar mensagens:', messagesResult.error);
       ticket.messages = [];
@@ -2012,12 +2022,6 @@ async function showTicketDetails(ticketId) {
             </div>
             <div style="display: flex; gap: 0.5rem; margin-left: auto; margin-right: 1rem;">
               ${ticket.status !== 'closed' && ticket.status !== 'resolved' ? `
-                <button id="assignTicketBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
-                  <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Atribuir
-                </button>
                 <button id="resolveTicketBtn" class="btn btn-success" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #48bb78; border-color: #48bb78;">
                   <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -2631,24 +2635,6 @@ async function showTicketDetails(ticketId) {
     });
   }
   
-  if (document.getElementById('assignTicketBtn')) {
-    document.getElementById('assignTicketBtn').addEventListener('click', async () => {
-      // Buscar lista de agentes
-      try {
-        const result = await window.electronAPI.getAgents();
-        if (result.success && result.agents && result.agents.length > 0) {
-          // Criar modal de atribuição
-          showAssignAgentModal(ticketId, result.agents, ticket);
-        } else {
-          showNotification('Nenhum agente disponível', 'warning');
-        }
-      } catch (error) {
-        console.error('Erro ao buscar agentes:', error);
-        showNotification('Erro ao buscar agentes', 'error');
-      }
-    });
-  }
-  
   // Fechar ao clicar fora
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
@@ -2673,130 +2659,6 @@ function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   const sizeIndex = Math.min(i, sizes.length - 1); // Garantir que não exceda o array
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[sizeIndex];
-}
-
-// Modal de atribuição de agente
-function showAssignAgentModal(ticketId, agents, ticket) {
-  const assignModal = document.createElement('div');
-  assignModal.className = 'modal-overlay';
-  assignModal.style.zIndex = '10001'; // Acima do modal de detalhes
-  
-  assignModal.innerHTML = `
-    <div class="modal-content" style="max-width: 500px;">
-      <div class="modal-header">
-        <h3 style="margin: 0; font-size: 1.25rem;">Atribuir Ticket</h3>
-        <button class="modal-close" id="closeAssignModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 1.5rem;">
-        <div style="margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
-          <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.25rem;">Ticket</div>
-          <div style="font-weight: 600; color: #1e293b;">${escapeHTML(ticket.subject || 'Sem título')}</div>
-          <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">ID: ${ticket.id}</div>
-        </div>
-        
-        <div style="margin-bottom: 1.5rem;">
-          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">
-            Selecione um agente:
-          </label>
-          <select id="agentSelect" style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.875rem; background: white;">
-            <option value="">-- Selecione um agente --</option>
-            ${agents.map(agent => `
-              <option value="${agent.id}">
-                ${escapeHTML(agent.name)}${agent.email ? ` (${agent.email})` : ''}${agent.department ? ` - ${agent.department.name || agent.department}` : ''}
-              </option>
-            `).join('')}
-          </select>
-        </div>
-        
-        <div style="margin-bottom: 1.5rem;">
-          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">
-            Nota (opcional):
-          </label>
-          <textarea 
-            id="assignNote" 
-            placeholder="Adicione uma nota sobre a atribuição..."
-            style="width: 100%; min-height: 80px; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.875rem; resize: vertical; font-family: inherit;"
-          ></textarea>
-        </div>
-        
-        <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-          <button id="cancelAssignBtn" class="btn btn-secondary">
-            Cancelar
-          </button>
-          <button id="confirmAssignBtn" class="btn btn-primary">
-            <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            Atribuir
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(assignModal);
-  
-  // Event listeners
-  document.getElementById('closeAssignModal').addEventListener('click', () => {
-    assignModal.remove();
-  });
-  
-  document.getElementById('cancelAssignBtn').addEventListener('click', () => {
-    assignModal.remove();
-  });
-  
-  document.getElementById('confirmAssignBtn').addEventListener('click', async () => {
-    const agentId = document.getElementById('agentSelect').value;
-    const note = document.getElementById('assignNote').value.trim();
-    
-    if (!agentId) {
-      showNotification('Por favor, selecione um agente', 'warning');
-      return;
-    }
-    
-    try {
-      const confirmBtn = document.getElementById('confirmAssignBtn');
-      confirmBtn.disabled = true;
-      confirmBtn.innerHTML = `
-        <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem; animation: spin 1s linear infinite;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        Atribuindo...
-      `;
-      
-      const result = await window.electronAPI.assignTicket(ticketId, agentId);
-      
-      if (result.success) {
-        showNotification('Ticket atribuído com sucesso', 'success');
-        assignModal.remove();
-        
-        // Fechar modal de detalhes e recarregar lista
-        const detailsModal = document.querySelector('.modal-overlay');
-        if (detailsModal) detailsModal.remove();
-        
-        await loadTickets();
-      } else {
-        showNotification(result.error || 'Erro ao atribuir ticket', 'error');
-        confirmBtn.disabled = false;
-        confirmBtn.innerHTML = `
-          <svg style="width: 1rem; height: 1rem; margin-right: 0.25rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-          Atribuir
-        `;
-      }
-    } catch (error) {
-      console.error('Erro ao atribuir ticket:', error);
-      showNotification('Erro ao atribuir ticket', 'error');
-    }
-  });
-  
-  // Fechar ao clicar fora
-  assignModal.addEventListener('click', (e) => {
-    if (e.target === assignModal) {
-      assignModal.remove();
-    }
-  });
 }
 
 function showNewTicketForm() {
