@@ -68,7 +68,7 @@ export const getAssets = async (req, res, next) => {
         {
           model: License,
           as: 'licenses',
-          attributes: ['id', 'name', 'vendor'],
+          attributes: ['id', 'name', 'vendor', 'product', 'licenseType', 'status'],
           through: { attributes: [] },
           required: false
         }
@@ -127,7 +127,7 @@ export const getAssetById = async (req, res, next) => {
         {
           model: License,
           as: 'licenses',
-          attributes: ['id', 'name', 'vendor', 'licenseKey', 'expiryDate', 'maxDevices', 'category'],
+          attributes: ['id', 'name', 'vendor', 'product', 'version', 'licenseKey', 'licenseType', 'totalSeats', 'usedSeats', 'expiryDate', 'status'],
           through: { attributes: [] }, // Não incluir atributos da tabela de junção
           required: false
         }
