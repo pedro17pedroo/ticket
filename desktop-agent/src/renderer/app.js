@@ -23,7 +23,8 @@ const state = {
   },
   lastSync: null,
   newTicketFiles: [],
-  syncTimer: null
+  syncTimer: null,
+  openTicketId: null // Ticket atualmente aberto no modal
 };
 
 // Utilitário seguro para HTML em preview
@@ -425,6 +426,65 @@ function setupEventListeners() {
   document.getElementById('newTicketBtn')?.addEventListener('click', handleNewTicket);
 }
 
+// Adicionar mensagem ao chat em tempo real
+function appendMessageToChat(message) {
+  const messagesContainer = document.getElementById('messagesContainer');
+  if (!messagesContainer) {
+    console.warn('⚠️ Container de mensagens não encontrado');
+    return;
+  }
+  
+  // Verificar se a mensagem é interna (não mostrar para clientes)
+  if (message.isInternal) {
+    console.log('🔒 Mensagem interna, não exibir');
+    return;
+  }
+  
+  const userName = message.user?.name || message.author || message.userName || 'Usuário';
+  const userInitials = userName.substring(0, 2).toUpperCase();
+  const hasAttachments = message.attachments && Array.isArray(message.attachments) && message.attachments.length > 0;
+  
+  const messageHTML = `
+    <div style="background: white; padding: 1rem; border-radius: 0.5rem; margin-bottom: 0.75rem; border-left: 3px solid ${message.isInternal ? '#fbbf24' : '#667eea'};">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div style="width: 2rem; height: 2rem; border-radius: 50%; background: #667eea; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem;">
+            ${userInitials}
+          </div>
+          <div>
+            <div style="font-weight: 600; font-size: 0.875rem; color: #1e293b;">${escapeHTML(userName)}</div>
+            <div style="font-size: 0.75rem; color: #64748b;">${new Date(message.createdAt).toLocaleString('pt-BR')}</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size: 0.875rem; color: #334155; line-height: 1.5;">
+        ${escapeHTML(message.content || message.body || '')}
+      </div>
+      ${hasAttachments ? `
+        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0;">
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            ${message.attachments.map(att => `
+              <a href="${att.path || att.url || '#'}" target="_blank" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: #f8fafc; border-radius: 0.375rem; border: 1px solid #e2e8f0; text-decoration: none; color: #1e293b; font-size: 0.75rem;">
+                <svg style="width: 1rem; height: 1rem; color: #667eea;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                ${escapeHTML(att.originalName || att.filename || 'Anexo')}
+              </a>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+  
+  messagesContainer.insertAdjacentHTML('beforeend', messageHTML);
+  
+  // Scroll para a última mensagem
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  
+  console.log('✅ Mensagem adicionada ao chat');
+}
+
 // Eventos em tempo real de tickets
 function setupTicketRealtime() {
   try {
@@ -450,6 +510,24 @@ function setupTicketRealtime() {
 
     window.electronAPI.onTicketNotification((notif) => {
       showNotification(notif.body || 'Atualização de ticket', 'info');
+    });
+
+    // Listener para novas mensagens em tempo real
+    window.electronAPI.onNewMessage((data) => {
+      console.log('🔔 Nova mensagem recebida:', data);
+      
+      const { ticketId, message } = data;
+      
+      // Se o ticket está aberto, atualizar o chat em tempo real
+      if (state.openTicketId === ticketId) {
+        console.log('✅ Atualizando chat do ticket aberto');
+        appendMessageToChat(message);
+      } else {
+        console.log('ℹ️ Mensagem de outro ticket, não atualizar chat');
+      }
+      
+      // Atualizar lista de tickets (pode ter mudado lastMessage)
+      loadTickets();
     });
   } catch (error) {
     console.error('Erro ao configurar eventos de tickets:', error);
@@ -1921,6 +1999,15 @@ function renderTicketsList() {
   });
 }
 
+// Fechar modal de ticket e limpar estado
+function closeTicketModal(modal) {
+  state.openTicketId = null;
+  console.log('🔒 Ticket fechado, state.openTicketId limpo');
+  if (modal && modal.remove) {
+    modal.remove();
+  }
+}
+
 // Mostrar detalhes de um ticket
 async function showTicketDetails(ticketId) {
   console.log('🔍 showTicketDetails chamado com ID:', ticketId);
@@ -1934,6 +2021,10 @@ async function showTicketDetails(ticketId) {
     showNotification('Ticket não encontrado', 'error');
     return;
   }
+  
+  // Definir ticket aberto para atualizações em tempo real
+  state.openTicketId = ticketId;
+  console.log('📌 Ticket aberto definido:', state.openTicketId);
   
   console.log('✅ Ticket encontrado:', ticket.subject);
   console.log('📋 Dados completos do ticket:', ticket);
@@ -2395,11 +2486,11 @@ async function showTicketDetails(ticketId) {
   
   // Event listeners
   document.getElementById('closeTicketModal').addEventListener('click', () => {
-    modal.remove();
+    closeTicketModal(modal);
   });
   
   document.getElementById('closeTicketModalBtn').addEventListener('click', () => {
-    modal.remove();
+    closeTicketModal(modal);
   });
   
   // Enviar resposta
@@ -2444,54 +2535,21 @@ async function showTicketDetails(ticketId) {
       if (result.success) {
         // Limpar campo e anexos após envio
         messageInput.value = '';
-        const attachmentNames = selectedFiles.map(f => f.name);
         selectedFiles = [];
         document.getElementById('attachmentsPreview').style.display = 'none';
         
-        // Adicionar mensagem ao container
-        const messagesContainer = document.getElementById('messagesContainer');
-        const attachmentsHtml = attachmentNames.length > 0 ? `
-          <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0;">
-            <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.25rem;">Anexos:</div>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
-              ${attachmentNames.map(name => `
-                <span style="font-size: 0.7rem; padding: 0.125rem 0.375rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.25rem;">
-                  📎 ${escapeHTML(name)}
-                </span>
-              `).join('')}
-            </div>
-          </div>
-        ` : '';
+        // Adicionar mensagem enviada ao chat imediatamente (feedback instantâneo)
+        const sentMessage = {
+          content: message,
+          user: {
+            name: state.user?.name || 'Você'
+          },
+          createdAt: new Date().toISOString(),
+          isInternal: false,
+          attachments: result.comment?.attachments || []
+        };
         
-        const newMessageHtml = `
-          <div style="background: white; padding: 1rem; border-radius: 0.5rem; margin-bottom: 0.75rem; border-left: 3px solid #667eea;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <div style="width: 32px; height: 32px; border-radius: 50%; background: #e0e7ff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; color: #4c51bf;">
-                  ${(state.user?.name || 'U').substring(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div style="font-weight: 600; font-size: 0.875rem; color: #1e293b;">${escapeHTML(state.user?.name || 'Você')}</div>
-                  <div style="font-size: 0.7rem; color: #64748b;">Agora mesmo</div>
-                </div>
-              </div>
-            </div>
-            <div style="font-size: 0.875rem; color: #334155; line-height: 1.5;">
-              ${escapeHTML(message)}
-            </div>
-            ${attachmentsHtml}
-          </div>
-        `;
-        
-        // Remover mensagem "Nenhuma mensagem ainda" se existir
-        if (messagesContainer.innerHTML.includes('Nenhuma mensagem ainda')) {
-          messagesContainer.innerHTML = newMessageHtml;
-        } else {
-          messagesContainer.insertAdjacentHTML('beforeend', newMessageHtml);
-        }
-        
-        // Scroll para a última mensagem
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        appendMessageToChat(sentMessage);
         
         showNotification('Mensagem enviada com sucesso', 'success');
         
@@ -2612,7 +2670,7 @@ async function showTicketDetails(ticketId) {
           const result = await window.electronAPI.changeTicketStatus(ticketId, 'resolved');
           if (result.success) {
             showNotification('Ticket marcado como resolvido', 'success');
-            modal.remove();
+            closeTicketModal(modal);
             // Atualizar lista
             await loadTickets();
           } else {
@@ -2633,7 +2691,7 @@ async function showTicketDetails(ticketId) {
           const result = await window.electronAPI.changeTicketStatus(ticketId, 'open');
           if (result.success) {
             showNotification('Ticket reaberto com sucesso', 'success');
-            modal.remove();
+            closeTicketModal(modal);
             // Atualizar lista
             await loadTickets();
           } else {
@@ -2650,7 +2708,7 @@ async function showTicketDetails(ticketId) {
   // Fechar ao clicar fora
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
-      modal.remove();
+      closeTicketModal(modal);
     }
   });
   
