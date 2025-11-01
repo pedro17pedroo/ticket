@@ -171,7 +171,7 @@ const UserInventoryDetail = () => {
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
-              Agent Desktop ({assets.filter(a => a.source === 'agent').length})
+              Agent Desktop ({assets.filter(a => a.collectionMethod === 'agent').length})
             </button>
             <button
               onClick={() => setSelectedSource('web')}
@@ -181,13 +181,13 @@ const UserInventoryDetail = () => {
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
-              Web ({assets.filter(a => a.source === 'web').length})
+              Web ({assets.filter(a => a.collectionMethod === 'web').length})
             </button>
           </div>
         </div>
       </div>
 
-      {assets.filter(a => selectedSource === 'all' || a.source === selectedSource).length === 0 ? (
+      {assets.filter(a => selectedSource === 'all' || a.collectionMethod === selectedSource).length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
           <Monitor className="w-12 h-12 text-gray-400 mx-auto mb-3" />
           <p className="text-gray-600 dark:text-gray-400">Nenhum equipamento registado para esta fonte</p>
@@ -202,7 +202,7 @@ const UserInventoryDetail = () => {
               </div>
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
                 {assets
-                  .filter(a => selectedSource === 'all' || a.source === selectedSource)
+                  .filter(a => selectedSource === 'all' || a.collectionMethod === selectedSource)
                   .map((asset) => (
                   <button
                     key={asset.id}
@@ -225,7 +225,7 @@ const UserInventoryDetail = () => {
                         <p className="font-medium truncate">{asset.name}</p>
                         <p className="text-xs text-gray-500 truncate">{asset.model || asset.manufacturer}</p>
                         <p className="text-xs text-primary-600 dark:text-primary-400 mt-1">
-                          {asset.source === 'agent' ? '🖥️ Agent Desktop' : '🌐 Web'}
+                          {asset.collectionMethod === 'agent' ? '🖥️ Agent Desktop' : '🌐 Web'}
                         </p>
                       </div>
                       {selectedAsset?.id === asset.id && (
