@@ -2237,15 +2237,20 @@ async function showTicketDetails(ticketId) {
           
           <!-- Mensagens -->
           <div id="messagesContainer" style="max-height: 400px; overflow-y: auto; margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
-            ${ticket.messages && ticket.messages.length > 0 ? ticket.messages.map(msg => `
+            ${ticket.messages && ticket.messages.length > 0 ? ticket.messages.map(msg => {
+              const userName = msg.user?.name || msg.author || msg.userName || 'Usuário';
+              const userInitials = userName.substring(0, 2).toUpperCase();
+              const hasAttachments = msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0;
+              
+              return `
               <div style="background: white; padding: 1rem; border-radius: 0.5rem; margin-bottom: 0.75rem; border-left: 3px solid ${msg.isInternal ? '#fbbf24' : '#667eea'};">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div style="width: 32px; height: 32px; border-radius: 50%; background: ${msg.isInternal ? '#fef3c7' : '#e0e7ff'}; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; color: ${msg.isInternal ? '#92400e' : '#4c51bf'};">
-                      ${(msg.author || 'U').substring(0, 2).toUpperCase()}
+                      ${userInitials}
                     </div>
                     <div>
-                      <div style="font-weight: 600; font-size: 0.875rem; color: #1e293b;">${escapeHTML(msg.author || msg.userName || 'Usuário')}</div>
+                      <div style="font-weight: 600; font-size: 0.875rem; color: #1e293b;">${escapeHTML(userName)}</div>
                       <div style="font-size: 0.7rem; color: #64748b;">${msg.createdAt ? new Date(msg.createdAt).toLocaleString('pt-PT') : ''}</div>
                     </div>
                   </div>
@@ -2254,8 +2259,35 @@ async function showTicketDetails(ticketId) {
                 <div style="font-size: 0.875rem; color: #334155; line-height: 1.5;">
                   ${msg.message || msg.content || msg.text || ''}
                 </div>
+                ${hasAttachments ? `
+                  <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0;">
+                    <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem;">📎 Anexos (${msg.attachments.length})</div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                      ${msg.attachments.map(att => `
+                        <a href="${att.url || att.path || '#'}" 
+                           target="_blank" 
+                           download="${att.filename || att.name || 'anexo'}"
+                           style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.375rem; text-decoration: none; color: #334155; transition: all 0.2s;"
+                           onmouseover="this.style.background='#e0e7ff'; this.style.borderColor='#667eea';"
+                           onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0';">
+                          <svg style="width: 1.25rem; height: 1.25rem; color: #667eea; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                          <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 0.875rem; font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHTML(att.filename || att.name || 'Anexo')}</div>
+                            ${att.size ? `<div style="font-size: 0.7rem; color: #64748b;">${(att.size / 1024).toFixed(1)} KB</div>` : ''}
+                          </div>
+                          <svg style="width: 1rem; height: 1rem; color: #667eea; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                        </a>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
               </div>
-            `).join('') : '<div style="text-align: center; padding: 2rem; color: #94a3b8; font-style: italic;">Nenhuma mensagem ainda</div>'}
+              `;
+            }).join('') : '<div style="text-align: center; padding: 2rem; color: #94a3b8; font-style: italic;">Nenhuma mensagem ainda</div>'}
           </div>
           
           <!-- Campo de Resposta -->
