@@ -774,6 +774,19 @@ ipcMain.handle('tickets:get-messages', async (event, ticketId) => {
   }
 });
 
+ipcMain.handle('tickets:get-attachments', async (event, ticketId) => {
+  try {
+    if (!ticketManager) {
+      return { success: false, error: 'Ticket manager não inicializado' };
+    }
+    
+    const result = await ticketManager.getAttachments(ticketId);
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('tickets:mark-as-read', async (event, ticketId) => {
   try {
     if (!ticketManager) {

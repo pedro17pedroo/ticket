@@ -1961,6 +1961,17 @@ async function showTicketDetails(ticketId) {
       ticket.messages = [];
     }
     
+    // Buscar anexos do ticket
+    const attachmentsResult = await window.electronAPI.fetchTicketAttachments(ticketId);
+    
+    if (attachmentsResult.success) {
+      ticket.attachments = Array.isArray(attachmentsResult.attachments) ? attachmentsResult.attachments : [];
+      console.log('✅ Anexos carregados:', ticket.attachments.length);
+    } else {
+      console.warn('⚠️ Não foi possível carregar anexos:', attachmentsResult.error);
+      ticket.attachments = [];
+    }
+    
     console.log('🎨 Criando modal de detalhes...');
     
     // Tradução dos status
@@ -2213,6 +2224,44 @@ async function showTicketDetails(ticketId) {
             ${ticket.description || ticket.descriptionHtml || '<p style="color: #64748b;">Sem descrição</p>'}
           </div>
         </div>
+        
+        <!-- Anexos do Ticket -->
+        ${ticket.attachments && ticket.attachments.length > 0 ? `
+        <div style="margin-bottom: 2rem;">
+          <h4 style="font-size: 1rem; margin-bottom: 0.75rem; color: #1e293b; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+            <svg style="width: 1.25rem; height: 1.25rem; color: #667eea;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+            Anexos (${ticket.attachments.length})
+          </h4>
+          <div style="background: #f8fafc; padding: 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 0.5rem;">
+            ${ticket.attachments.map(att => `
+              <a 
+                href="${att.path || att.url || '#'}" 
+                target="_blank"
+                download="${att.originalName || att.filename || 'anexo'}"
+                style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: white; border-radius: 0.375rem; border: 1px solid #e2e8f0; text-decoration: none; color: #1e293b; transition: all 0.2s;"
+                onmouseover="this.style.background='#f1f5f9'; this.style.borderColor='#667eea';"
+                onmouseout="this.style.background='white'; this.style.borderColor='#e2e8f0';">
+                <svg style="width: 1.5rem; height: 1.5rem; color: #667eea; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-weight: 500; font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    ${escapeHTML(att.originalName || att.filename || 'Anexo')}
+                  </div>
+                  <div style="font-size: 0.75rem; color: #64748b;">
+                    ${formatFileSize(att.size || 0)}
+                  </div>
+                </div>
+                <svg style="width: 1.25rem; height: 1.25rem; color: #64748b; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </a>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
         
         <!-- Histórico de Conversa -->
         <div style="margin-bottom: 2rem;">

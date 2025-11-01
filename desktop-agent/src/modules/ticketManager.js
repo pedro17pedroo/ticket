@@ -438,6 +438,30 @@ class TicketManager extends EventEmitter {
   }
 
   /**
+   * Buscar anexos de um ticket
+   */
+  async getAttachments(ticketId) {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/api/tickets/${ticketId}/attachments`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        }
+      );
+
+      const attachments = response.data.attachments || [];
+      console.log(`✅ Carregados ${attachments.length} anexos do ticket ${ticketId}`);
+      
+      return { success: true, attachments };
+    } catch (error) {
+      console.error('Erro ao buscar anexos:', error.message);
+      return { success: false, error: error.message, attachments: [] };
+    }
+  }
+
+  /**
    * Marcar mensagens como lidas
    */
   async markAsRead(ticketId) {
