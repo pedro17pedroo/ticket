@@ -1042,7 +1042,7 @@ export const getOrganizationUsers = async (req, res, next) => {
     const users = await User.findAll({
       where: { 
         organizationId,
-        role: { [Op.ne]: 'cliente' } // Excluir usuários clientes
+        role: { [Op.ne]: 'cliente-org' } // Excluir usuários clientes
       },
       attributes: ['id', 'name', 'email', 'role', 'isActive'],
       include: [
@@ -1135,7 +1135,7 @@ export const getClientsWithInventory = async (req, res, next) => {
     const clients = await User.findAll({
       where: { 
         organizationId,
-        role: 'cliente'
+        role: 'cliente-org'
       },
       attributes: ['id', 'name', 'email', 'company', 'isActive'],
       include: [
@@ -1188,14 +1188,14 @@ export const getClientsInventoryStats = async (req, res, next) => {
       User.count({ 
         where: { 
           organizationId,
-          role: 'cliente'
+          role: 'cliente-org'
         }
       }),
       // Total de usuários dentro de clientes (se houver sub-usuários)
       User.count({ 
         where: { 
           organizationId,
-          role: 'cliente'
+          role: 'cliente-org'
         }
       }),
       Asset.count({ 
@@ -1203,7 +1203,7 @@ export const getClientsInventoryStats = async (req, res, next) => {
         include: [{
           model: User,
           as: 'client',
-          where: { role: 'cliente' },
+          where: { role: 'cliente-org' },
           required: true
         }]
       })
@@ -1286,7 +1286,7 @@ export const getClientInventory = async (req, res, next) => {
       where: { 
         id: clientId, 
         organizationId,
-        role: 'cliente'
+        role: 'cliente-org'
       },
       attributes: ['id', 'name', 'email', 'company', 'isActive']
     });
