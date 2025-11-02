@@ -1095,14 +1095,14 @@ export const getOrganizationInventoryStats = async (req, res, next) => {
       User.count({ 
         where: { 
           organizationId,
-          role: { [Op.ne]: 'cliente' }
+          role: { [Op.ne]: 'cliente-org' }
         }
       }),
       Asset.count({ where: { organizationId } }),
       User.count({ 
         where: { 
           organizationId,
-          role: { [Op.ne]: 'cliente' },
+          role: { [Op.ne]: 'cliente-org' },
           // Adicionar lógica de online se tiver campo lastSeen
         }
       })
