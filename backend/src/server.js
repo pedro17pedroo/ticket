@@ -8,7 +8,16 @@ import { connectRedis } from './config/redis.js';
 import { setupAssociations } from './modules/models/index.js';
 import { initializeSocket } from './socket/index.js';
 import emailInboxService from './services/emailInboxService.js';
+import emailProcessor from './services/emailProcessor.js';
+import slaMonitor from './jobs/slaMonitor.js';
+import healthCheckMonitor from './jobs/healthCheckMonitor.js';
+import { startExpirationJob } from './jobs/expireRemoteAccessRequests.js';
 import logger from './config/logger.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 3000;
 
@@ -41,18 +50,47 @@ const startServer = async () => {
     initializeSocket(server);
 
     // Iniciar servidor
-    server.listen(PORT, () => {
+    server.listen(PORT, async () => {
       logger.info(`🚀 Servidor rodando na porta ${PORT}`);
       logger.info(`📍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`🔗 API: http://localhost:${PORT}/api`);
       logger.info(`🔌 WebSocket: ws://localhost:${PORT}`);
       logger.info(`❤️  Health: http://localhost:${PORT}/api/health`);
       
-      // Inicializar serviço de e-mail inbox
-      if (process.env.ENABLE_EMAIL_INBOX === 'true') {
-        emailInboxService.initialize();
-      } else {
-        logger.info('📧 Serviço de e-mail inbox desativado (ENABLE_EMAIL_INBOX=false)');
+      // Inicializar serviço de processamento de e-mail
+      try {
+        if (process.env.IMAP_USER && process.env.IMAP_PASS) {
+          await emailProcessor.initialize();
+          logger.info('✅ Serviço de processamento de e-mail iniciado');
+        } else {
+          logger.info('📧 Configuração de e-mail não encontrada (IMAP_USER/IMAP_PASS)');
+        }
+      } catch (error) {
+        logger.error('❌ Erro ao inicializar serviço de e-mail:', error.message);
+        logger.warn('⚠️ Sistema continuará sem processamento de e-mail');
+      }
+
+      // Inicializar monitor de SLA (se tabelas existirem)
+      try {
+        await slaMonitor.start();
+        logger.info('✅ Monitor de SLA iniciado');
+      } catch (error) {
+        logger.warn('⚠️ Monitor de SLA desabilitado:', error.message);
+      }
+
+      // Inicializar monitor de Health Check (se tabelas existirem)
+      try {
+        await healthCheckMonitor.start();
+        logger.info('✅ Monitor de Health Check iniciado');
+      } catch (error) {
+        logger.warn('⚠️ Monitor de Health Check desabilitado:', error.message);
+      }
+
+      // Inicializar job de expiração de acesso remoto (se tabela existir)
+      try {
+        startExpirationJob();
+      } catch (error) {
+        logger.warn('⚠️ Job de expiração desabilitado:', error.message);
       }
     });
   } catch (error) {
