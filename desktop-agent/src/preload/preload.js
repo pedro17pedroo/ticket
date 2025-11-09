@@ -62,8 +62,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Dados auxiliares
   getAgents: () => ipcRenderer.invoke('tickets:get-agents'),
   getCategories: () => ipcRenderer.invoke('tickets:get-categories'),
+  getPriorities: () => ipcRenderer.invoke('tickets:get-priorities'),
+  getTypes: () => ipcRenderer.invoke('tickets:get-types'),
   getTicketStats: () => ipcRenderer.invoke('tickets:get-stats'),
   getUserInfo: () => ipcRenderer.invoke('tickets:get-user-info'),
+
+  // Acesso remoto
+  getRemoteAccessPending: () => ipcRenderer.invoke('remote-access:get-pending'),
+  acceptRemoteAccess: (requestId) => ipcRenderer.invoke('remote-access:accept', requestId),
+  rejectRemoteAccess: (requestId, reason) => ipcRenderer.invoke('remote-access:reject', requestId, reason),
+  endRemoteAccess: (requestId) => ipcRenderer.invoke('remote-access:end', requestId),
   
   // ============ EVENTOS ============
   
@@ -86,6 +94,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   onNewMessage: (callback) => {
     ipcRenderer.on('new-message', (event, data) => callback(data));
+  },
+
+  onRemoteAccessRequest: (callback) => {
+    ipcRenderer.on('remote-access-requested', (event, request) => callback(request));
+  },
+
+  onRemoteAccessEnded: (callback) => {
+    ipcRenderer.on('remote-access-ended', (event, data) => callback(data));
   },
   
   onTicketNotification: (callback) => {

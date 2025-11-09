@@ -3,6 +3,7 @@ const SERVER_URL = 'http://localhost:3000';
 
 // Importar componentes
 import { SLAIndicator } from './components/SLAIndicator.js';
+import { RemoteAccessNotifications, remoteAccessNotificationsStyles } from './components/RemoteAccessNotifications.js';
 
 // Log de versão
 console.log('🚀 TatuTicket Desktop Agent v2.0 - COM DETALHES DE TICKETS');
@@ -139,6 +140,21 @@ if (typeof window !== 'undefined' && !window.electronAPI) {
         { id: 'cat-geral', name: 'Geral' },
         { id: 'cat-suporte', name: 'Suporte' },
         { id: 'cat-software', name: 'Software' },
+      ] };
+    },
+    async getPriorities() {
+      return { priorities: [
+        { id: 'pri-1', name: 'Baixa', color: '#10b981' },
+        { id: 'pri-2', name: 'Média', color: '#f59e0b' },
+        { id: 'pri-3', name: 'Alta', color: '#ef4444' },
+        { id: 'pri-4', name: 'Urgente', color: '#dc2626' },
+      ] };
+    },
+    async getTypes() {
+      return { types: [
+        { id: 'type-1', name: 'Incidente' },
+        { id: 'type-2', name: 'Solicitação' },
+        { id: 'type-3', name: 'Bug' },
       ] };
     },
     async createTicket(payload) {
@@ -854,6 +870,9 @@ async function loadUserData() {
     
     // Carregar dashboard
     await loadDashboard();
+    
+    // Inicializar notificações de acesso remoto
+    initRemoteAccessNotifications(config.token);
     
   } catch (error) {
     console.error('Erro ao carregar dados do usuário:', error);
@@ -2778,22 +2797,14 @@ function showNewTicketForm() {
           <div class="form-group">
             <label>Prioridade</label>
             <select id="ticketPrioritySelect">
-              <option value="none" selected>Sem prioridade</option>
-              <option value="low">Baixa</option>
-              <option value="normal">Média</option>
-              <option value="high">Alta</option>
-              <option value="critical">Crítica</option>
+              <option value="">Carregando...</option>
             </select>
             <small class="select-help-text">Selecione a urgência do seu problema</small>
           </div>
           <div class="form-group">
             <label>Tipo</label>
             <select id="ticketTypeSelect">
-              <option value="suporte" selected>Suporte</option>
-              <option value="incidente">Incidente</option>
-              <option value="solicitacao">Solicitação</option>
-              <option value="bug">Bug</option>
-              <option value="aprimoramento">Aprimoramento</option>
+              <option value="">Carregando...</option>
             </select>
           </div>
         </div>
@@ -2846,8 +2857,8 @@ async function submitNewTicket() {
   const subject = document.getElementById('ticketSubject').value.trim();
   const descEl = document.getElementById('ticketDescriptionHtml');
   const description = (descEl?.innerHTML || '').trim();
-  const priority = document.getElementById('ticketPrioritySelect').value;
-  const type = document.getElementById('ticketTypeSelect').value;
+  const priorityId = document.getElementById('ticketPrioritySelect').value;
+  const typeId = document.getElementById('ticketTypeSelect').value;
   const categoryId = document.getElementById('ticketCategorySelect').value || null;
 
   if (!subject || !description) {
@@ -2860,8 +2871,8 @@ async function submitNewTicket() {
     const { success, ticket, error } = await window.electronAPI.createTicket({
       subject,
       description,
-      priority: priority === 'none' ? undefined : priority,
-      type,
+      priorityId: priorityId || null,
+      typeId: typeId || null,
       categoryId
     });
     if (!success) {
@@ -2980,24 +2991,132 @@ function initNewTicketForm(formCard) {
     fileInput.value = '';
   });
 
-  // Carregar categorias dinâmicas
+  // Carregar prioridades, tipos e categorias dinâmicas
   (async () => {
     try {
-      const result = await window.electronAPI.getCategories();
-      const categories = result?.categories || result || [];
-      const select = document.getElementById('ticketCategorySelect');
-      categories.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.name;
-        select.appendChild(opt);
-      });
+      // Carregar prioridades
+      const prioritiesResult = await window.electronAPI.getPriorities();
+      console.log('📥 Prioridades recebidas:', prioritiesResult);
+      // A resposta pode vir aninhada: {success: true, priorities: {priorities: [...]}}
+      const priorities = prioritiesResult?.priorities?.priorities || prioritiesResult?.priorities || [];
+      const prioritySelect = document.getElementById('ticketPrioritySelect');
+      prioritySelect.innerHTML = '<option value="">Selecione a prioridade (opcional)</option>';
+      if (Array.isArray(priorities) && priorities.length > 0) {
+        priorities.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name;
+          if (p.color) opt.style.color = p.color;
+          prioritySelect.appendChild(opt);
+        });
+        console.log(`✅ ${priorities.length} prioridades carregadas`);
+      } else {
+        console.warn('⚠️ Nenhuma prioridade disponível');
+      }
     } catch (err) {
-      console.warn('Não foi possível carregar categorias:', err);
+      console.error('❌ Erro ao carregar prioridades:', err);
+      const prioritySelect = document.getElementById('ticketPrioritySelect');
+      prioritySelect.innerHTML = '<option value="">Nenhuma prioridade disponível</option>';
+    }
+
+    try {
+      // Carregar tipos
+      const typesResult = await window.electronAPI.getTypes();
+      console.log('📥 Tipos recebidos:', typesResult);
+      // A resposta pode vir aninhada: {success: true, types: {types: [...]}}
+      const types = typesResult?.types?.types || typesResult?.types || [];
+      const typeSelect = document.getElementById('ticketTypeSelect');
+      typeSelect.innerHTML = '<option value="">Selecione o tipo</option>';
+      if (Array.isArray(types) && types.length > 0) {
+        types.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = t.name;
+          typeSelect.appendChild(opt);
+        });
+        console.log(`✅ ${types.length} tipos carregados`);
+      } else {
+        console.warn('⚠️ Nenhum tipo disponível');
+      }
+    } catch (err) {
+      console.error('❌ Erro ao carregar tipos:', err);
+      const typeSelect = document.getElementById('ticketTypeSelect');
+      typeSelect.innerHTML = '<option value="">Nenhum tipo disponível</option>';
+    }
+
+    try {
+      // Carregar categorias
+      const categoriesResult = await window.electronAPI.getCategories();
+      console.log('📥 Categorias recebidas:', categoriesResult);
+      // A resposta pode vir aninhada: {success: true, categories: {categories: [...]}}
+      const categories = categoriesResult?.categories?.categories || categoriesResult?.categories || [];
+      const categorySelect = document.getElementById('ticketCategorySelect');
+      if (Array.isArray(categories) && categories.length > 0) {
+        categories.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name;
+          categorySelect.appendChild(opt);
+        });
+        console.log(`✅ ${categories.length} categorias carregadas`);
+      } else {
+        console.warn('⚠️ Nenhuma categoria disponível');
+      }
+    } catch (err) {
+      console.error('❌ Erro ao carregar categorias:', err);
     }
   })();
 }
 
+
+// ============================================
+// ACESSO REMOTO
+// ============================================
+
+let remoteAccessNotifications = null;
+
+function initRemoteAccessNotifications(token) {
+  // Criar container para notificações se não existir
+  let container = document.getElementById('remote-access-notifications');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'remote-access-notifications';
+    document.body.appendChild(container);
+  }
+
+  // Adicionar estilos CSS se não existirem
+  if (!document.getElementById('remote-access-styles')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'remote-access-styles';
+    styleEl.textContent = remoteAccessNotificationsStyles;
+    document.head.appendChild(styleEl);
+  }
+
+  // Inicializar componente
+  remoteAccessNotifications = new RemoteAccessNotifications(container, SERVER_URL, token);
+  remoteAccessNotifications.initialize();
+
+  // Configurar WebSocket listeners se disponível
+  if (window.electronAPI && window.electronAPI.onRemoteAccessRequest) {
+    window.electronAPI.onRemoteAccessRequest((request) => {
+      console.log('🔔 Nova solicitação de acesso remoto:', request);
+      remoteAccessNotifications.addRequest(request);
+    });
+  }
+
+  // Configurar listener para acesso encerrado
+  if (window.electronAPI && window.electronAPI.onRemoteAccessEnded) {
+    window.electronAPI.onRemoteAccessEnded((data) => {
+      console.log('🔴 Acesso remoto encerrado:', data);
+      remoteAccessNotifications.removeRequest(data.id);
+    });
+  }
+
+  console.log('✅ Notificações de acesso remoto inicializadas');
+}
+
+// Expor globalmente para uso nos botões HTML
+window.remoteAccessNotifications = remoteAccessNotifications;
 
 // ============================================
 // CONFIGURAÇÕES

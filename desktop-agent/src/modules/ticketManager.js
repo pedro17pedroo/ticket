@@ -547,6 +547,27 @@ class TicketManager extends EventEmitter {
       }
     });
 
+    // Eventos de acesso remoto
+    socket.on('remote-access:requested', (request) => {
+      console.log('🔔 Solicitação de acesso remoto recebida:', request);
+      this.emit('remote-access-requested', request);
+    });
+
+    socket.on('remote-access:accepted', (data) => {
+      console.log('✅ Acesso remoto aceito:', data);
+      this.emit('remote-access-accepted', data);
+    });
+
+    socket.on('remote-access:rejected', (data) => {
+      console.log('❌ Acesso remoto rejeitado:', data);
+      this.emit('remote-access-rejected', data);
+    });
+
+    socket.on('remote-access:ended', (data) => {
+      console.log('🔴 Acesso remoto encerrado:', data);
+      this.emit('remote-access-ended', data);
+    });
+
     this.emit('socket-connected');
   }
 
@@ -652,7 +673,49 @@ class TicketManager extends EventEmitter {
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar categorias:', error);
-      return [];
+      return { success: false, categories: [] };
+    }
+  }
+
+  /**
+   * Buscar prioridades de tickets
+   */
+  async getPriorities() {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/api/priorities`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar prioridades:', error);
+      return { success: false, priorities: [] };
+    }
+  }
+
+  /**
+   * Buscar tipos de tickets
+   */
+  async getTypes() {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/api/types`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar tipos:', error);
+      return { success: false, types: [] };
     }
   }
 
@@ -675,6 +738,93 @@ class TicketManager extends EventEmitter {
   }
 
   /**
+   * Buscar solicitações de acesso remoto pendentes
+   */
+  async getRemoteAccessPending() {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/api/remote-access/pending`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        }
+      );
+
+      return response.data.requests || [];
+    } catch (error) {
+      console.error('Erro ao buscar solicitações de acesso remoto:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Aceitar solicitação de acesso remoto
+   */
+  async acceptRemoteAccess(requestId) {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/api/remote-access/${requestId}/accept`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao aceitar acesso remoto:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Rejeitar solicitação de acesso remoto
+   */
+  async rejectRemoteAccess(requestId, reason) {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/api/remote-access/${requestId}/reject`,
+        { reason },
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao rejeitar acesso remoto:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Encerrar sessão de acesso remoto
+   */
+  async endRemoteAccess(requestId) {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/api/remote-access/${requestId}/end`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao encerrar acesso remoto:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Desconectar
    */
   disconnect() {
@@ -683,6 +833,8 @@ class TicketManager extends EventEmitter {
       this.socket.off('ticket:updated');
       this.socket.off('ticket:new-message');
       this.socket.off('ticket:assigned');
+      this.socket.off('remote-access:requested');
+      this.socket.off('remote-access:ended');
     }
     
     this.connected = false;

@@ -339,6 +339,26 @@ function setupTicketListeners() {
     mainWindow.webContents.send('unread-count-changed', count);
     updateTrayMenu();
   });
+
+  // Eventos de acesso remoto
+  ticketManager.on('remote-access-requested', (request) => {
+    console.log('🔔 Encaminhando solicitação de acesso remoto para renderer');
+    mainWindow.webContents.send('remote-access-requested', request);
+    
+    // Notificação desktop nativa
+    new Notification({
+      title: 'Solicitação de Acesso Remoto',
+      body: `${request.requester?.name || 'Um técnico'} está solicitando acesso remoto`,
+      icon: path.join(__dirname, '../assets/icon.png'),
+    }).on('click', () => {
+      mainWindow.show();
+      mainWindow.focus();
+    });
+  });
+
+  ticketManager.on('remote-access-ended', (data) => {
+    mainWindow.webContents.send('remote-access-ended', data);
+  });
 }
 
 // Setup Tray (stub por enquanto)
@@ -826,6 +846,32 @@ ipcMain.handle('tickets:get-categories', async () => {
   }
 });
 
+ipcMain.handle('tickets:get-priorities', async () => {
+  try {
+    if (!ticketManager) {
+      return { success: false, error: 'Ticket manager não inicializado' };
+    }
+    
+    const priorities = await ticketManager.getPriorities();
+    return { success: true, priorities };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('tickets:get-types', async () => {
+  try {
+    if (!ticketManager) {
+      return { success: false, error: 'Ticket manager não inicializado' };
+    }
+    
+    const types = await ticketManager.getTypes();
+    return { success: true, types };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('tickets:change-status', async (event, ticketId, status) => {
   try {
     if (!ticketManager) {
@@ -859,6 +905,60 @@ ipcMain.handle('tickets:get-user-info', () => {
     }
     
     return { success: true, user: ticketManager.user };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== ACESSO REMOTO ====================
+
+ipcMain.handle('remote-access:get-pending', async () => {
+  try {
+    if (!ticketManager) {
+      return { success: false, error: 'Ticket manager não inicializado' };
+    }
+    
+    const requests = await ticketManager.getRemoteAccessPending();
+    return { success: true, requests };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-access:accept', async (event, requestId) => {
+  try {
+    if (!ticketManager) {
+      return { success: false, error: 'Ticket manager não inicializado' };
+    }
+    
+    const result = await ticketManager.acceptRemoteAccess(requestId);
+    return { success: true, result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-access:reject', async (event, requestId, reason) => {
+  try {
+    if (!ticketManager) {
+      return { success: false, error: 'Ticket manager não inicializado' };
+    }
+    
+    const result = await ticketManager.rejectRemoteAccess(requestId, reason);
+    return { success: true, result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('remote-access:end', async (event, requestId) => {
+  try {
+    if (!ticketManager) {
+      return { success: false, error: 'Ticket manager não inicializado' };
+    }
+    
+    const result = await ticketManager.endRemoteAccess(requestId);
+    return { success: true, result };
   } catch (error) {
     return { success: false, error: error.message };
   }
