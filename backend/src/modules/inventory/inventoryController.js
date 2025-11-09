@@ -1,4 +1,4 @@
-import { Asset, Software, License, AssetLicense, User } from '../models/index.js';
+import { Asset, SoftwareInstalled, SoftwareLicense, AssetLicense } from './inventoryModelsSimple.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 import logger from '../../config/logger.js';
@@ -12,8 +12,10 @@ import logger from '../../config/logger.js';
 export const getAssets = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    
     const { 
-      clientId, 
       type, 
       status, 
       search,
@@ -23,8 +25,9 @@ export const getAssets = async (req, res, next) => {
 
     const where = { organizationId };
 
-    if (clientId) {
-      where.clientId = clientId;
+    // Se for cliente, mostrar apenas seus equipamentos
+    if (userRole && userRole.startsWith('client')) {
+      where.userId = userId;
     }
 
     if (type) {
@@ -38,8 +41,6 @@ export const getAssets = async (req, res, next) => {
     if (search) {
       where[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
-        { hostname: { [Op.iLike]: `%${search}%` } },
-        { assetTag: { [Op.iLike]: `%${search}%` } },
         { serialNumber: { [Op.iLike]: `%${search}%` } }
       ];
     }
@@ -50,25 +51,15 @@ export const getAssets = async (req, res, next) => {
       where,
       include: [
         {
-          model: User,
-          as: 'client',
-          attributes: ['id', 'name', 'email']
-        },
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name', 'email']
-        },
-        {
-          model: Software,
+          model: SoftwareInstalled,
           as: 'software',
-          attributes: ['id', 'name', 'vendor', 'version', 'category'],
+          attributes: ['id', 'name', 'vendor', 'version'],
           required: false
         },
         {
-          model: License,
+          model: SoftwareLicense,
           as: 'licenses',
-          attributes: ['id', 'name', 'vendor', 'product', 'licenseType', 'status'],
+          attributes: ['id', 'softwareName', 'vendor', 'licenseType'],
           through: { attributes: [] },
           required: false
         }
@@ -102,21 +93,30 @@ export const getAssetById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Buscar asset com includes básicos
+    const where = { id, organizationId };
+    
+    // Se for cliente, verificar se o asset pertence a ele
+    if (userRole && userRole.startsWith('client')) {
+      where.userId = userId;
+    }
+
     const asset = await Asset.findOne({
-      where: { id, organizationId },
+      where,
       include: [
         {
-          model: User,
-          as: 'client',
-          attributes: ['id', 'name', 'email', 'phone'],
+          model: SoftwareInstalled,
+          as: 'software',
+          attributes: ['id', 'name', 'vendor', 'version', 'installDate'],
           required: false
         },
         {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name', 'email'],
+          model: SoftwareLicense,
+          as: 'licenses',
+          attributes: ['id', 'softwareName', 'vendor', 'licenseType', 'expiryDate'],
+          through: { attributes: [] },
           required: false
         }
       ]
@@ -125,38 +125,8 @@ export const getAssetById = async (req, res, next) => {
     if (!asset) {
       return res.status(404).json({
         success: false,
-        error: 'Asset não encontrado'
+        error: 'Equipamento não encontrado'
       });
-    }
-
-    // Buscar software separadamente (mais seguro)
-    try {
-      const software = await Software.findAll({
-        where: { assetId: id },
-        attributes: ['id', 'name', 'vendor', 'version', 'category', 'installDate']
-      });
-      asset.setDataValue('software', software);
-    } catch (softwareError) {
-      logger.warn('Erro ao buscar software do asset:', softwareError.message);
-      asset.setDataValue('software', []);
-    }
-
-    // Buscar licenses separadamente (mais seguro)
-    try {
-      const licenses = await License.findAll({
-        include: [{
-          model: Asset,
-          as: 'assets',
-          where: { id },
-          through: { attributes: [] },
-          attributes: []
-        }],
-        attributes: ['id', 'name', 'vendor', 'product', 'version', 'licenseKey', 'licenseType', 'totalSeats', 'usedSeats', 'expiryDate', 'status']
-      });
-      asset.setDataValue('licenses', licenses);
-    } catch (licenseError) {
-      logger.warn('Erro ao buscar licenses do asset:', licenseError.message);
-      asset.setDataValue('licenses', []);
     }
 
     res.json({
@@ -705,34 +675,33 @@ export const unassignLicense = async (req, res, next) => {
 export const getStatistics = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
-    const { clientId } = req.query;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
     const where = { organizationId };
-    if (clientId) {
-      where.clientId = clientId;
+    
+    // Se for cliente, mostrar apenas seus equipamentos
+    if (userRole && userRole.startsWith('client')) {
+      where.userId = userId;
     }
 
     const [
       totalAssets,
       activeAssets,
-      totalLicenses,
-      expiringSoonLicenses,
-      totalSoftware
+      totalSoftware,
+      totalLicenses
     ] = await Promise.all([
       Asset.count({ where }),
       Asset.count({ where: { ...where, status: 'active' } }),
-      License.count({ where: { organizationId, ...(clientId && { clientId }) } }),
-      License.count({
-        where: {
-          organizationId,
-          ...(clientId && { clientId }),
-          expiryDate: {
-            [Op.lte]: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            [Op.gte]: new Date()
-          }
-        }
+      SoftwareInstalled.count({ 
+        include: [{
+          model: Asset,
+          as: 'asset',
+          where,
+          attributes: []
+        }]
       }),
-      Software.count({ where })
+      SoftwareLicense.count({ where: { organizationId } })
     ]);
 
     // Assets por tipo
@@ -754,12 +723,11 @@ export const getStatistics = async (req, res, next) => {
           active: activeAssets,
           byType: assetsByType
         },
-        licenses: {
-          total: totalLicenses,
-          expiringSoon: expiringSoonLicenses
-        },
         software: {
           total: totalSoftware
+        },
+        licenses: {
+          total: totalLicenses
         }
       }
     });
@@ -1132,12 +1100,14 @@ export const getClientsWithInventory = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
 
+    // Buscar apenas empresas clientes (client_id IS NULL = empresa master)
     const clients = await User.findAll({
       where: { 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null // Apenas empresas master, não usuários das empresas
       },
-      attributes: ['id', 'name', 'email', 'company', 'isActive'],
+      attributes: ['id', 'name', 'email', 'isActive'],
       include: [
         {
           model: Asset,
@@ -1148,13 +1118,29 @@ export const getClientsWithInventory = async (req, res, next) => {
       ]
     });
 
-    // Calcular estatísticas por cliente
-    const clientsWithStats = clients.map(client => ({
+    // Para cada cliente, contar quantos usuários filhos tem
+    const clientsWithUserCounts = await Promise.all(
+      clients.map(async (client) => {
+        const childUsersCount = await User.count({
+          where: {
+            organizationId,
+            clientId: client.id // Usuários que pertencem a este cliente
+          }
+        });
+        return {
+          ...client.toJSON(),
+          usersCount: 1 + childUsersCount // 1 (master) + usuários filhos
+        };
+      })
+    );
+
+    // Calcular estatísticas por cliente (usando clientsWithUserCounts que tem usersCount)
+    const clientsWithStats = clientsWithUserCounts.map(client => ({
       id: client.id,
       name: client.name,
       email: client.email,
-      company: client.company,
       isActive: client.isActive,
+      usersCount: client.usersCount, // ✅ Incluir contagem de usuários
       assetsCount: client.clientAssets?.length || 0,
       assetsSummary: {
         hasDesktop: client.clientAssets?.some(a => a.type === 'desktop') || false,
@@ -1184,26 +1170,46 @@ export const getClientsInventoryStats = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
 
-    const [totalClients, totalUsers, totalAssets] = await Promise.all([
+    const [totalClients, totalClientUsers, totalClientAssets, totalUserAssets] = await Promise.all([
+      // Total de empresas clientes (clientId IS NULL)
       User.count({ 
         where: { 
           organizationId,
-          role: 'cliente-org'
+          role: 'cliente-org',
+          clientId: null
         }
       }),
-      // Total de usuários dentro de clientes (se houver sub-usuários)
+      // Total de usuários de empresas clientes (clientId IS NOT NULL)
       User.count({ 
         where: { 
           organizationId,
-          role: 'cliente-org'
+          role: 'cliente-org',
+          clientId: { [Op.ne]: null }
         }
       }),
+      // Assets das empresas clientes (user com clientId IS NULL)
       Asset.count({ 
         where: { organizationId },
         include: [{
           model: User,
           as: 'client',
-          where: { role: 'cliente-org' },
+          where: { 
+            role: 'cliente-org',
+            clientId: null
+          },
+          required: true
+        }]
+      }),
+      // Assets dos usuários de empresas (user com clientId IS NOT NULL)
+      Asset.count({ 
+        where: { organizationId },
+        include: [{
+          model: User,
+          as: 'user',
+          where: { 
+            role: 'cliente-org',
+            clientId: { [Op.ne]: null }
+          },
           required: true
         }]
       })
@@ -1212,9 +1218,12 @@ export const getClientsInventoryStats = async (req, res, next) => {
     res.json({
       success: true,
       statistics: {
-        totalClients,
-        totalUsers,
-        totalAssets
+        totalClients, // Empresas clientes master
+        totalClientUsers, // Usuários de empresas clientes (sem masters)
+        totalUsers: totalClients + totalClientUsers, // Total: masters + usuários filhos
+        totalClientAssets, // Assets das empresas
+        totalUserAssets, // Assets dos usuários de empresas
+        totalAssets: totalClientAssets + totalUserAssets // Total geral
       }
     });
   } catch (error) {
@@ -1234,7 +1243,7 @@ export const getUserInventory = async (req, res, next) => {
 
     const user = await User.findOne({
       where: { id: userId, organizationId },
-      attributes: ['id', 'name', 'email', 'role', 'company', 'isActive']
+      attributes: ['id', 'name', 'email', 'role', 'isActive']
     });
 
     if (!user) {
@@ -1282,27 +1291,45 @@ export const getClientInventory = async (req, res, next) => {
     const { clientId } = req.params;
     const organizationId = req.user.organizationId;
 
+    // Verificar se é uma empresa cliente master (clientId IS NULL)
     const client = await User.findOne({
       where: { 
         id: clientId, 
         organizationId,
-        role: 'cliente-org'
+        role: 'cliente-org',
+        clientId: null // Garantir que é empresa master, não usuário
       },
-      attributes: ['id', 'name', 'email', 'company', 'isActive']
+      attributes: ['id', 'name', 'email', 'isActive'],
+      include: [
+        {
+          model: Asset,
+          as: 'clientAssets',
+          attributes: ['id', 'type', 'collectionMethod', 'name'],
+          required: false,
+          include: [
+            {
+              model: Software,
+              as: 'software',
+              attributes: ['id', 'name'],
+              required: false
+            }
+          ]
+        }
+      ]
     });
 
     if (!client) {
       return res.status(404).json({
         success: false,
-        error: 'Cliente não encontrado'
+        error: 'Empresa cliente não encontrada'
       });
     }
 
-    // Buscar sub-usuários do cliente (se houver lógica de múltiplos usuários por cliente)
+    // Buscar usuários da empresa cliente (clientId = id da empresa)
     const users = await User.findAll({
       where: { 
         organizationId,
-        clientId // Assumindo que existe um campo clientId para sub-usuários
+        clientId // Usuários que pertencem a esta empresa
       },
       attributes: ['id', 'name', 'email', 'isActive'],
       include: [
@@ -1310,30 +1337,88 @@ export const getClientInventory = async (req, res, next) => {
           model: Asset,
           as: 'userAssets',
           attributes: ['id', 'type', 'collectionMethod'],
-          required: false
+          required: false,
+          include: [
+            {
+              model: Software,
+              as: 'software',
+              attributes: ['id', 'name'],
+              required: false
+            }
+          ]
         }
       ]
     });
 
-    // Se não houver sub-usuários, usar o próprio cliente
-    const usersWithAssets = users.length > 0 ? users.map(u => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      isActive: u.isActive,
-      assetsCount: u.userAssets?.length || 0
-    })) : [{
+    // Incluir o usuário master (o próprio cliente) como primeiro usuário
+    const masterUser = {
       id: client.id,
       name: client.name,
       email: client.email,
       isActive: client.isActive,
-      assetsCount: 0
-    }];
+      isMaster: true, // Identificar como usuário master
+      assetsCount: client.clientAssets?.length || 0,
+      assetsSummary: {
+        hasDesktop: client.clientAssets?.some(a => a.type === 'desktop') || false,
+        hasLaptop: client.clientAssets?.some(a => a.type === 'laptop') || false,
+        desktopCount: client.clientAssets?.filter(a => a.type === 'desktop').length || 0,
+        laptopCount: client.clientAssets?.filter(a => a.type === 'laptop').length || 0,
+        agentCount: client.clientAssets?.filter(a => a.collectionMethod === 'agent').length || 0,
+        webCount: client.clientAssets?.filter(a => a.collectionMethod === 'web').length || 0
+      }
+    };
+
+    // Mapear usuários filhos com suas estatísticas
+    const childUsersWithStats = users.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      isActive: u.isActive,
+      isMaster: false,
+      assetsCount: u.userAssets?.length || 0,
+      assetsSummary: {
+        hasDesktop: u.userAssets?.some(a => a.type === 'desktop') || false,
+        hasLaptop: u.userAssets?.some(a => a.type === 'laptop') || false,
+        desktopCount: u.userAssets?.filter(a => a.type === 'desktop').length || 0,
+        laptopCount: u.userAssets?.filter(a => a.type === 'laptop').length || 0,
+        agentCount: u.userAssets?.filter(a => a.collectionMethod === 'agent').length || 0,
+        webCount: u.userAssets?.filter(a => a.collectionMethod === 'web').length || 0
+      }
+    }));
+
+    // Combinar: master + usuários filhos
+    const allUsers = [masterUser, ...childUsersWithStats];
 
     res.json({
       success: true,
-      client,
-      users: usersWithAssets
+      client: {
+        id: client.id,
+        name: client.name,
+        email: client.email,
+        isActive: client.isActive,
+        assetsCount: client.clientAssets?.length || 0,
+        assetsSummary: {
+          hasDesktop: client.clientAssets?.some(a => a.type === 'desktop') || false,
+          hasLaptop: client.clientAssets?.some(a => a.type === 'laptop') || false,
+          desktopCount: client.clientAssets?.filter(a => a.type === 'desktop').length || 0,
+          laptopCount: client.clientAssets?.filter(a => a.type === 'laptop').length || 0,
+          agentCount: client.clientAssets?.filter(a => a.collectionMethod === 'agent').length || 0,
+          webCount: client.clientAssets?.filter(a => a.collectionMethod === 'web').length || 0
+        }
+      },
+      users: allUsers, // Inclui master + usuários filhos
+      totalUsers: allUsers.length, // Total inclui o master
+      totalAssets: (client.clientAssets?.length || 0) + users.reduce((acc, u) => acc + (u.userAssets?.length || 0), 0),
+      totalSoftware: (
+        // Software dos assets do cliente master
+        (client.clientAssets?.reduce((acc, asset) => acc + (asset.software?.length || 0), 0) || 0) +
+        // Software dos assets dos usuários filhos
+        users.reduce((acc, u) => 
+          acc + (u.userAssets?.reduce((assetAcc, asset) => 
+            assetAcc + (asset.software?.length || 0), 0) || 0
+          ), 0
+        )
+      )
     });
   } catch (error) {
     logger.error('Erro ao buscar inventário do cliente:', error);

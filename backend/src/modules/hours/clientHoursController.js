@@ -5,12 +5,12 @@ import { User } from '../models/index.js';
 export const getClientHoursBanks = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
-    const clientId = req.user.clientId || req.user.id; // Empresa cliente ou utilizador de cliente
+    const userId = req.user.id;
 
     const hoursBanks = await HoursBank.findAll({
       where: {
         organizationId,
-        clientId,
+        clientId: userId,
         isActive: true
       },
       include: [
@@ -56,13 +56,13 @@ export const getClientHoursBankById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
-    const clientId = req.user.clientId || req.user.id;
+    const userId = req.user.id;
 
     const hoursBank = await HoursBank.findOne({
       where: {
         id,
         organizationId,
-        clientId
+        clientId: userId
       },
       include: [
         {
@@ -96,14 +96,14 @@ export const getClientHoursBankTransactions = async (req, res, next) => {
     const { page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
     const organizationId = req.user.organizationId;
-    const clientId = req.user.clientId || req.user.id;
+    const userId = req.user.id;
 
     // Verificar se a bolsa pertence ao cliente
     const hoursBank = await HoursBank.findOne({
       where: {
         id,
         organizationId,
-        clientId
+        clientId: userId
       }
     });
 
@@ -149,7 +149,7 @@ export const getClientAllTransactions = async (req, res, next) => {
     const { page = 1, limit = 50, type } = req.query;
     const offset = (page - 1) * limit;
     const organizationId = req.user.organizationId;
-    const clientId = req.user.clientId || req.user.id;
+    const userId = req.user.id;
 
     const where = {};
     if (type) where.type = type;
@@ -162,7 +162,7 @@ export const getClientAllTransactions = async (req, res, next) => {
           as: 'hoursBank',
           where: {
             organizationId,
-            clientId
+            clientId: userId
           },
           attributes: ['id', 'packageType'],
           include: [{

@@ -50,25 +50,33 @@ export const getDepartments = async (req, res, next) => {
 // POST /api/departments - Criar departamento
 export const createDepartment = async (req, res, next) => {
   try {
+    console.log('📥 POST /api/departments - Body:', JSON.stringify(req.body, null, 2));
+    
     const { name, description, code, email, directionId, managerId, isActive } = req.body;
     const organizationId = req.user.organizationId;
 
-    // Verificar se direção existe (se fornecida) - apenas internas
-    if (directionId) {
-      const direction = await Direction.findOne({
-        where: { 
-          id: directionId, 
-          organizationId,
-          clientId: null // Apenas direções internas
-        }
+    // Validar directionId obrigatório
+    if (!directionId || directionId.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Direção é obrigatória. Todo departamento deve pertencer a uma direção.'
       });
+    }
 
-      if (!direction) {
-        return res.status(404).json({
-          success: false,
-          error: 'Direção não encontrada'
-        });
+    // Verificar se direção existe - apenas internas
+    const direction = await Direction.findOne({
+      where: { 
+        id: directionId, 
+        organizationId,
+        clientId: null // Apenas direções internas
       }
+    });
+
+    if (!direction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Direção não encontrada ou não pertence a esta organização'
+      });
     }
 
     const department = await Department.create({
@@ -89,6 +97,19 @@ export const createDepartment = async (req, res, next) => {
       department
     });
   } catch (error) {
+    console.error('❌ Erro ao criar departamento:', error);
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        error: error.errors.map(e => e.message).join(', ')
+      });
+    }
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Já existe um departamento com este nome nesta direção'
+      });
+    }
     next(error);
   }
 };
@@ -96,6 +117,9 @@ export const createDepartment = async (req, res, next) => {
 // PUT /api/departments/:id - Atualizar departamento
 export const updateDepartment = async (req, res, next) => {
   try {
+    console.log('📥 PUT /api/departments/:id - ID:', req.params.id);
+    console.log('📥 Body:', JSON.stringify(req.body, null, 2));
+    
     const { id } = req.params;
     const { name, description, code, email, directionId, managerId, isActive } = req.body;
     const organizationId = req.user.organizationId;
@@ -115,8 +139,16 @@ export const updateDepartment = async (req, res, next) => {
       });
     }
 
-    // Verificar se direção existe (se fornecida) - apenas internas
-    if (directionId && directionId !== department.directionId) {
+    // Validar directionId obrigatório
+    if (!directionId || directionId.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Direção é obrigatória. Todo departamento deve pertencer a uma direção.'
+      });
+    }
+
+    // Verificar se direção existe (se mudou) - apenas internas
+    if (directionId !== department.directionId) {
       const direction = await Direction.findOne({
         where: { 
           id: directionId, 
@@ -128,7 +160,7 @@ export const updateDepartment = async (req, res, next) => {
       if (!direction) {
         return res.status(404).json({
           success: false,
-          error: 'Direção não encontrada'
+          error: 'Direção não encontrada ou não pertence a esta organização'
         });
       }
     }
@@ -149,6 +181,19 @@ export const updateDepartment = async (req, res, next) => {
       department
     });
   } catch (error) {
+    console.error('❌ Erro ao atualizar departamento:', error);
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        error: error.errors.map(e => e.message).join(', ')
+      });
+    }
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Já existe um departamento com este nome nesta direção'
+      });
+    }
     next(error);
   }
 };

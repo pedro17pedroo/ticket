@@ -10,10 +10,12 @@ const KnowledgeArticle = sequelize.define('KnowledgeArticle', {
   organizationId: {
     type: DataTypes.UUID,
     allowNull: false,
-    references: {
-      model: 'organizations',
-      key: 'id'
-    }
+    field: 'organization_id'
+  },
+  categoryId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'category_id'
   },
   title: {
     type: DataTypes.STRING,
@@ -23,11 +25,6 @@ const KnowledgeArticle = sequelize.define('KnowledgeArticle', {
       len: [5, 255]
     }
   },
-  slug: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
-  },
   content: {
     type: DataTypes.TEXT,
     allowNull: false
@@ -36,40 +33,53 @@ const KnowledgeArticle = sequelize.define('KnowledgeArticle', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  categoryId: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    references: {
-      model: 'categories',
-      key: 'id'
-    }
+  slug: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
   authorId: {
     type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
+    allowNull: true,
+    field: 'author_id'
   },
   tags: {
     type: DataTypes.ARRAY(DataTypes.STRING),
     defaultValue: []
   },
-  views: {
+  viewCount: {
     type: DataTypes.INTEGER,
-    defaultValue: 0
+    defaultValue: 0,
+    field: 'view_count'
+  },
+  helpfulCount: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    field: 'helpful_count'
+  },
+  notHelpfulCount: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    field: 'not_helpful_count'
+  },
+  isFeatured: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_featured'
   },
   isPublished: {
     type: DataTypes.BOOLEAN,
-    defaultValue: false
+    defaultValue: false,
+    field: 'is_published'
   },
   publishedAt: {
     type: DataTypes.DATE,
-    allowNull: true
+    allowNull: true,
+    field: 'published_at'
   }
 }, {
   tableName: 'knowledge_articles',
+  timestamps: true,
+  underscored: true,
   indexes: [
     { fields: ['slug'], unique: true },
     { fields: ['organization_id'] },

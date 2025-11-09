@@ -1,14 +1,21 @@
-import { User, Organization, Department } from '../models/index.js';
+import { User, Organization, Department, OrganizationUser, ClientUser, Client } from '../models/index.js';
 import { generateToken } from '../../middleware/auth.js';
 import logger from '../../config/logger.js';
 
-// Login
+// Login Multi-Tabela (Provider, Org Staff, Client Users)
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Buscar usuário com senha
-    const user = await User.scope('withPassword').findOne({ 
+    console.log('🔐 Login attempt:', email);
+
+    let user = null;
+    let userType = null;
+    let organization = null;
+    let client = null;
+
+    // 1. Tentar login como Provider SaaS User (tabela users)
+    user = await User.scope('withPassword').findOne({ 
       where: { email },
       include: [{
         model: Organization,
@@ -17,26 +24,96 @@ export const login = async (req, res, next) => {
       }]
     });
 
-    if (!user || !user.isActive) {
-      return res.status(401).json({ error: 'Credenciais inválidas' });
+    if (user && user.isActive) {
+      const isPasswordValid = await user.comparePassword(password);
+      if (isPasswordValid) {
+        userType = 'provider';
+        organization = user.organization;
+        console.log('✅ Login como Provider SaaS User');
+      } else {
+        user = null;
+      }
     }
 
-    // Verificar senha
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
+    // 2. Se não encontrou, tentar como Organization User (tenant staff)
+    if (!user) {
+      user = await OrganizationUser.scope('withPassword').findOne({ 
+        where: { email },
+        include: [{
+          model: Organization,
+          as: 'organization',
+          attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
+        }]
+      });
+
+      if (user && user.isActive) {
+        const isPasswordValid = await user.comparePassword(password);
+        if (isPasswordValid) {
+          userType = 'organization';
+          organization = user.organization;
+          console.log('✅ Login como Organization User (Tenant Staff)');
+        } else {
+          user = null;
+        }
+      }
+    }
+
+    // 3. Se não encontrou, tentar como Client User (empresa cliente)
+    if (!user) {
+      user = await ClientUser.scope('withPassword').findOne({ 
+        where: { email },
+        include: [
+          {
+            model: Organization,
+            as: 'organization',
+            attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
+          },
+          {
+            model: Client,
+            as: 'client',
+            attributes: ['id', 'name', 'tradeName']
+          }
+        ]
+      });
+
+      if (user && user.isActive) {
+        const isPasswordValid = await user.comparePassword(password);
+        if (isPasswordValid) {
+          userType = 'client';
+          organization = user.organization;
+          client = user.client;
+          console.log('✅ Login como Client User');
+        } else {
+          user = null;
+        }
+      }
+    }
+
+    // Se não encontrou em nenhuma tabela ou senha inválida
+    if (!user) {
+      console.log('❌ User not found or invalid password');
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
     // Atualizar último login
     await user.update({ lastLogin: new Date() });
 
-    // Gerar token
-    const token = generateToken(user);
+    // Gerar token com userType
+    const token = generateToken({
+      ...user.toJSON(),
+      userType,
+      clientId: client?.id || null
+    });
 
     // Remover senha do retorno
-    const userData = user.toJSON();
+    const userData = {
+      ...user.toJSON(),
+      userType,
+      organization,
+      client
+    };
 
-    logger.info(`Login bem-sucedido: ${user.email}`);
+    logger.info(`Login bem-sucedido: ${user.email} (${userType})`);
 
     res.json({
       message: 'Login realizado com sucesso',
@@ -119,7 +196,24 @@ export const getProfile = async (req, res, next) => {
       ]
     });
 
-    res.json({ user });
+    // Carregar permissões do utilizador (se tabelas RBAC existirem)
+    let permissions = [];
+    try {
+      const permissionService = (await import('../../services/permissionService.js')).default;
+      permissions = await permissionService.getUserPermissions(req.user.id);
+    } catch (error) {
+      // Se tabelas RBAC não existirem ainda, ignorar
+      if (!error.message?.includes('relation') || !error.message?.includes('does not exist')) {
+        throw error; // Re-lançar se for outro erro
+      }
+    }
+
+    res.json({ 
+      user: {
+        ...user.toJSON(),
+        permissions
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -202,8 +296,3 @@ export const getUsers = async (req, res, next) => {
     next(error);
   }
 };
-
-// Scope para incluir senha (usado apenas no login)
-User.addScope('withPassword', {
-  attributes: { include: ['password'] }
-});

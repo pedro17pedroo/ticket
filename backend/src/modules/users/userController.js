@@ -120,11 +120,13 @@ export const getUserById = async (req, res, next) => {
 // POST /api/users - Criar usuário
 export const createUser = async (req, res, next) => {
   try {
+    console.log('📥 POST /api/users - Body:', JSON.stringify(req.body, null, 2));
+    
     const { name, email, phone, password, role, directionId, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
 
     // Apenas admin pode criar usuários
-    if (req.user.role !== 'admin-org' && req.user.role !== 'super-admin') {
+    if (req.user.role !== 'admin-org' && req.user.role !== 'super-admin' && req.user.role !== 'tenant-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem criar usuários'
@@ -159,7 +161,7 @@ export const createUser = async (req, res, next) => {
       email,
       phone,
       password, // Será hasheado pelo hook do modelo
-      role: role || 'user-org',
+      role: role || 'agent', // Default: agent (suporte)
       organizationId,
       directionId: directionId || null,
       departmentId: departmentId || null,

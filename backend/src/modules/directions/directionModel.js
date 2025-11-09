@@ -39,10 +39,10 @@ const Direction = sequelize.define('Direction', {
     allowNull: true,
     field: 'client_id',
     references: {
-      model: 'users',
+      model: 'clients',
       key: 'id'
     },
-    comment: 'ID da empresa cliente (se pertencer a um cliente)'
+    comment: 'ID da empresa cliente B2B (se pertencer a um cliente)'
   },
   isActive: {
     type: DataTypes.BOOLEAN,

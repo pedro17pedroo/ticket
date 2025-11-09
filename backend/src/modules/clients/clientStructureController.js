@@ -1,4 +1,4 @@
-import { Direction, Department, Section, User } from '../models/index.js';
+import { Direction, Department, Section, Client, ClientUser, User, OrganizationUser } from '../models/index.js';
 import { Op } from 'sequelize';
 import logger from '../../config/logger.js';
 
@@ -8,7 +8,7 @@ import logger from '../../config/logger.js';
 export const getDirections = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
-    const clientId = req.user.clientId || req.user.id;
+    const clientId = req.user.clientId;
 
     const directions = await Direction.findAll({
       where: {
@@ -41,8 +41,7 @@ export const createDirection = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId || req.user.id;
 
-    // Apenas admin do cliente pode criar
-    if (req.user.role !== 'cliente-org' || !req.user.settings?.clientAdmin) {
+    if (req.user.role !== 'client-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores do cliente podem criar direções'
@@ -78,7 +77,7 @@ export const updateDirection = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId || req.user.id;
 
-    if (req.user.role !== 'cliente-org' || !req.user.settings?.clientAdmin) {
+    if (req.user.role !== 'client-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores do cliente podem atualizar direções'
@@ -121,7 +120,7 @@ export const deleteDirection = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId || req.user.id;
 
-    if (req.user.role !== 'cliente-org' || !req.user.settings?.clientAdmin) {
+    if (req.user.role !== 'client-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores do cliente podem desativar direções'
@@ -163,6 +162,7 @@ export const getDepartments = async (req, res, next) => {
         organizationId,
         clientId
       },
+      attributes: ['id', 'name', 'code', 'description', 'email', 'directionId', 'isActive'],
       include: [
         {
           model: Direction,
@@ -194,7 +194,7 @@ export const createDepartment = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId || req.user.id;
 
-    if (req.user.role !== 'cliente-org' || !req.user.settings?.clientAdmin) {
+    if (req.user.role !== 'client-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores do cliente podem criar departamentos'
@@ -232,7 +232,7 @@ export const updateDepartment = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId || req.user.id;
 
-    if (req.user.role !== 'cliente-org' || !req.user.settings?.clientAdmin) {
+    if (req.user.role !== 'client-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores do cliente podem atualizar departamentos'
@@ -277,7 +277,7 @@ export const deleteDepartment = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId || req.user.id;
 
-    if (req.user.role !== 'cliente-org' || !req.user.settings?.clientAdmin) {
+    if (req.user.role !== 'client-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores do cliente podem desativar departamentos'
@@ -319,6 +319,7 @@ export const getSections = async (req, res, next) => {
         organizationId,
         clientId
       },
+      attributes: ['id', 'name', 'code', 'description', 'departmentId', 'isActive'],
       include: [
         {
           model: Department,
@@ -357,7 +358,7 @@ export const createSection = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId || req.user.id;
 
-    if (req.user.role !== 'cliente-org' || !req.user.settings?.clientAdmin) {
+    if (req.user.role !== 'client-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores do cliente podem criar secções'
@@ -394,7 +395,7 @@ export const updateSection = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId || req.user.id;
 
-    if (req.user.role !== 'cliente-org' || !req.user.settings?.clientAdmin) {
+    if (req.user.role !== 'client-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores do cliente podem atualizar secções'
@@ -438,7 +439,7 @@ export const deleteSection = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId || req.user.id;
 
-    if (req.user.role !== 'cliente-org' || !req.user.settings?.clientAdmin) {
+    if (req.user.role !== 'client-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores do cliente podem desativar secções'
@@ -461,6 +462,183 @@ export const deleteSection = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Secção desativada com sucesso'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== USERS ====================
+
+// GET /api/client/users - Listar usuários do cliente
+export const getClientUsers = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organizationId;
+    const clientId = req.user.clientId;
+
+    const users = await ClientUser.findAll({
+      where: {
+        organizationId,
+        clientId,
+        isActive: true
+      },
+      include: [
+        {
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'name', 'tradeName']
+        }
+      ],
+      attributes: { exclude: ['password'] },
+      order: [['name', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      users
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/client/users - Criar usuário cliente
+export const createClientUser = async (req, res, next) => {
+  try {
+    const { name, email, phone, role, directionId, departmentId, sectionId } = req.body;
+    const organizationId = req.user.organizationId;
+    const clientId = req.user.clientId;
+
+    // Verificar se email já existe
+    const existingUser = await ClientUser.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email já está em uso'
+      });
+    }
+
+    // Senha temporária
+    const tempPassword = Math.random().toString(36).slice(-8);
+
+    const user = await ClientUser.create({
+      name,
+      email,
+      phone,
+      password: tempPassword,
+      role: role || 'client-user',
+      organizationId,
+      clientId,
+      position: req.body.position || null,
+      departmentName: req.body.departmentName || null,
+      isActive: true,
+      settings: {
+        ...ClientUser.rawAttributes.settings.defaultValue,
+        mustChangePassword: true
+      }
+    });
+
+    logger.info(`Usuário cliente criado: ${user.email} por ${req.user.email}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Usuário criado com sucesso',
+      user: {
+        ...user.toJSON(),
+        tempPassword // Enviar senha temporária apenas na criação
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/client/users/:id - Atualizar usuário cliente
+export const updateClientUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, phone, role, position, departmentName, isActive } = req.body;
+    const organizationId = req.user.organizationId;
+    const clientId = req.user.clientId;
+
+    const user = await ClientUser.findOne({
+      where: {
+        id,
+        organizationId,
+        clientId
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    // Não permitir que usuário mude seu próprio role
+    if (user.id === req.user.id && role && role !== user.role) {
+      return res.status(403).json({
+        success: false,
+        error: 'Não pode alterar seu próprio perfil de acesso'
+      });
+    }
+
+    await user.update({
+      name: name || user.name,
+      phone: phone !== undefined ? phone : user.phone,
+      role: role || user.role,
+      position: position !== undefined ? position : user.position,
+      departmentName: departmentName !== undefined ? departmentName : user.departmentName,
+      isActive: isActive !== undefined ? isActive : user.isActive
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuário atualizado com sucesso',
+      user: user.toJSON()
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/client/users/:id - Desativar usuário cliente
+export const deleteClientUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organizationId;
+    const clientId = req.user.clientId;
+
+    if (id === req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: 'Não pode desativar sua própria conta'
+      });
+    }
+
+    const user = await ClientUser.findOne({
+      where: {
+        id,
+        organizationId,
+        clientId
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    await user.update({ isActive: false });
+
+    logger.info(`Usuário cliente desativado: ${user.email} por ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Usuário desativado com sucesso'
     });
   } catch (error) {
     next(error);

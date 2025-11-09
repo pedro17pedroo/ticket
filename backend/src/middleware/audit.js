@@ -7,6 +7,11 @@ export const auditLog = (action, entityType) => {
     const originalJson = res.json.bind(res);
 
     res.json = async function (data) {
+      // Pular auditoria em ambiente de teste
+      if (process.env.NODE_ENV === 'test') {
+        return originalJson(data);
+      }
+
       // Salvar log de auditoria
       if (req.user && res.statusCode < 400) {
         try {

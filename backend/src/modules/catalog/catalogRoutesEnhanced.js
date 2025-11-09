@@ -1,0 +1,105 @@
+import { Router } from 'express';
+import catalogController from './catalogControllerEnhanced.js';
+import authMiddleware from '../../middleware/authMiddleware.js';
+import { requireRole } from '../../middleware/roleMiddleware.js';
+
+const router = Router();
+
+// ===== CATALOG CATEGORIES =====
+
+// Listar categorias
+router.get('/categories',
+  authMiddleware,
+  catalogController.getCategories.bind(catalogController)
+);
+
+// Buscar categoria por ID
+router.get('/categories/:id',
+  authMiddleware,
+  catalogController.getCategoryById.bind(catalogController)
+);
+
+// Criar categoria (Admin apenas)
+router.post('/categories',
+  authMiddleware,
+  requireRole(['admin', 'admin-org']),
+  catalogController.createCategory.bind(catalogController)
+);
+
+// Atualizar categoria (Admin apenas)
+router.put('/categories/:id',
+  authMiddleware,
+  requireRole(['admin', 'admin-org']),
+  catalogController.updateCategory.bind(catalogController)
+);
+
+// Deletar categoria (Admin apenas)
+router.delete('/categories/:id',
+  authMiddleware,
+  requireRole(['admin', 'admin-org']),
+  catalogController.deleteCategory.bind(catalogController)
+);
+
+// ===== CATALOG ITEMS =====
+
+// Listar itens
+router.get('/items',
+  authMiddleware,
+  catalogController.getItems.bind(catalogController)
+);
+
+// Buscar item por ID (com schema do formulário)
+router.get('/items/:id',
+  authMiddleware,
+  catalogController.getItemById.bind(catalogController)
+);
+
+// Criar item (Admin apenas)
+router.post('/items',
+  authMiddleware,
+  requireRole(['admin', 'admin-org']),
+  catalogController.createItem.bind(catalogController)
+);
+
+// Atualizar item (Admin apenas)
+router.put('/items/:id',
+  authMiddleware,
+  requireRole(['admin', 'admin-org']),
+  catalogController.updateItem.bind(catalogController)
+);
+
+// Deletar item (Admin apenas)
+router.delete('/items/:id',
+  authMiddleware,
+  requireRole(['admin', 'admin-org']),
+  catalogController.deleteItem.bind(catalogController)
+);
+
+// ===== SERVICE REQUESTS =====
+
+// Criar service request a partir de um item
+router.post('/items/:id/request',
+  authMiddleware,
+  catalogController.createServiceRequest.bind(catalogController)
+);
+
+// Listar minhas requests
+router.get('/requests',
+  authMiddleware,
+  catalogController.getMyRequests.bind(catalogController)
+);
+
+// Detalhes de uma request
+router.get('/requests/:id',
+  authMiddleware,
+  catalogController.getRequestById.bind(catalogController)
+);
+
+// ===== PORTAL PÚBLICO =====
+
+// Portal público do catálogo (sem autenticação)
+router.get('/portal',
+  catalogController.getPublicPortal.bind(catalogController)
+);
+
+export default router;

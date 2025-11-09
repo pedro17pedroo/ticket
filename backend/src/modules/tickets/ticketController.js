@@ -48,7 +48,8 @@ export const getTickets = async (req, res, next) => {
     }
 
     // Clientes só veem seus próprios tickets
-    if (req.user.role === 'cliente-org') {
+    const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
+    if (isClientUser) {
       where.requesterId = req.user.id;
     }
 
@@ -130,7 +131,7 @@ export const getTicketById = async (req, res, next) => {
         {
           model: User,
           as: 'requester',
-          attributes: ['id', 'name', 'email', 'avatar', 'phone']
+          attributes: ['id', 'name', 'email', 'avatar', 'phone', 'role']
         },
         {
           model: User,
@@ -164,7 +165,7 @@ export const getTicketById = async (req, res, next) => {
             {
               model: User,
               as: 'user',
-              attributes: ['id', 'name', 'avatar']
+              attributes: ['id', 'name', 'avatar', 'email']
             },
             {
               model: Attachment,
@@ -182,7 +183,8 @@ export const getTicketById = async (req, res, next) => {
     }
 
     // Clientes só veem seus próprios tickets
-    if (req.user.role === 'cliente-org' && ticket.requesterId !== req.user.id) {
+    const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
+    if (isClientUser && ticket.requesterId !== req.user.id) {
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
@@ -290,7 +292,8 @@ export const updateTicket = async (req, res, next) => {
     }
 
     // Clientes não podem atualizar tickets (exceto adicionar comentários)
-    if (req.user.role === 'cliente-org') {
+    const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
+    if (isClientUser) {
       return res.status(403).json({ error: 'Clientes não podem atualizar tickets diretamente' });
     }
 
@@ -369,6 +372,7 @@ export const updateTicket = async (req, res, next) => {
 
     // Notificações (async - não bloqueia resposta)
     const currentUser = await User.findByPk(req.user.id, { attributes: ['id', 'name', 'email'] });
+    const oldStatus = oldTicket.status;
 
     // Notificar mudança de status
     if (updates.status && oldStatus !== updates.status) {
@@ -449,7 +453,7 @@ export const updateTicket = async (req, res, next) => {
 export const addComment = async (req, res, next) => {
   try {
     const { id: ticketId } = req.params;
-    const { content, isPrivate, isInternal } = req.body;
+    const { content, isInternal = false } = req.body;
 
     const ticket = await Ticket.findOne({
       where: { id: ticketId, organizationId: req.user.organizationId },
@@ -464,21 +468,47 @@ export const addComment = async (req, res, next) => {
     }
 
     // Verificar permissão
-    if (req.user.role === 'cliente-org' && ticket.requesterId !== req.user.id) {
+    const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
+    if (isClientUser && ticket.requesterId !== req.user.id) {
       return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    // Determinar tipo de autor baseado no role
+    let authorType = 'provider';
+    let authorUserId = req.user.id;
+    let authorOrgUserId = null;
+    let authorClientUserId = null;
+
+    if (['gerente', 'supervisor', 'agente'].includes(req.user.role)) {
+      authorType = 'organization';
+      authorOrgUserId = req.user.id;
+      authorUserId = null;
+    } else if (['client-admin', 'client-user', 'client-viewer'].includes(req.user.role)) {
+      authorType = 'client';
+      authorClientUserId = req.user.id;
+      authorUserId = null;
     }
 
     // Clientes não podem criar notas internas
     const commentData = {
       organizationId: req.user.organizationId,
       ticketId,
-      userId: req.user.id,
+      userId: req.user.id, // Legado
       content,
-      isPrivate: req.user.role !== 'cliente-org' ? isPrivate : false,
-      isInternal: req.user.role !== 'cliente-org' ? isInternal : false
+      isInternal: !isClientUser ? isInternal : false,
+      authorType,
+      authorUserId,
+      authorOrgUserId,
+      authorClientUserId
     };
 
     const comment = await Comment.create(commentData);
+
+    // Se o cliente respondeu e o ticket estava aguardando, mudar status automaticamente
+    if (isClientUser && ticket.status === 'aguardando_cliente') {
+      await ticket.update({ status: 'em_progresso' });
+      logger.info(`Status do ticket ${ticket.ticketNumber} alterado automaticamente para 'em_progresso' após resposta do cliente`);
+    }
 
     const fullComment = await Comment.findByPk(comment.id, {
       include: [
@@ -510,7 +540,7 @@ export const addComment = async (req, res, next) => {
       // TODO: Adicionar outros agentes/admins se necessário
     } else {
       // Comentário público: notificar solicitante e agente
-      if (req.user.role !== 'cliente-org' && ticket.requester?.email) {
+      if (!isClientUser && ticket.requester?.email) {
         // Agente comentou - notificar cliente
         emailService.notifyRequesterResponse(ticket, comment, fullComment.user)
           .catch(err => logger.error('Erro ao notificar solicitante:', err));
@@ -520,7 +550,7 @@ export const addComment = async (req, res, next) => {
         recipients.push(ticket.assignee.email);
         userIds.push(ticket.assignee.id);
       }
-      if (ticket.requester?.email && ticket.requester.email !== req.user.email && req.user.role === 'cliente-org') {
+      if (ticket.requester?.email && ticket.requester.email !== req.user.email && isClientUser) {
         recipients.push(ticket.requester.email);
         userIds.push(ticket.requester.id);
       }
@@ -556,7 +586,8 @@ export const getStatistics = async (req, res, next) => {
     const where = { organizationId: req.user.organizationId };
 
     // Clientes veem apenas suas estatísticas
-    if (req.user.role === 'cliente-org') {
+    const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
+    if (isClientUser) {
       where.requesterId = req.user.id;
     }
 
@@ -699,11 +730,12 @@ export const getAttachments = async (req, res, next) => {
 
     const attachments = await Attachment.findAll({
       where: { ticketId },
-      include: [{
-        model: User,
-        as: 'uploader',
-        attributes: ['id', 'name']
-      }],
+      // UPLOADER DESATIVADO TEMPORARIAMENTE
+      // include: [{
+      //   model: User,
+      //   as: 'uploader',
+      //   attributes: ['id', 'name']
+      // }],
       order: [['createdAt', 'DESC']]
     });
 

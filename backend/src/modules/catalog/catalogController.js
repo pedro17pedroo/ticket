@@ -1,4 +1,4 @@
-import { CatalogCategory, CatalogItem, ServiceRequest } from './catalogModel.js';
+import { CatalogCategory, CatalogItem, ServiceRequest } from './catalogModelSimple.js';
 import { Ticket, User, Category, Department, SLA } from '../models/index.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
@@ -162,16 +162,6 @@ export const getCatalogItems = async (req, res, next) => {
           model: CatalogCategory,
           as: 'category',
           attributes: ['id', 'name', 'icon']
-        },
-        {
-          model: SLA,
-          as: 'sla',
-          attributes: ['id', 'name', 'responseTimeMinutes', 'resolutionTimeMinutes']
-        },
-        {
-          model: Department,
-          as: 'department',
-          attributes: ['id', 'name']
         }
       ],
       order: [['order', 'ASC'], ['requestCount', 'DESC'], ['name', 'ASC']]
@@ -500,21 +490,6 @@ export const getServiceRequests = async (req, res, next) => {
           model: CatalogItem,
           as: 'catalogItem',
           attributes: ['id', 'name', 'icon', 'estimatedCost', 'estimatedDeliveryTime']
-        },
-        {
-          model: User,
-          as: 'requester',
-          attributes: ['id', 'name', 'email']
-        },
-        {
-          model: User,
-          as: 'approver',
-          attributes: ['id', 'name', 'email']
-        },
-        {
-          model: Ticket,
-          as: 'ticket',
-          attributes: ['id', 'ticketNumber', 'status']
         }
       ],
       order: [['createdAt', 'DESC']]

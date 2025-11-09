@@ -3,7 +3,7 @@ import { User, Direction, Department, Section } from '../models/index.js';
 import logger from '../../config/logger.js';
 
 const ensureClientAdmin = (req, res) => {
-  if (req.user.role !== 'cliente-org' || req.user?.settings?.clientAdmin !== true) {
+  if (req.user.role !== 'client-admin') {
     res.status(403).json({ success: false, error: 'Acesso negado. Somente administradores do cliente.' });
     return false;
   }
@@ -20,7 +20,11 @@ export const getClientUsers = async (req, res, next) => {
     // Define clientId: se user atual tem clientId, usa-o; senão usa id do user atual (é a empresa raiz)
     const clientId = req.user.clientId || req.user.id;
 
-    const where = { organizationId, role: 'cliente-org', clientId }; // Filtrar por empresa
+    const where = { 
+      organizationId, 
+      role: { [Op.in]: ['client-user', 'client-admin'] }, 
+      clientId 
+    };
     if (isActive !== undefined) where.isActive = isActive === 'true';
     if (search) {
       where[Op.or] = [
@@ -47,7 +51,7 @@ export const getClientUsers = async (req, res, next) => {
 export const createClientUser = async (req, res, next) => {
   try {
     if (!ensureClientAdmin(req, res)) return;
-    const { name, email, phone, password, directionId, departmentId, sectionId } = req.body;
+    const { name, email, phone, password, role, directionId, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
     
     // Define clientId: se user atual tem clientId, usa-o; senão usa id do user atual (é a empresa raiz)
@@ -56,8 +60,15 @@ export const createClientUser = async (req, res, next) => {
     const existing = await User.findOne({ where: { email, organizationId } });
     if (existing) return res.status(400).json({ success:false, error:'Email já está em uso nesta organização' });
 
+    // Gerar senha temporária se não fornecida
+    const tempPassword = password || Math.random().toString(36).slice(-8);
+
     const user = await User.create({
-      name, email, phone, password, role: 'cliente-org', organizationId, clientId, 
+      name, email, phone, 
+      password: tempPassword, 
+      role: role || 'client-user', 
+      organizationId, 
+      clientId, 
       directionId: directionId || null,
       departmentId: departmentId || null,
       sectionId: sectionId || null,
@@ -66,6 +77,12 @@ export const createClientUser = async (req, res, next) => {
 
     const data = user.toJSON();
     delete data.password;
+    
+    // Incluir senha temporária na resposta se foi gerada
+    if (!password) {
+      data.tempPassword = tempPassword;
+    }
+    
     logger.info(`Cliente criou utilizador: ${user.email} (${organizationId})`);
     res.status(201).json({ success:true, message:'Utilizador criado com sucesso', user: data });
   } catch (error) { next(error); }
@@ -76,10 +93,16 @@ export const updateClientUser = async (req, res, next) => {
   try {
     if (!ensureClientAdmin(req, res)) return;
     const { id } = req.params;
-    const { name, email, phone, isActive, directionId, departmentId, sectionId } = req.body;
+    const { name, email, phone, role, isActive, directionId, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;
 
-    const user = await User.findOne({ where: { id, organizationId, role: 'cliente-org' } });
+    const user = await User.findOne({ 
+      where: { 
+        id, 
+        organizationId, 
+        role: { [Op.in]: ['client-user', 'client-admin'] } 
+      } 
+    });
     if (!user) return res.status(404).json({ success:false, error:'Utilizador não encontrado' });
 
     if (email && email !== user.email) {
@@ -89,6 +112,7 @@ export const updateClientUser = async (req, res, next) => {
 
     await user.update({ 
       name, email, phone, isActive,
+      role: role || user.role,
       directionId: directionId !== undefined ? directionId : user.directionId,
       departmentId: departmentId !== undefined ? departmentId : user.departmentId,
       sectionId: sectionId !== undefined ? sectionId : user.sectionId
@@ -106,7 +130,13 @@ export const deleteClientUser = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    const user = await User.findOne({ where: { id, organizationId, role: 'cliente-org' } });
+    const user = await User.findOne({ 
+      where: { 
+        id, 
+        organizationId, 
+        role: { [Op.in]: ['client-user', 'client-admin'] } 
+      } 
+    });
     if (!user) return res.status(404).json({ success:false, error:'Utilizador não encontrado' });
 
     await user.update({ isActive: false });
@@ -121,7 +151,13 @@ export const activateClientUser = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    const user = await User.findOne({ where: { id, organizationId, role: 'cliente-org' } });
+    const user = await User.findOne({ 
+      where: { 
+        id, 
+        organizationId, 
+        role: { [Op.in]: ['client-user', 'client-admin'] } 
+      } 
+    });
     if (!user) return res.status(404).json({ success:false, error:'Utilizador não encontrado' });
 
     await user.update({ isActive: true });
@@ -137,7 +173,13 @@ export const resetClientUserPassword = async (req, res, next) => {
     const { newPassword } = req.body;
     const organizationId = req.user.organizationId;
 
-    const user = await User.findOne({ where: { id, organizationId, role: 'cliente-org' } });
+    const user = await User.findOne({ 
+      where: { 
+        id, 
+        organizationId, 
+        role: { [Op.in]: ['client-user', 'client-admin'] } 
+      } 
+    });
     if (!user) return res.status(404).json({ success:false, error:'Utilizador não encontrado' });
 
     await user.update({ password: newPassword });

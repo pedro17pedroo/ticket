@@ -19,7 +19,7 @@ router.post(
 router.put(
   '/:id',
   authorize('admin-org'),
-  validate(schemas.createDepartment),
+  validate(schemas.updateDepartment),
   auditLog('update', 'department'),
   updateDepartment
 );

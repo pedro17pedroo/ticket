@@ -36,9 +36,15 @@ const User = sequelize.define('User', {
     allowNull: false
   },
   role: {
-    type: DataTypes.ENUM('admin-org', 'agente', 'cliente-org'),
+    type: DataTypes.ENUM(
+      // Provider roles
+      'super-admin', 'provider-admin', 'provider-support',
+      // Tenant roles
+      'tenant-admin', 'tenant-manager', 'agent', 'viewer'
+    ),
     allowNull: false,
-    defaultValue: 'cliente-org'
+    defaultValue: 'agent',
+    comment: 'Roles para staff interno (Provider ou Tenant). Client users usam ClientUser model'
   },
   avatar: {
     type: DataTypes.STRING,
@@ -72,14 +78,18 @@ const User = sequelize.define('User', {
       key: 'id'
     }
   },
-  clientId: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    references: {
-      model: 'users',
-      key: 'id'
+  // Permissões especiais (JSONB para flexibilidade)
+  permissions: {
+    type: DataTypes.JSONB,
+    defaultValue: {
+      canManageUsers: false,
+      canManageClients: false,
+      canManageTickets: true,
+      canViewReports: false,
+      canManageSettings: false,
+      canAccessAPI: false
     },
-    comment: 'Para utilizadores cliente-org, indica a empresa cliente à qual pertencem'
+    comment: 'Permissões granulares para o usuário'
   },
   isActive: {
     type: DataTypes.BOOLEAN,
@@ -97,6 +107,15 @@ const User = sequelize.define('User', {
       theme: 'light',
       language: 'pt'
     }
+  },
+  clientId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'Para utilizadores cliente-org, indica a empresa cliente à qual pertencem'
   }
 }, {
   tableName: 'users',
@@ -139,5 +158,10 @@ User.prototype.toJSON = function() {
   delete values.password;
   return values;
 };
+
+// Scope para incluir senha (usado apenas no login)
+User.addScope('withPassword', {
+  attributes: { include: ['password'] }
+});
 
 export default User;

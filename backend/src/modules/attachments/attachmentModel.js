@@ -10,6 +10,7 @@ const Attachment = sequelize.define('Attachment', {
   ticketId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'ticket_id',
     references: {
       model: 'tickets',
       key: 'id'
@@ -35,7 +36,8 @@ const Attachment = sequelize.define('Attachment', {
   },
   mimetype: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    field: 'mime_type'
   },
   size: {
     type: DataTypes.INTEGER,
@@ -45,12 +47,41 @@ const Attachment = sequelize.define('Attachment', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  uploadedBy: {
+  uploadedById: {
     type: DataTypes.UUID,
-    allowNull: false,
-    field: 'uploaded_by',
+    allowNull: true,
+    field: 'uploaded_by_id'
+  },
+  uploadedByType: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'uploaded_by_type',
+    comment: 'provider, organization, client'
+  },
+  uploadedByUserId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'uploaded_by_user_id',
     references: {
       model: 'users',
+      key: 'id'
+    }
+  },
+  uploadedByOrgUserId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'uploaded_by_org_user_id',
+    references: {
+      model: 'organization_users',
+      key: 'id'
+    }
+  },
+  uploadedByClientUserId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'uploaded_by_client_user_id',
+    references: {
+      model: 'client_users',
       key: 'id'
     }
   }

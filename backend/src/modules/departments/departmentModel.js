@@ -17,9 +17,13 @@ const Department = sequelize.define('Department', {
   },
   directionId: {
     type: DataTypes.UUID,
-    allowNull: true,
+    allowNull: false,
     field: 'direction_id',
-    comment: 'ID da direção pai'
+    references: {
+      model: 'directions',
+      key: 'id'
+    },
+    comment: 'ID da direção pai (obrigatório)'
   },
   name: {
     type: DataTypes.STRING,
@@ -56,10 +60,10 @@ const Department = sequelize.define('Department', {
     allowNull: true,
     field: 'client_id',
     references: {
-      model: 'users',
+      model: 'clients',
       key: 'id'
     },
-    comment: 'ID da empresa cliente (se pertencer a um cliente)'
+    comment: 'ID da empresa cliente B2B (se pertencer a um cliente)'
   },
   isActive: {
     type: DataTypes.BOOLEAN,
@@ -72,8 +76,10 @@ const Department = sequelize.define('Department', {
   indexes: [
     { fields: ['organization_id'] },
     { fields: ['direction_id'] },
+    { fields: ['client_id'] },
     { fields: ['manager_id'] },
-    { fields: ['is_active'] }
+    { fields: ['is_active'] },
+    { fields: ['organization_id', 'direction_id', 'name'], unique: true }
   ]
 });
 

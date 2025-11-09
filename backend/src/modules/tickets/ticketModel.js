@@ -44,7 +44,16 @@ const Ticket = sequelize.define('Ticket', {
     type: DataTypes.STRING,
     allowNull: false,
     defaultValue: 'media',
-    comment: 'Prioridade definida pelo cliente'
+    comment: 'Prioridade definida pelo cliente (string legada)'
+  },
+  priorityId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'priorities',
+      key: 'id'
+    },
+    comment: 'Referência à prioridade configurável da organização'
   },
   internalPriority: {
     type: DataTypes.STRING,
@@ -68,7 +77,16 @@ const Ticket = sequelize.define('Ticket', {
     type: DataTypes.STRING,
     allowNull: false,
     defaultValue: 'suporte',
-    comment: 'Nome do tipo'
+    comment: 'Nome do tipo (string legada)'
+  },
+  typeId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'types',
+      key: 'id'
+    },
+    comment: 'Referência ao tipo configurável da organização'
   },
   categoryId: {
     type: DataTypes.UUID,
@@ -76,7 +94,27 @@ const Ticket = sequelize.define('Ticket', {
     references: {
       model: 'categories',
       key: 'id'
-    }
+    },
+    comment: 'LEGADO - Categoria funcional do ticket (manter por compatibilidade)'
+  },
+  // Campos do Catálogo de Serviços
+  catalogCategoryId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'catalog_categories',
+      key: 'id'
+    },
+    comment: 'Categoria do catálogo (hierarquia visual: TI, RH, Facilities)'
+  },
+  catalogItemId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'catalog_items',
+      key: 'id'
+    },
+    comment: 'Item/Serviço do catálogo selecionado'
   },
   directionId: {
     type: DataTypes.UUID,
@@ -102,21 +140,64 @@ const Ticket = sequelize.define('Ticket', {
       key: 'id'
     }
   },
+  clientId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'clients',
+      key: 'id'
+    },
+    comment: 'Empresa cliente - preenchido quando requester é um client_user'
+  },
+  // CAMPOS LEGADOS (manter por compatibilidade)
   requesterId: {
     type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
+    allowNull: true,
+    comment: 'LEGADO - usar requester_*_id polimórfico'
   },
-  assigneeId: {
+  // CAMPOS POLIMÓRFICOS PARA REQUESTER
+  requesterType: {
+    type: DataTypes.ENUM('provider', 'organization', 'client'),
+    allowNull: true,
+    defaultValue: 'client',
+    comment: 'Tipo do requester: provider = users, organization = organization_users, client = client_users'
+  },
+  requesterUserId: {
     type: DataTypes.UUID,
     allowNull: true,
     references: {
       model: 'users',
       key: 'id'
-    }
+    },
+    comment: 'FK para users (provider SaaS)'
+  },
+  requesterOrgUserId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'organization_users',
+      key: 'id'
+    },
+    comment: 'FK para organization_users (tenant staff)'
+  },
+  requesterClientUserId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'client_users',
+      key: 'id'
+    },
+    comment: 'FK para client_users (empresa cliente)'
+  },
+  // ASSIGNEE - sempre organization_user (quem resolve)
+  assigneeId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'organization_users',
+      key: 'id'
+    },
+    comment: 'Sempre um organization_user (técnico/agent)'
   },
   source: {
     type: DataTypes.ENUM('portal', 'email', 'chat', 'whatsapp', 'telefone'),
@@ -155,12 +236,18 @@ const Ticket = sequelize.define('Ticket', {
   indexes: [
     { fields: ['ticket_number'], unique: true },
     { fields: ['organization_id'] },
+    { fields: ['client_id'] },
+    { fields: ['requester_type'] },
     { fields: ['status'] },
     { fields: ['priority'] },
-    { fields: ['requester_id'] },
+    { fields: ['requester_id'] }, // Legado
+    { fields: ['requester_user_id'] },
+    { fields: ['requester_org_user_id'] },
+    { fields: ['requester_client_user_id'] },
     { fields: ['assignee_id'] },
     { fields: ['department_id'] },
-    { fields: ['created_at'] }
+    { fields: ['created_at'] },
+    { fields: ['organization_id', 'client_id'] }
   ],
   hooks: {
     beforeCreate: async (ticket) => {
@@ -172,5 +259,54 @@ const Ticket = sequelize.define('Ticket', {
     }
   }
 });
+
+// MÉTODOS HELPER PARA ACESSO POLIMÓRFICO
+Ticket.prototype.getRequester = function() {
+  switch(this.requesterType) {
+    case 'provider':
+      return this.requesterUser;
+    case 'organization':
+      return this.requesterOrgUser;
+    case 'client':
+      return this.requesterClientUser;
+    default:
+      return null;
+  }
+};
+
+Ticket.prototype.getRequesterInfo = function() {
+  const requester = this.getRequester();
+  return requester ? {
+    id: requester.id,
+    name: requester.name,
+    email: requester.email,
+    type: this.requesterType
+  } : null;
+};
+
+// Método para definir requester polimórfico
+Ticket.setRequester = function(ticketData, userId, userType) {
+  ticketData.requesterType = userType;
+  
+  switch(userType) {
+    case 'provider':
+      ticketData.requesterUserId = userId;
+      ticketData.requesterOrgUserId = null;
+      ticketData.requesterClientUserId = null;
+      break;
+    case 'organization':
+      ticketData.requesterUserId = null;
+      ticketData.requesterOrgUserId = userId;
+      ticketData.requesterClientUserId = null;
+      break;
+    case 'client':
+      ticketData.requesterUserId = null;
+      ticketData.requesterOrgUserId = null;
+      ticketData.requesterClientUserId = userId;
+      break;
+  }
+  
+  return ticketData;
+};
 
 export default Ticket;

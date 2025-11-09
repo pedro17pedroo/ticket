@@ -81,11 +81,11 @@ export const schemas = {
   // Departamentos
   createDepartment: Joi.object({
     name: Joi.string().min(2).max(100).required(),
-    description: Joi.string().allow('').optional(),
-    code: Joi.string().max(20).optional(),
-    email: Joi.string().email().optional(),
-    directionId: Joi.string().uuid().optional(),
-    managerId: Joi.string().uuid().optional(),
+    description: Joi.string().allow('', null).optional(),
+    code: Joi.string().allow('', null).max(20).optional(),
+    email: Joi.string().email().allow('', null).optional(),
+    directionId: Joi.string().uuid().required(), // Obrigatório desde hierarquia
+    managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 
@@ -186,11 +186,11 @@ export const schemas = {
   // Departamentos
   updateDepartment: Joi.object({
     name: Joi.string().min(2).max(100).optional(),
-    description: Joi.string().allow('').optional(),
-    code: Joi.string().max(20).optional(),
-    email: Joi.string().email().optional(),
-    directionId: Joi.string().uuid().allow(null).optional(),
-    managerId: Joi.string().uuid().allow(null).optional(),
+    description: Joi.string().allow('', null).optional(),
+    code: Joi.string().allow('', null).max(20).optional(),
+    email: Joi.string().email().allow('', null).optional(),
+    directionId: Joi.string().uuid().required(), // Obrigatório - não pode remover direção
+    managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 
@@ -232,20 +232,42 @@ export const schemas = {
   createUser: Joi.object({
     name: Joi.string().min(2).max(100).required(),
     email: Joi.string().email().required(),
-    phone: Joi.string().allow('').optional(),
+    phone: Joi.string().allow('', null).optional(),
     password: Joi.string().min(6).required(),
-    role: Joi.string().valid('admin-org', 'agente', 'user-org').optional(),
-    departmentId: Joi.string().uuid().allow(null).optional(),
-    sectionId: Joi.string().uuid().allow(null).optional()
+    role: Joi.string().valid(
+      'super-admin',
+      'provider-admin',
+      'admin-org',
+      'tenant-admin',
+      'tenant-manager',
+      'agent',
+      'client-admin',
+      'client-user',
+      'client-manager'
+    ).optional(),
+    departmentId: Joi.string().uuid().allow('', null).optional(),
+    sectionId: Joi.string().uuid().allow('', null).optional(),
+    directionId: Joi.string().uuid().allow('', null).optional()
   }),
 
   updateUser: Joi.object({
     name: Joi.string().min(2).max(100).optional(),
     email: Joi.string().email().optional(),
-    phone: Joi.string().allow('').optional(),
-    role: Joi.string().valid('admin-org', 'agente', 'user-org').optional(),
-    departmentId: Joi.string().uuid().allow(null).optional(),
-    sectionId: Joi.string().uuid().allow(null).optional(),
+    phone: Joi.string().allow('', null).optional(),
+    role: Joi.string().valid(
+      'super-admin',
+      'provider-admin',
+      'admin-org',
+      'tenant-admin',
+      'tenant-manager',
+      'agent',
+      'client-admin',
+      'client-user',
+      'client-manager'
+    ).optional(),
+    departmentId: Joi.string().uuid().allow('', null).optional(),
+    sectionId: Joi.string().uuid().allow('', null).optional(),
+    directionId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 

@@ -45,10 +45,10 @@ const Section = sequelize.define('Section', {
     allowNull: true,
     field: 'client_id',
     references: {
-      model: 'users',
+      model: 'clients',
       key: 'id'
     },
-    comment: 'ID da empresa cliente (se pertencer a um cliente)'
+    comment: 'ID da empresa cliente B2B (se pertencer a um cliente)'
   },
   isActive: {
     type: DataTypes.BOOLEAN,
@@ -63,6 +63,7 @@ const Section = sequelize.define('Section', {
   indexes: [
     { fields: ['organization_id'] },
     { fields: ['department_id'] },
+    { fields: ['client_id'] },
     { fields: ['manager_id'] },
     { fields: ['organization_id', 'department_id', 'name'], unique: true }
   ]
