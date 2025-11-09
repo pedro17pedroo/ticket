@@ -32,7 +32,7 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
         api.get('/categories'),
         api.get('/departments'),
         api.get('/users'),
-        api.get('/clients')
+        api.get('/clients-b2b')
       ]);
 
       setCategories(categoriesRes.data.categories || []);

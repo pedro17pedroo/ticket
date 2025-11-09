@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Clock, Plus, TrendingUp, TrendingDown, DollarSign, Eye, History } from 'lucide-react'
+import { Clock, Plus, TrendingUp, TrendingDown, DollarSign, Eye, History, X, Save, User, Calendar, FileText, Settings } from 'lucide-react'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
+import Modal from '../components/Modal'
 
 const HoursBank = () => {
   const [hoursBanks, setHoursBanks] = useState([])
@@ -136,6 +137,19 @@ const HoursBank = () => {
     if (percentage >= 90) return 'bg-red-500'
     if (percentage >= 70) return 'bg-yellow-500'
     return 'bg-green-500'
+  }
+
+  const resetForm = () => {
+    setFormData({
+      clientId: '',
+      totalHours: '',
+      packageType: '',
+      startDate: '',
+      endDate: '',
+      allowNegativeBalance: false,
+      minBalance: '',
+      notes: ''
+    })
   }
 
   if (loading) {
@@ -337,131 +351,198 @@ const HoursBank = () => {
       </div>
 
       {/* Create Modal */}
-      {showCreateModal && (
-        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Nova Bolsa de Horas</h2>
-            <form onSubmit={handleCreateBank} className="space-y-4">
+      <Modal isOpen={showCreateModal} onClose={() => { setShowCreateModal(false); resetForm(); }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+          
+          {/* Header com gradiente */}
+          <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium mb-2">Cliente *</label>
-                <select
-                  value={formData.clientId}
-                  onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                >
-                  <option value="">Selecione um cliente</option>
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </select>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Clock className="w-6 h-6" />
+                  Nova Bolsa de Horas
+                </h2>
+                <p className="text-primary-100 text-sm mt-1">
+                  Crie um novo pacote de horas para o cliente
+                </p>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Total de Horas *</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  value={formData.totalHours}
-                  onChange={(e) => setFormData({ ...formData, totalHours: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Ex: 40"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Tipo de Pacote</label>
-                <input
-                  type="text"
-                  value={formData.packageType}
-                  onChange={(e) => setFormData({ ...formData, packageType: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Ex: Premium 50h"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Data Início <span className="text-xs text-gray-500">(opcional)</span></label>
-                  <input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Data Fim <span className="text-xs text-gray-500">(opcional)</span></label>
-                  <input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  />
-                </div>
-              </div>
-
-              {/* Saldo Negativo */}
-              <div className="border-t pt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <input
-                    type="checkbox"
-                    id="allowNegative"
-                    checked={formData.allowNegativeBalance}
-                    onChange={(e) => setFormData({ ...formData, allowNegativeBalance: e.target.checked, minBalance: e.target.checked ? formData.minBalance : '' })}
-                    className="rounded"
-                  />
-                  <label htmlFor="allowNegative" className="text-sm font-medium">
-                    Permitir saldo negativo (crédito)
-                  </label>
-                </div>
-                {formData.allowNegativeBalance && (
+              <button
+                onClick={() => { setShowCreateModal(false); resetForm(); }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
+            <div className="bg-gray-50 dark:bg-gray-900 p-6">
+              <form id="hoursBankForm" onSubmit={handleCreateBank} className="space-y-5">
+                {/* Card: Cliente e Pacote */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <User className="w-5 h-5 text-primary-500" />
+                    Cliente e Pacote
+                  </h3>
+                  
                   <div>
-                    <label className="block text-sm font-medium mb-2">Limite Mínimo <span className="text-xs text-gray-500">(ex: -10 para -10h)</span></label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cliente *</label>
+                    <select
+                      value={formData.clientId}
+                      onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                      required
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    >
+                      <option value="">Selecione um cliente</option>
+                      {clients.map(client => (
+                        <option key={client.id} value={client.id}>{client.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Total de Horas *</label>
                     <input
                       type="number"
                       step="0.5"
-                      value={formData.minBalance}
-                      onChange={(e) => setFormData({ ...formData, minBalance: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                      placeholder="Ex: -10"
+                      min="0"
+                      value={formData.totalHours}
+                      onChange={(e) => setFormData({ ...formData, totalHours: e.target.value })}
+                      required
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="Ex: 40"
                     />
                   </div>
-                )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Notas</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Observações sobre este pacote..."
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo de Pacote</label>
+                    <input
+                      type="text"
+                      value={formData.packageType}
+                      onChange={(e) => setFormData({ ...formData, packageType: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="Ex: Premium 50h"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Identificação do tipo de pacote contratado</p>
+                  </div>
+                </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  Criar Bolsa
-                </button>
-              </div>
-            </form>
+                {/* Card: Período de Validade */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-primary-500" />
+                    Período de Validade
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data Início <span className="text-xs text-gray-500">(opcional)</span></label>
+                      <input
+                        type="date"
+                        value={formData.startDate}
+                        onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data Fim <span className="text-xs text-gray-500">(opcional)</span></label>
+                      <input
+                        type="date"
+                        value={formData.endDate}
+                        onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Define o período de validade do pacote de horas</p>
+                </div>
+
+                {/* Card: Configurações Avançadas */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-primary-500" />
+                    Configurações Avançadas
+                  </h3>
+                  
+                  <div>
+                    <label className="flex items-center gap-3 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <input
+                        type="checkbox"
+                        id="allowNegative"
+                        checked={formData.allowNegativeBalance}
+                        onChange={(e) => setFormData({ ...formData, allowNegativeBalance: e.target.checked, minBalance: e.target.checked ? formData.minBalance : '' })}
+                        className="w-5 h-5 text-primary-500 rounded focus:ring-2 focus:ring-primary-500"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium">Permitir saldo negativo (crédito)</span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Permite que o cliente consuma mais horas do que possui
+                        </p>
+                      </div>
+                    </label>
+                    {formData.allowNegativeBalance && (
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Limite Mínimo <span className="text-xs text-gray-500">(ex: -10 para -10h)</span></label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={formData.minBalance}
+                          onChange={(e) => setFormData({ ...formData, minBalance: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                          placeholder="Ex: -10"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card: Observações */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary-500" />
+                    Observações
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notas</label>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      rows={3}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                      placeholder="Observações sobre este pacote..."
+                    />
+                  </div>
+                </div>
+
+              </form>
+            </div>
+          </div>
+          
+          {/* Footer fixo com botões */}
+          <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowCreateModal(false); resetForm(); }}
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="hoursBankForm"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Save className="w-5 h-5" />
+                Criar Bolsa
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </Modal>
 
       {/* Add Hours Modal */}
       {showAddHoursModal && selectedBank && (

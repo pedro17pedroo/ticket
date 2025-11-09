@@ -26,9 +26,19 @@ api.interceptors.response.use(
     
     // Se token expirou, fazer logout
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout()
-      window.location.href = '/login'
-      toast.error('Sessão expirada. Faça login novamente.')
+      // Só fazer logout e redirecionar se não estiver na página de login
+      const isLoginPage = window.location.pathname === '/login'
+      
+      if (!isLoginPage) {
+        console.log('🚪 Token expirado, fazendo logout...')
+        useAuthStore.getState().logout()
+        window.location.href = '/login'
+        toast.error('Sessão expirada. Faça login novamente.')
+      } else {
+        console.log('❌ Erro 401 na página de login:', message)
+        // Na página de login, apenas mostrar o erro sem redirecionar
+        toast.error(message)
+      }
     } else {
       toast.error(message)
     }
@@ -63,6 +73,12 @@ export const ticketService = {
     const response = await api.get('/tickets', { params })
     return response.data
   },
+
+  // Alias para compatibilidade
+  getTickets: async (params) => {
+    const response = await api.get('/tickets', { params })
+    return response.data
+  },
   
   getById: async (id) => {
     const response = await api.get(`/tickets/${id}`)
@@ -75,6 +91,12 @@ export const ticketService = {
   },
   
   update: async (id, data) => {
+    const response = await api.put(`/tickets/${id}`, data)
+    return response.data
+  },
+
+  // Alias para compatibilidade
+  updateTicket: async (id, data) => {
     const response = await api.put(`/tickets/${id}`, data)
     return response.data
   },

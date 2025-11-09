@@ -101,7 +101,7 @@ export const getOrganizationInventoryStats = async () => {
 };
 
 export const getUserInventory = async (userId) => {
-  const response = await api.get(`/inventory/organization/users/${userId}`);
+  const response = await api.get(`/inventory/users/${userId}`);
   return response.data;
 };
 

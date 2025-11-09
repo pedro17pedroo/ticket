@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { authService } from '../services/api'
@@ -8,19 +8,58 @@ import { LogIn, Mail, Lock } from 'lucide-react'
 
 const Login = () => {
   const navigate = useNavigate()
-  const { setAuth } = useAuthStore()
+  const { setAuth, token } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const { register, handleSubmit, formState: { errors } } = useForm()
+  
+  console.log('🔄 Login component renderizado, token:', token ? 'presente' : 'ausente')
+  
+  // Se já estiver logado, redirecionar (apenas uma vez)
+  useEffect(() => {
+    console.log('🔍 useEffect verificando token:', token ? 'presente' : 'ausente')
+    if (token) {
+      console.log('✅ Já está logado, redirecionando para dashboard...')
+      navigate('/', { replace: true })
+    }
+  }, [token, navigate])
 
   const onSubmit = async (data) => {
+    if (loading) {
+      console.log('⏸️  Submit bloqueado - já está processando')
+      return // Prevenir múltiplos submits
+    }
+    
     setLoading(true)
+    console.log('🔐 Iniciando processo de login com:', data.email)
+    
     try {
+      console.log('📡 Chamando API de login...')
       const response = await authService.login(data.email, data.password)
+      console.log('✅ Resposta da API:', response)
+      
+      if (!response || !response.user || !response.token) {
+        throw new Error('Resposta inválida do servidor')
+      }
+      
+      console.log('💾 Salvando autenticação...')
       setAuth(response.user, response.token)
+      console.log('✅ Autenticação salva com sucesso!')
+      
       toast.success('Login realizado com sucesso!')
-      navigate('/')
+      
+      console.log('🚀 Navegando para dashboard...')
+      navigate('/', { replace: true })
     } catch (error) {
-      console.error('Erro no login:', error)
+      console.error('❌ Erro completo no login:', error)
+      console.error('❌ Resposta do erro:', error.response?.data)
+      console.error('❌ Status do erro:', error.response?.status)
+      
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Erro ao fazer login. Verifique suas credenciais.'
+      
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }

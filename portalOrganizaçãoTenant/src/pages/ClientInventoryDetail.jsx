@@ -18,6 +18,8 @@ const ClientInventoryDetail = () => {
   const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [users, setUsers] = useState([]);
+  const [totalAssets, setTotalAssets] = useState(0);
+  const [totalSoftware, setTotalSoftware] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -31,6 +33,8 @@ const ClientInventoryDetail = () => {
       const data = await inventoryService.getClientInventory(clientId);
       setClient(data.client);
       setUsers(data.users || []);
+      setTotalAssets(data.totalAssets || 0);
+      setTotalSoftware(data.totalSoftware || 0);
     } catch (error) {
       console.error('Erro ao carregar inventário:', error);
       toast.error('Erro ao carregar inventário do cliente');
@@ -110,11 +114,11 @@ const ClientInventoryDetail = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total de Equipamentos</p>
-              <p className="font-semibold text-2xl">{users.reduce((sum, u) => sum + (u.assetsCount || 0), 0)}</p>
+              <p className="font-semibold text-2xl">{totalAssets}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Software Instalado</p>
-              <p className="font-semibold text-2xl">{client.inventoryStats?.softwareCount || 0}</p>
+              <p className="font-semibold text-2xl">{totalSoftware}</p>
             </div>
           </div>
 

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, Clock } from 'lucide-react'
+import { Plus, Edit2, Trash2, Clock, X, Save, FileText, Timer, AlertCircle } from 'lucide-react'
 import api from '../services/api'
-import toast from 'react-hot-toast'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
+import Modal from '../components/Modal'
 
 const SLAs = () => {
   const [slas, setSlas] = useState([])
@@ -127,6 +127,16 @@ const SLAs = () => {
     return hours > 0 ? `${hours}h ${mins > 0 ? mins + 'min' : ''}` : `${mins}min`
   }
 
+  const resetForm = () => {
+    setFormData({ 
+      name: '', 
+      priority: priorities[0]?.name || '', 
+      responseTimeMinutes: 60, 
+      resolutionTimeMinutes: 480 
+    })
+    setEditingSLA(null)
+  }
+
   if (loading) {
     return <div className="flex justify-center p-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div></div>
   }
@@ -183,45 +193,142 @@ const SLAs = () => {
         </div>
       )}
 
-      {showModal && (
-        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">{editingSLA ? 'Editar' : 'Novo'} SLA</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+      <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+          
+          {/* Header com gradiente */}
+          <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium mb-2">Nome *</label>
-                <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" placeholder="Ex: SLA Prioridade Média" />
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Clock className="w-6 h-6" />
+                  {editingSLA ? 'Editar SLA' : 'Novo SLA'}
+                </h2>
+                <p className="text-primary-100 text-sm mt-1">
+                  {editingSLA 
+                    ? 'Atualize os tempos de resposta e resolução'
+                    : 'Defina os tempos de atendimento por prioridade'
+                  }
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Prioridade *</label>
-                <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} required className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700">
-                  {priorities.length === 0 ? (
-                    <option value="">Nenhuma prioridade disponível</option>
-                  ) : (
-                    priorities.map(priority => (
-                      <option key={priority.id} value={priority.name}>
-                        {priority.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Tempo de Resposta (minutos) *</label>
-                <input type="number" value={formData.responseTimeMinutes} onChange={(e) => setFormData({ ...formData, responseTimeMinutes: parseInt(e.target.value) })} required min="1" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Tempo de Resolução (minutos) *</label>
-                <input type="number" value={formData.resolutionTimeMinutes} onChange={(e) => setFormData({ ...formData, resolutionTimeMinutes: parseInt(e.target.value) })} required min="1" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
-              </div>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => { setShowModal(false); setEditingSLA(null); }} className="flex-1 px-4 py-2 border rounded-lg">Cancelar</button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg">{editingSLA ? 'Atualizar' : 'Criar'}</button>
-              </div>
-            </form>
+              <button
+                onClick={() => { setShowModal(false); resetForm(); }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
+            <div className="bg-gray-50 dark:bg-gray-900 p-6">
+              <form id="slaForm" onSubmit={handleSubmit} className="space-y-5">
+                {/* Card: Informações Básicas */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary-500" />
+                    Informações Básicas
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome do SLA *</label>
+                    <input 
+                      type="text" 
+                      value={formData.name} 
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+                      required 
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" 
+                      placeholder="Ex: SLA Prioridade Média" 
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4 text-gray-400" />
+                      Prioridade *
+                    </label>
+                    <select 
+                      value={formData.priority} 
+                      onChange={(e) => setFormData({ ...formData, priority: e.target.value })} 
+                      required 
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    >
+                      {priorities.length === 0 ? (
+                        <option value="">Nenhuma prioridade disponível</option>
+                      ) : (
+                        priorities.map(priority => (
+                          <option key={priority.id} value={priority.name}>
+                            {priority.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Selecione a prioridade associada a este SLA</p>
+                  </div>
+                </div>
+                {/* Card: Tempos de Atendimento */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Timer className="w-5 h-5 text-primary-500" />
+                    Tempos de Atendimento
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tempo de Resposta (minutos) *</label>
+                    <input 
+                      type="number" 
+                      value={formData.responseTimeMinutes} 
+                      onChange={(e) => setFormData({ ...formData, responseTimeMinutes: parseInt(e.target.value) })} 
+                      required 
+                      min="1" 
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" 
+                      placeholder="60"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tempo máximo para a primeira resposta ao ticket</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tempo de Resolução (minutos) *</label>
+                    <input 
+                      type="number" 
+                      value={formData.resolutionTimeMinutes} 
+                      onChange={(e) => setFormData({ ...formData, resolutionTimeMinutes: parseInt(e.target.value) })} 
+                      required 
+                      min="1" 
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" 
+                      placeholder="480"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tempo máximo para resolver completamente o ticket</p>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+          
+          {/* Footer fixo com botões */}
+          <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
+              <button 
+                type="button" 
+                onClick={() => { setShowModal(false); setEditingSLA(null); }} 
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="submit"
+                form="slaForm"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Save className="w-5 h-5" />
+                {editingSLA ? 'Atualizar' : 'Criar'} SLA
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

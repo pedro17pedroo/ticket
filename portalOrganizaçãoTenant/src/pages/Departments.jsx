@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, Users, Building2, X } from 'lucide-react'
+import { Plus, Edit2, Trash2, Users, Building2, X, Save, FileText, Mail, User, Settings, Building } from 'lucide-react'
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
+import Modal from '../components/Modal'
 
 const Departments = () => {
   const [departments, setDepartments] = useState([])
@@ -43,12 +44,36 @@ const Departments = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Validar direção obrigatória
+    if (!formData.directionId) {
+      showError('Campo obrigatório', 'Por favor, selecione uma direção. Todos os departamentos devem pertencer a uma direção.')
+      return
+    }
+    
     try {
+      // Construir payload apenas com campos preenchidos
       const payload = {
-        ...formData,
-        directionId: formData.directionId || null,
-        managerId: formData.managerId || null
+        name: formData.name,
+        directionId: formData.directionId,
+        isActive: formData.isActive
       }
+      
+      // Adicionar campos opcionais apenas se preenchidos
+      if (formData.description && formData.description.trim()) {
+        payload.description = formData.description
+      }
+      if (formData.code && formData.code.trim()) {
+        payload.code = formData.code
+      }
+      if (formData.email && formData.email.trim()) {
+        payload.email = formData.email
+      }
+      if (formData.managerId && formData.managerId.trim()) {
+        payload.managerId = formData.managerId
+      }
+
+      console.log('📤 Enviando payload:', payload)
 
       if (editingDepartment) {
         await api.put(`/departments/${editingDepartment.id}`, payload)
@@ -61,6 +86,7 @@ const Departments = () => {
       resetForm()
       loadData()
     } catch (error) {
+      console.error('❌ Erro detalhado:', error.response?.data)
       showError('Erro ao salvar', error.response?.data?.error || error.message)
     }
   }
@@ -115,6 +141,22 @@ const Departments = () => {
 
   return (
     <div className="space-y-6">
+      {/* Alerta sobre hierarquia */}
+      {directions.length === 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+          <div className="flex gap-3">
+            <Building2 className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-amber-900 dark:text-amber-200">Nenhuma Direção encontrada</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                Para criar departamentos, é necessário primeiro criar pelo menos uma Direção. 
+                <br/>A estrutura hierárquica é: <strong>Direção → Departamento → Secção</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Departamentos</h1>
@@ -122,7 +164,9 @@ const Departments = () => {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg"
+          disabled={directions.length === 0}
+          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          title={directions.length === 0 ? 'Crie uma Direção primeiro' : ''}
         >
           <Plus className="w-5 h-5" />
           Novo Departamento
@@ -199,125 +243,188 @@ const Departments = () => {
       </div>
 
       {/* Modal */}
-      {showModal && (
-        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold">
-                {editingDepartment ? 'Editar Departamento' : 'Novo Departamento'}
-              </h2>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+      <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+          
+          {/* Header com gradiente */}
+          <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Building2 className="w-6 h-6" />
+                  {editingDepartment ? 'Editar Departamento' : 'Novo Departamento'}
+                </h2>
+                <p className="text-primary-100 text-sm mt-1">
+                  {editingDepartment 
+                    ? 'Atualize as informações do departamento'
+                    : 'Crie um novo departamento na organização'
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowModal(false); resetForm(); }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
+          </div>
+          
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto max-h-[calc(90vh-220px)]">
+            <div className="bg-gray-50 dark:bg-gray-900 p-6">
+              <form id="departmentForm" onSubmit={handleSubmit} className="space-y-5">
+                {/* Card: Informações Básicas */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary-500" />
+                    Informações Básicas
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome do Departamento *</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        placeholder="Ex: Departamento de TI"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Código</label>
+                      <input
+                        type="text"
+                        value={formData.code}
+                        onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                        maxLength={20}
+                        placeholder="Ex: DEP-TI"
+                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Nome *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Descrição</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={3}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                      placeholder="Descreva as responsabilidades deste departamento..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="departamento@empresa.com"
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Código</label>
-                  <input
-                    type="text"
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    maxLength={20}
-                    placeholder="Ex: DEP-TI"
-                    className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Descrição</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
-                />
-              </div>
+                {/* Card: Hierarquia e Responsável */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Building className="w-5 h-5 text-primary-500" />
+                    Hierarquia Organizacional
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Direção *</label>
+                    <select
+                      value={formData.directionId}
+                      onChange={(e) => setFormData({ ...formData, directionId: e.target.value })}
+                      required
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    >
+                      <option value="">Selecione uma direção...</option>
+                      {directions.map((dir) => (
+                        <option key={dir.id} value={dir.id}>{dir.name}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Obrigatório - Todo departamento deve pertencer a uma direção</p>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="departamento@empresa.com"
-                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Direção</label>
-                  <select
-                    value={formData.directionId}
-                    onChange={(e) => setFormData({ ...formData, directionId: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
-                  >
-                    <option value="">Sem direção</option>
-                    {directions.map((dir) => (
-                      <option key={dir.id} value={dir.id}>{dir.name}</option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                      <User className="w-4 h-4 text-gray-400" />
+                      Responsável
+                    </label>
+                    <select
+                      value={formData.managerId}
+                      onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    >
+                      <option value="">Nenhum responsável</option>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>{user.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Responsável</label>
-                  <select
-                    value={formData.managerId}
-                    onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700"
-                  >
-                    <option value="">Sem responsável</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>{user.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                {/* Card: Configurações (apenas ao editar) */}
+                {editingDepartment && (
+                  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-primary-500" />
+                      Configurações
+                    </h3>
+                    
+                    <label className="flex items-center gap-3 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                        className="w-5 h-5 text-primary-500 rounded focus:ring-2 focus:ring-primary-500"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium">Departamento Ativo</span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {formData.isActive ? 'Visível e operacional' : 'Oculto e inativo'}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
 
-              {editingDepartment && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                    className="rounded"
-                  />
-                  <label className="text-sm">Ativo</label>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); resetForm(); }}
-                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-                >
-                  {editingDepartment ? 'Atualizar' : 'Criar'}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
+          </div>
+          
+          {/* Footer fixo com botões */}
+          <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowModal(false); resetForm(); }}
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="departmentForm"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Save className="w-5 h-5" />
+                {editingDepartment ? 'Atualizar' : 'Criar'} Departamento
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

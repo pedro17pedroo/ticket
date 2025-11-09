@@ -25,6 +25,12 @@ import {
   Tags as TagsIcon,
   FileText,
   HardDrive,
+  FolderOpen,
+  ThumbsUp,
+  TrendingUp,
+  Package,
+  Shield,
+  Cog,
 } from 'lucide-react'
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -33,17 +39,15 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   
   // Estados para controlar menus expansíveis
   const [inventoryOpen, setInventoryOpen] = useState(location.pathname.startsWith('/inventory'))
+  const [catalogOpen, setCatalogOpen] = useState(location.pathname.startsWith('/catalog'))
   const [structureOpen, setStructureOpen] = useState(
     location.pathname.startsWith('/users') ||
     location.pathname.startsWith('/directions') ||
     location.pathname.startsWith('/departments') ||
     location.pathname.startsWith('/sections')
   )
-  const [ticketsOpen, setTicketsOpen] = useState(
-    location.pathname.startsWith('/categories') ||
-    location.pathname.startsWith('/slas') ||
-    location.pathname.startsWith('/priorities') ||
-    location.pathname.startsWith('/types')
+  const [systemOpen, setSystemOpen] = useState(
+    location.pathname.startsWith('/system/')
   )
 
   // Menus principais (não agrupados)
@@ -61,12 +65,12 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/sections', icon: FolderTree, label: 'Secções' },
   ]
 
-  // Submenu: Gestão de Tickets
-  const ticketsSubmenu = [
-    { path: '/categories', icon: Tag, label: 'Categorias' },
-    { path: '/slas', icon: Clock, label: 'SLAs' },
-    { path: '/priorities', icon: AlertCircle, label: 'Prioridades' },
-    { path: '/types', icon: FileType, label: 'Tipos' },
+  // Submenu: Sistema (Configurações Técnicas Globais)
+  const systemSubmenu = [
+    { path: '/system/slas', icon: Clock, label: 'SLAs' },
+    { path: '/system/priorities', icon: AlertCircle, label: 'Prioridades' },
+    { path: '/system/types', icon: FileType, label: 'Tipos' },
+    { path: '/system/roles', icon: Shield, label: 'Permissões (RBAC)' },
   ]
 
   // Submenu: Inventário
@@ -76,11 +80,19 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/inventory/assets', icon: HardDrive, label: 'Todos os Inventários' },
   ]
 
+  // Submenu: Catálogo de Serviços
+  const catalogSubmenu = [
+    { path: '/catalog', icon: Package, label: 'Itens/Serviços' },
+    { path: '/catalog/categories', icon: FolderOpen, label: 'Categorias' },
+    { path: '/catalog/approvals', icon: ThumbsUp, label: 'Aprovações' },
+    { path: '/catalog/analytics', icon: TrendingUp, label: 'Analytics' },
+  ]
+
   // Outros menus
   const otherMenuItems = [
     { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento' },
     { path: '/hours-bank', icon: Timer, label: 'Bolsa de Horas' },
-    { path: '/catalog', icon: ShoppingCart, label: 'Catálogo de Serviços' },
+    { path: '/reports', icon: BarChart3, label: 'Relatórios Avançados' },
     { path: '/tags', icon: TagsIcon, label: 'Tags' },
     { path: '/templates', icon: FileText, label: 'Templates' },
   ]
@@ -103,7 +115,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     <>
       {/* Sidebar Desktop */}
       <aside
-        className={`fixed left-0 top-0 z-40 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col ${
+        className={`fixed left-0 top-0 z-30 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col ${
           isOpen ? 'w-64' : 'w-20'
         }`}
       >
@@ -189,48 +201,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             )}
           </div>
 
-          {/* Gestão de Tickets - Grupo Expansível */}
-          <div className="space-y-1">
-            <button
-              onClick={() => setTicketsOpen(!ticketsOpen)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                isGroupActive(ticketsSubmenu)
-                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <BarChart3 className="w-5 h-5 flex-shrink-0" />
-              {isOpen && (
-                <>
-                  <span className="font-medium flex-1 text-left">Gestão de Tickets</span>
-                  <ChevronDown
-                    className={`w-4 h-4 transition-transform ${
-                      ticketsOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </>
-              )}
-            </button>
-
-            {ticketsOpen && isOpen && (
-              <div className="ml-8 space-y-1">
-                {ticketsSubmenu.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      isActive(item.path)
-                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* Inventário - Grupo Expansível */}
           <div className="space-y-1">
@@ -275,6 +245,49 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             )}
           </div>
 
+          {/* Catálogo de Serviços - Grupo Expansível */}
+          <div className="space-y-1">
+            <button
+              onClick={() => setCatalogOpen(!catalogOpen)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                isGroupActive(catalogSubmenu)
+                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+              {isOpen && (
+                <>
+                  <span className="font-medium flex-1 text-left">Catálogo de Serviços</span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${
+                      catalogOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </>
+              )}
+            </button>
+
+            {catalogOpen && isOpen && (
+              <div className="ml-8 space-y-1">
+                {catalogSubmenu.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      location.pathname === item.path
+                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Divider */}
           <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
 
@@ -296,6 +309,49 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
           {/* Divider */}
           <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+
+          {/* Sistema - Grupo Expansível (Configurações Técnicas) */}
+          <div className="space-y-1">
+            <button
+              onClick={() => setSystemOpen(!systemOpen)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                isGroupActive(systemSubmenu)
+                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Cog className="w-5 h-5 flex-shrink-0" />
+              {isOpen && (
+                <>
+                  <span className="font-medium flex-1 text-left">Sistema</span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${
+                      systemOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </>
+              )}
+            </button>
+
+            {systemOpen && isOpen && (
+              <div className="ml-8 space-y-1">
+                {systemSubmenu.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      isActive(item.path)
+                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Menu Inferior (Configurações) */}
           {bottomMenuItems.map((item) => (

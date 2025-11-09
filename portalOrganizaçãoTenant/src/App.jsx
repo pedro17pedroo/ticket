@@ -24,6 +24,9 @@ import Types from './pages/Types'
 import HoursBank from './pages/HoursBank'
 import Settings from './pages/Settings'
 import ServiceCatalog from './pages/ServiceCatalog'
+import CatalogCategories from './pages/CatalogCategories'
+import CatalogApprovals from './pages/CatalogApprovals'
+import CatalogAnalytics from './pages/CatalogAnalytics'
 import Tags from './pages/Tags'
 import Templates from './pages/Templates'
 import Inventory from './pages/Inventory'
@@ -35,6 +38,8 @@ import OrganizationInventory from './pages/OrganizationInventory'
 import ClientsInventory from './pages/ClientsInventory'
 import UserInventoryDetail from './pages/UserInventoryDetail'
 import ClientInventoryDetail from './pages/ClientInventoryDetail'
+import Reports from './pages/Reports'
+import RoleManagement from './pages/Settings/RoleManagement'
 
 // Componente de rota protegida
 const PrivateRoute = ({ children }) => {
@@ -95,13 +100,26 @@ function App() {
                   <Route path="/directions" element={<Directions />} />
                   <Route path="/departments" element={<Departments />} />
                   <Route path="/sections" element={<Sections />} />
+                  {/* Rotas antigas (compatibilidade) - podem ser removidas futuramente */}
                   <Route path="/categories" element={<Categories />} />
-                  <Route path="/knowledge" element={<Knowledge />} />
                   <Route path="/slas" element={<SLAs />} />
                   <Route path="/priorities" element={<Priorities />} />
                   <Route path="/types" element={<Types />} />
+                  
+                  {/* Rotas novas com prefixo /system/ */}
+                  <Route path="/system/categories" element={<Categories />} />
+                  <Route path="/system/slas" element={<SLAs />} />
+                  <Route path="/system/priorities" element={<Priorities />} />
+                  <Route path="/system/types" element={<Types />} />
+                  <Route path="/system/roles" element={<RoleManagement />} />
+                  
+                  <Route path="/knowledge" element={<Knowledge />} />
                   <Route path="/hours-bank" element={<HoursBank />} />
+                  <Route path="/reports" element={<Reports />} />
                   <Route path="/catalog" element={<ServiceCatalog />} />
+                  <Route path="/catalog/categories" element={<CatalogCategories />} />
+                  <Route path="/catalog/approvals" element={<CatalogApprovals />} />
+                  <Route path="/catalog/analytics" element={<CatalogAnalytics />} />
                   <Route path="/tags" element={<Tags />} />
                   <Route path="/templates" element={<Templates />} />
                   <Route path="/inventory" element={<InventoryDashboard />} />

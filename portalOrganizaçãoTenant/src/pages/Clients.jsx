@@ -25,7 +25,7 @@ const Clients = () => {
 
   const loadClients = async () => {
     try {
-      const response = await api.get('/clients', { params: { search } })
+      const response = await api.get('/clients-b2b', { params: { search } })
       setClients(response.data.clients || [])
     } catch (error) {
       console.error('Erro:', error)
@@ -38,7 +38,7 @@ const Clients = () => {
     e.preventDefault()
     try {
       if (editingClient) {
-        await api.put(`/clients/${editingClient.id}`, {
+        await api.put(`/clients-b2b/${editingClient.id}`, {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
@@ -46,7 +46,7 @@ const Clients = () => {
         })
         showSuccess('Atualizado!', 'Cliente atualizado com sucesso')
       } else {
-        await api.post('/clients', formData)
+        await api.post('/clients-b2b', formData)
         showSuccess('Criado!', 'Cliente criado com sucesso')
       }
       setShowModal(false)
@@ -78,7 +78,7 @@ const Clients = () => {
     if (!confirmed) return
     
     try {
-      await api.delete(`/clients/${id}`)
+      await api.delete(`/clients-b2b/${id}`)
       showSuccess('Desativado!', 'Cliente desativado com sucesso')
       loadClients()
     } catch (error) {
@@ -88,7 +88,7 @@ const Clients = () => {
 
   const handleActivate = async (id) => {
     try {
-      await api.put(`/clients/${id}/activate`)
+      await api.put(`/clients-b2b/${id}/activate`)
       showSuccess('Ativado!', 'Cliente reativado com sucesso')
       loadClients()
     } catch (error) {

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, FileText, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileText, X, Save, Mail, FolderOpen, Settings } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import Modal from '../components/Modal';
 
 const Templates = () => {
   const [templates, setTemplates] = useState([]);
@@ -94,6 +95,17 @@ const Templates = () => {
     });
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      subject: '',
+      content: '',
+      categoryId: '',
+      isPublic: true
+    });
+    setEditingTemplate(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -183,104 +195,159 @@ const Templates = () => {
       )}
 
       {/* Modal */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">
-                {editingTemplate ? 'Editar Template' : 'Novo Template'}
-              </h2>
+      <Modal isOpen={showModal} onClose={handleCloseModal}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+          
+          {/* Header com gradiente */}
+          <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <FileText className="w-6 h-6" />
+                  {editingTemplate ? 'Editar Template' : 'Novo Template'}
+                </h2>
+                <p className="text-primary-100 text-sm mt-1">
+                  {editingTemplate 
+                    ? 'Atualize o template de resposta rápida'
+                    : 'Crie um novo template para agilizar o atendimento'
+                  }
+                </p>
+              </div>
               <button
                 onClick={handleCloseModal}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
+          </div>
+          
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
+            <div className="bg-gray-50 dark:bg-gray-900 p-6">
+              <form id="templateForm" onSubmit={handleSubmit} className="space-y-5">
+                {/* Card: Conteúdo do Template */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-primary-500" />
+                    Conteúdo do Template
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome do Template *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="Ex: Resposta padrão de boas-vindas"
+                    />
+                  </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Nome *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-                  placeholder="Ex: Resposta padrão de boas-vindas"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assunto <span className="text-xs text-gray-500">(opcional)</span></label>
+                    <input
+                      type="text"
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="Ex: Bem-vindo ao suporte"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Assunto (opcional)</label>
-                <input
-                  type="text"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-                  placeholder="Ex: Bem-vindo ao suporte"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Conteúdo *</label>
+                    <textarea
+                      value={formData.content}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      required
+                      rows={10}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                      placeholder="Escreva o conteúdo do template...\n\nDica: Você pode usar variáveis como {nome}, {email}, {ticket}"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Use variáveis para personalizar automaticamente as respostas</p>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Conteúdo *</label>
-                <textarea
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  required
-                  rows={8}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-                  placeholder="Escreva o conteúdo do template..."
-                />
-              </div>
+                {/* Card: Organização */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <FolderOpen className="w-5 h-5 text-primary-500" />
+                    Organização
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Categoria <span className="text-xs text-gray-500">(opcional)</span></label>
+                    <select
+                      value={formData.categoryId}
+                      onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    >
+                      <option value="">Nenhuma categoria</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Organize templates por categoria para fácil localização</p>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Categoria (opcional)</label>
-                <select
-                  value={formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-                >
-                  <option value="">Nenhuma</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* Card: Configurações de Visibilidade */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-primary-500" />
+                    Configurações de Visibilidade
+                  </h3>
+                  
+                  <label className="flex items-center gap-3 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={formData.isPublic}
+                      onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
+                      className="w-5 h-5 text-primary-500 rounded focus:ring-2 focus:ring-primary-500"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium">Público</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {formData.isPublic 
+                          ? 'Visível para todos os membros da organização' 
+                          : 'Apenas visível para você'
+                        }
+                      </p>
+                    </div>
+                  </label>
+                </div>
 
-              <div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.isPublic}
-                    onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
-                    className="rounded"
-                  />
-                  <span className="text-sm">Público (visível para todos da organização)</span>
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg"
-                >
-                  {editingTemplate ? 'Atualizar' : 'Criar'}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
+          </div>
+          
+          {/* Footer fixo com botões */}
+          <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="templateForm"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Save className="w-5 h-5" />
+                {editingTemplate ? 'Atualizar' : 'Criar'} Template
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

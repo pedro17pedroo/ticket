@@ -21,6 +21,7 @@ import TicketHistoryPanel from '../components/TicketHistoryPanel'
 import ResolutionStatusManager from '../components/ResolutionStatusManager'
 import InternalPriorityManager from '../components/InternalPriorityManager'
 import RichTextEditor from '../components/RichTextEditor'
+import RemoteAccessButton from '../components/RemoteAccessButton'
 
 const TicketDetail = () => {
   const { id } = useParams()
@@ -186,8 +187,9 @@ const TicketDetail = () => {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/tickets')}
+            onClick={() => navigate(-1)}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            title="Voltar"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -198,6 +200,7 @@ const TicketDetail = () => {
         </div>
         {(user.role === 'admin-org' || user.role === 'agente') && (
           <div className="flex gap-2">
+            <RemoteAccessButton ticket={ticket} />
             <button
               onClick={() => setShowTransferModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"

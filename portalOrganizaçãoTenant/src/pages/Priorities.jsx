@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, AlertCircle } from 'lucide-react'
+import { Plus, Edit2, Trash2, AlertCircle, X, Save, FileText, Palette, Hash } from 'lucide-react'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
+import Modal from '../components/Modal'
 
 const Priorities = () => {
   const { t } = useTranslation()
@@ -197,79 +198,133 @@ const Priorities = () => {
       </div>
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowModal(false)}></div>
+      <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+          
+          {/* Header com gradiente */}
+          <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <AlertCircle className="w-6 h-6" />
+                  {editingPriority ? 'Editar Prioridade' : 'Nova Prioridade'}
+                </h2>
+                <p className="text-primary-100 text-sm mt-1">
+                  {editingPriority 
+                    ? 'Atualize as informações da prioridade'
+                    : 'Defina uma nova prioridade para classificação de tickets'
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowModal(false); resetForm(); }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
+            <div className="bg-gray-50 dark:bg-gray-900 p-6">
+              <form id="priorityForm" onSubmit={handleSubmit} className="space-y-5">
+                {/* Card: Informações Básicas */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary-500" />
+                    Informações Básicas
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome da Prioridade *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="Ex: Alta, Média, Baixa"
+                      required
+                    />
+                  </div>
 
-            <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white dark:bg-gray-800 shadow-xl rounded-2xl">
-              <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
-                {editingPriority ? 'Editar Prioridade' : 'Nova Prioridade'}
-              </h3>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nome
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    required
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                      <Hash className="w-4 h-4 text-gray-400" />
+                      Ordem de Exibição
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.order}
+                      onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="1"
+                      min="0"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Quanto menor o número, maior a prioridade na ordenação</p>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Cor
-                  </label>
-                  <input
-                    type="color"
-                    value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="w-full h-10 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer"
-                    required
-                  />
+                {/* Card: Aparência */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Palette className="w-5 h-5 text-primary-500" />
+                    Aparência Visual
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cor da Prioridade *</label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="color"
+                        value={formData.color}
+                        onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                        className="w-20 h-12 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer"
+                        required
+                      />
+                      <div className="flex-1">
+                        <div 
+                          className="px-4 py-2 rounded-lg font-medium text-center text-white shadow-sm"
+                          style={{ backgroundColor: formData.color }}
+                        >
+                          Prévia da Cor
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Clique no seletor para escolher uma cor</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Ordem
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.order}
-                    onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    min="0"
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowModal(false)
-                      resetForm()
-                    }}
-                    className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    {editingPriority ? 'Atualizar' : 'Criar'}
-                  </button>
-                </div>
               </form>
             </div>
           </div>
+          
+          {/* Footer fixo com botões */}
+          <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false)
+                  resetForm()
+                }}
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="priorityForm"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Save className="w-5 h-5" />
+                {editingPriority ? 'Atualizar' : 'Criar'} Prioridade
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

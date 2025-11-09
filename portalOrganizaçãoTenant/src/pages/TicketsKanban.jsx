@@ -75,16 +75,20 @@ const TicketsKanban = () => {
     try {
       const response = await ticketService.getTickets({ limit: 100 });
       const ticketsData = response.tickets || [];
-      setTickets(ticketsData);
+      
+      // Garantir que todos os tickets têm ID válido
+      const validTickets = ticketsData.filter(t => t && t.id);
+      setTickets(validTickets);
       
       // Organizar tickets por status
       const organized = {
-        novo: ticketsData.filter(t => t.status === 'novo'),
-        em_progresso: ticketsData.filter(t => t.status === 'em_progresso'),
-        aguardando_cliente: ticketsData.filter(t => t.status === 'aguardando_cliente'),
-        resolvido: ticketsData.filter(t => t.status === 'resolvido'),
-        fechado: ticketsData.filter(t => t.status === 'fechado')
+        novo: validTickets.filter(t => t.status === 'novo'),
+        em_progresso: validTickets.filter(t => t.status === 'em_progresso'),
+        aguardando_cliente: validTickets.filter(t => t.status === 'aguardando_cliente'),
+        resolvido: validTickets.filter(t => t.status === 'resolvido'),
+        fechado: validTickets.filter(t => t.status === 'fechado')
       };
+      
       setColumns(organized);
     } catch (error) {
       console.error('Erro ao carregar tickets:', error);
@@ -100,20 +104,31 @@ const TicketsKanban = () => {
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    const sourceColumn = Array.from(columns[source.droppableId]);
-    const destColumn = Array.from(columns[destination.droppableId]);
-    const [movedTicket] = sourceColumn.splice(source.index, 1);
+    // Criar cópias dos arrays
+    const sourceColumn = Array.from(columns[source.droppableId] || []);
+    const destColumn = source.droppableId === destination.droppableId 
+      ? sourceColumn 
+      : Array.from(columns[destination.droppableId] || []);
+
+    // Encontrar o ticket movido
+    const movedTicket = sourceColumn[source.index];
+    if (!movedTicket) return;
+
+    // Remover da coluna de origem
+    sourceColumn.splice(source.index, 1);
 
     // Atualizar status do ticket
     const updatedTicket = { ...movedTicket, status: destination.droppableId };
     
     if (source.droppableId === destination.droppableId) {
+      // Mesma coluna: apenas reordenar
       sourceColumn.splice(destination.index, 0, updatedTicket);
       setColumns({
         ...columns,
         [source.droppableId]: sourceColumn
       });
     } else {
+      // Colunas diferentes: mover entre colunas
       destColumn.splice(destination.index, 0, updatedTicket);
       setColumns({
         ...columns,
@@ -182,13 +197,13 @@ const TicketsKanban = () => {
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-4 overflow-x-auto pb-4" style={{ scrollBehavior: 'smooth' }}>
           {Object.entries(statusConfig).map(([status, config]) => {
             const Icon = config.icon;
             const columnTickets = columns[status] || [];
 
             return (
-              <div key={status} className="flex flex-col min-w-[300px]">
+              <div key={status} className="flex flex-col min-w-[280px] md:min-w-[320px] flex-shrink-0">
                 {/* Column Header */}
                 <div className={`${config.color} ${config.textColor} rounded-t-lg p-4 border-b-2 ${config.borderColor}`}>
                   <div className="flex items-center justify-between">
@@ -217,8 +232,8 @@ const TicketsKanban = () => {
                       <div className="space-y-3">
                         {columnTickets.map((ticket, index) => (
                           <Draggable
-                            key={ticket.id}
-                            draggableId={ticket.id}
+                            key={String(ticket.id)}
+                            draggableId={String(ticket.id)}
                             index={index}
                           >
                             {(provided, snapshot) => (
@@ -311,8 +326,8 @@ const TicketsKanban = () => {
                             )}
                           </Draggable>
                         ))}
-                        {provided.placeholder}
                       </div>
+                      {provided.placeholder}
 
                       {columnTickets.length === 0 && (
                         <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
