@@ -16,8 +16,12 @@ import Departments from './pages/Departments'
 import Sections from './pages/Sections'
 import HoursBank from './pages/HoursBank'
 import ServiceCatalog from './pages/ServiceCatalog'
+import ServiceCatalogEnhanced from './pages/ServiceCatalogEnhanced'
+import ServiceCatalogHierarchical from './pages/ServiceCatalogHierarchical'
+import MyRequests from './pages/MyRequests'
 import MyAssets from './pages/MyAssets'
 import MyAssetDetail from './pages/MyAssetDetail'
+import Organization from './pages/Organization'
 
 const PrivateRoute = ({ children }) => {
   const { token } = useAuthStore()
@@ -77,8 +81,11 @@ function App() {
                   <Route path="/sections" element={<Sections />} />
                   <Route path="/hours-bank" element={<HoursBank />} />
                   <Route path="/catalog" element={<ServiceCatalog />} />
+                  <Route path="/service-catalog" element={<ServiceCatalogHierarchical />} />
+                  <Route path="/my-requests" element={<MyRequests />} />
                   <Route path="/my-assets" element={<MyAssets />} />
                   <Route path="/my-assets/:id" element={<MyAssetDetail />} />
+                  <Route path="/organization" element={<Organization />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </Layout>
