@@ -529,7 +529,7 @@ const ServiceCatalogHierarchical = () => {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                     </div>
                   ) : (
-                    <div className="h-24 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 flex items-center justify-center">
+                    <div className="h-32 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 flex items-center justify-center">
                       <div className="p-3 bg-white/50 dark:bg-black/20 rounded-lg">
                         {renderIcon(subcategory.icon, "w-8 h-8 text-blue-600 dark:text-blue-400")}
                       </div>
