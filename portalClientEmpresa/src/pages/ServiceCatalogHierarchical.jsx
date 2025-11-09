@@ -408,17 +408,22 @@ const ServiceCatalogHierarchical = () => {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               Catálogo de Serviços
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Solicite serviços e recursos de forma rápida e fácil
-            </p>
+            {/* Breadcrumb ou Subtítulo */}
+            {navigationLevel === 'categories' ? (
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
+                Solicite serviços e recursos de forma rápida e fácil
+              </p>
+            ) : (
+              <div className="mt-3">
+                {renderBreadcrumb()}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
-        {navigationLevel !== 'categories' && renderBreadcrumb()}
 
         {/* Loading */}
         {loading && (
