@@ -516,7 +516,7 @@ const ServiceCatalogHierarchical = () => {
                 <button
                   key={subcategory.id}
                   onClick={() => handleSubcategoryClick(subcategory)}
-                  className="group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg transition-all transform hover:-translate-y-1"
+                  className="group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg transition-all transform hover:-translate-y-1 flex flex-col"
                 >
                   {/* Imagem ou ícone de topo */}
                   {subcategory.imageUrl ? (
@@ -537,25 +537,27 @@ const ServiceCatalogHierarchical = () => {
                   )}
                   
                   {/* Conteúdo */}
-                  <div className="p-4">
-                    <h3 className="font-bold text-gray-900 dark:text-white mb-2 text-center group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {subcategory.name}
-                    </h3>
-                    {subcategory.description && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 text-center mb-3">
-                        {subcategory.description}
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-gray-900 dark:text-white mb-2 text-center group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {subcategory.name}
+                      </h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 text-center mb-3 min-h-[32px]">
+                        {subcategory.description || '\u00A0'}
                       </p>
-                    )}
+                    </div>
                     
                     {/* Badge de itens */}
-                    {subcategory.itemCount > 0 && (
-                      <div className="flex justify-center">
+                    <div className="flex justify-center">
+                      {subcategory.itemCount > 0 ? (
                         <span className="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-xs font-medium flex items-center gap-1">
                           <Package className="w-3 h-3" />
                           {subcategory.itemCount} {subcategory.itemCount === 1 ? 'item' : 'itens'}
                         </span>
-                      </div>
-                    )}
+                      ) : (
+                        <span className="invisible">placeholder</span>
+                      )}
+                    </div>
                   </div>
                 </button>
               ))}
