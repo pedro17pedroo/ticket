@@ -1,0 +1,86 @@
+/* Quill Editor Customização */
+.ql-toolbar {
+  background: #f9fafb;
+  border: 1px solid #d1d5db !important;
+  border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+.dark .ql-toolbar {
+  background: #374151;
+  border-color: #4b5563 !important;
+}
+
+.ql-container {
+  border: 1px solid #d1d5db !important;
+  border-radius: 0 0 0.5rem 0.5rem !important;
+  font-size: 14px;
+  min-height: 150px;
+}
+
+.dark .ql-container {
+  border-color: #4b5563 !important;
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.ql-editor {
+  min-height: 150px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.dark .ql-editor.ql-blank::before {
+  color: #9ca3af;
+}
+
+.dark .ql-stroke {
+  stroke: #9ca3af !important;
+}
+
+.dark .ql-fill {
+  fill: #9ca3af !important;
+}
+
+.dark .ql-picker-label {
+  color: #9ca3af !important;
+}
+
+/* Visualização de Ticket */
+.ticket-description-view {
+  line-height: 1.6;
+}
+
+.ticket-description-view h1,
+.ticket-description-view h2,
+.ticket-description-view h3 {
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+.ticket-description-view h1 { font-size: 1.5em; }
+.ticket-description-view h2 { font-size: 1.3em; }
+.ticket-description-view h3 { font-size: 1.1em; }
+
+.ticket-description-view ul,
+.ticket-description-view ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.ticket-description-view a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.dark .ticket-description-view a {
+  color: #60a5fa;
+}
+
+.ticket-description-view strong {
+  font-weight: 600;
+}
+
+.ticket-description-view em {
+  font-style: italic;
+}

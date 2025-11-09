@@ -3,7 +3,6 @@ import { useAuthStore } from '../store/authStore'
 import {
   Home,
   Ticket,
-  Plus,
   BookOpen,
   Users,
   Building2,
@@ -11,6 +10,7 @@ import {
   Network,
   Clock,
   ShoppingCart,
+  ShoppingBag,
   HardDrive,
   X,
 } from 'lucide-react'
@@ -18,21 +18,18 @@ import {
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation()
   const { user } = useAuthStore()
-  const isClientUser = user?.role === 'cliente-org'
+  const isClientAdmin = user?.role === 'client-admin'
 
   const menuItems = [
     { path: '/', icon: Home, label: 'Início' },
-    { path: '/catalog', icon: ShoppingCart, label: 'Catálogo de Serviços' },
+    { path: '/service-catalog', icon: ShoppingCart, label: 'Catálogo de Serviços' },
+    { path: '/my-requests', icon: ShoppingBag, label: 'Minhas Solicitações' },
     { path: '/tickets', icon: Ticket, label: 'Meus Tickets' },
-    { path: '/tickets/new', icon: Plus, label: 'Novo Ticket' },
     { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento' },
     { path: '/my-assets', icon: HardDrive, label: 'Meus Equipamentos' },
     { path: '/hours-bank', icon: Clock, label: 'Bolsa de Horas' },
-    ...(isClientUser ? [
-      { path: '/users', icon: Users, label: 'Utilizadores' },
-      { path: '/directions', icon: Building2, label: 'Direções' },
-      { path: '/departments', icon: FolderTree, label: 'Departamentos' },
-      { path: '/sections', icon: Network, label: 'Secções' },
+    ...(isClientAdmin ? [
+      { path: '/organization', icon: Building2, label: 'Organização' },
     ] : []),
   ]
 

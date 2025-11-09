@@ -22,13 +22,17 @@ api.interceptors.response.use(
   (error) => {
     const message = error.response?.data?.error || error.message || 'Erro desconhecido'
     
-    if (error.response?.status === 401) {
+    // Não redirecionar em caso de erro na rota de login
+    const isLoginRequest = error.config?.url?.includes('/auth/login')
+    
+    if (error.response?.status === 401 && !isLoginRequest) {
       useAuthStore.getState().logout()
       window.location.href = '/login'
       toast.error('Sessão expirada. Faça login novamente.')
-    } else {
-      toast.error(message)
     }
+    
+    // Não mostrar toast automático - deixar componentes tratarem
+    // toast.error(message)
     
     return Promise.reject(error)
   }
@@ -126,33 +130,39 @@ export const ticketService = {
   },
 }
 
-// Client portal - users management
-export const clientUserService = {
+// Client portal - users management (DEPRECATED - usar clientUserService.js)
+// Mantido para compatibilidade, mas recomenda-se usar o serviço separado
+export const clientUserServiceLegacy = {
   getAll: async (params) => {
-    const response = await api.get('/client/users', { params })
+    const user = JSON.parse(localStorage.getItem('user'))
+    const response = await api.get(`/client-users-b2b/clients/${user?.clientId}/users`, { params })
     return response.data
   },
   create: async (data) => {
-    const response = await api.post('/client/users', data)
+    const user = JSON.parse(localStorage.getItem('user'))
+    const response = await api.post(`/client-users-b2b/clients/${user?.clientId}/users`, data)
     return response.data
   },
   update: async (id, data) => {
-    const response = await api.put(`/client/users/${id}`, data)
+    const response = await api.put(`/client-users-b2b/${id}`, data)
     return response.data
   },
   remove: async (id) => {
-    const response = await api.delete(`/client/users/${id}`)
+    const response = await api.delete(`/client-users-b2b/${id}`)
     return response.data
   },
   activate: async (id) => {
-    const response = await api.put(`/client/users/${id}/activate`)
+    const response = await api.put(`/client-users-b2b/${id}/activate`)
     return response.data
   },
   resetPassword: async (id, newPassword) => {
-    const response = await api.put(`/client/users/${id}/reset-password`, { newPassword })
+    const response = await api.put(`/client-users-b2b/${id}/change-password`, { newPassword })
     return response.data
   }
 }
+
+// Client Users - Re-export do serviço separado
+export { clientUserService } from './clientUserService'
 
 // Hours Bank - Cliente
 export const hoursBankService = {

@@ -26,20 +26,8 @@ const MyAssets = () => {
   const [filterType, setFilterType] = useState('');
 
   useEffect(() => {
-    // Auto-coleta apenas na primeira montagem
-    let mounted = true;
-    
-    const init = async () => {
-      if (mounted) {
-        await autoCollectAndSend();
-      }
-    };
-    
-    init();
-    
-    return () => {
-      mounted = false;
-    };
+    // Carregar dados do inventário
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -94,8 +82,9 @@ const MyAssets = () => {
       setStatistics(statsData.statistics);
       setAssets(assetsData.assets || []);
     } catch (error) {
-      console.error('Erro ao carregar inventário:', error);
-      toast.error('Erro ao carregar dados do inventário');
+      console.log('Erro ao carregar inventário:', error);
+      setStatistics(null);
+      setAssets([]);
     } finally {
       setLoading(false);
     }
@@ -228,54 +217,58 @@ const MyAssets = () => {
         </div>
       )}
 
-      {/* Info: Coleta automática ativa */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-        <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-          <div className="flex-1">
-            <h3 className="font-medium text-blue-900 dark:text-blue-100">Atualização Automática Ativa</h3>
-            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-              Suas informações são atualizadas automaticamente sempre que acede a esta página. 
-              Não precisa fazer nada!
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Pesquisar</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Nome, hostname, modelo..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-              />
+      {/* Info: Inventário gerido pelo administrador */}
+      {!statistics && !loading && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-medium text-yellow-900 dark:text-yellow-100">Inventário Não Disponível</h3>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                O inventário de equipamentos é gerido pelo administrador do sistema. 
+                Para consultar seus equipamentos, contacte o suporte.
+              </p>
             </div>
           </div>
+        </div>
+      )}
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Tipo</label>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-            >
-              <option value="">Todos</option>
-              <option value="desktop">Desktop</option>
-              <option value="laptop">Laptop</option>
-              <option value="server">Servidor</option>
-              <option value="tablet">Tablet</option>
-              <option value="smartphone">Smartphone</option>
-            </select>
+      {/* Filters - Apenas mostrar se houver assets */}
+      {assets.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Pesquisar</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Nome, hostname, modelo..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Tipo</label>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+              >
+                <option value="">Todos</option>
+                <option value="desktop">Desktop</option>
+                <option value="laptop">Laptop</option>
+                <option value="server">Servidor</option>
+                <option value="tablet">Tablet</option>
+                <option value="smartphone">Smartphone</option>
+              </select>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Assets Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -288,7 +281,9 @@ const MyAssets = () => {
             <HardDrive className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Nenhum equipamento encontrado</p>
             <p className="text-sm mt-2">
-              Execute o script de coleta para adicionar seus equipamentos
+              {searchTerm || filterType 
+                ? 'Tente ajustar os filtros de pesquisa' 
+                : 'O inventário de equipamentos ainda não foi configurado'}
             </p>
           </div>
         ) : (

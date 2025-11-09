@@ -31,9 +31,11 @@ const ServiceCatalog = () => {
     setLoading(true)
     try {
       const categoriesRes = await api.get('/catalog/categories')
+      console.log('📁 Categorias carregadas:', categoriesRes.data)
       setCategories(categoriesRes.data.categories || [])
     } catch (error) {
-      console.error('Erro ao carregar catálogo:', error)
+      console.error('❌ Erro ao carregar catálogo:', error)
+      console.error('Detalhes:', error.response?.data)
       toast.error('Erro ao carregar catálogo')
     } finally {
       setLoading(false)
@@ -46,10 +48,13 @@ const ServiceCatalog = () => {
       if (categoryId) params.categoryId = categoryId
       if (searchTerm) params.search = searchTerm
 
+      console.log('🔍 Buscando itens com params:', params)
       const response = await api.get('/catalog/items', { params })
+      console.log('📦 Itens carregados:', response.data)
       setItems(response.data.items || [])
     } catch (error) {
-      console.error('Erro ao carregar itens:', error)
+      console.error('❌ Erro ao carregar itens:', error)
+      console.error('Detalhes:', error.response?.data)
     }
   }
 
@@ -230,7 +235,17 @@ const ServiceCatalog = () => {
       {items.length === 0 ? (
         <div className="text-center py-12">
           <ShoppingCart className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-          <p className="text-gray-500 dark:text-gray-400">Nenhum serviço disponível</p>
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            Nenhum serviço encontrado
+          </h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            {searchTerm 
+              ? 'Tente ajustar os filtros ou fazer uma nova busca'
+              : 'Entre em contacto com o suporte para solicitar a configuração do catálogo de serviços'}
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            💡 Os serviços precisam estar marcados como <strong>públicos</strong> e <strong>ativos</strong> para aparecerem aqui
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

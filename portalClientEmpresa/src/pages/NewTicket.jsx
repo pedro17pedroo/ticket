@@ -29,11 +29,31 @@ const NewTicket = () => {
         ticketService.getTypes(),
         ticketService.getCategories()
       ])
-      setPriorities(prioritiesRes.priorities || [])
-      setTypes(typesRes.types || [])
-      setCategories(categoriesRes.categories || [])
+      
+      const priorities = prioritiesRes.priorities || []
+      const types = typesRes.types || []
+      const categories = categoriesRes.categories || []
+      
+      setPriorities(priorities)
+      setTypes(types)
+      setCategories(categories)
+      
+      // Se não houver dados, tentar popular automaticamente
+      if (priorities.length === 0 && types.length === 0 && categories.length === 0) {
+        console.log('Sem dados cadastrados. Populando dados padrão...')
+        try {
+          await api.post('/setup/defaults')
+          toast.success('Dados padrão configurados!')
+          // Recarregar dados
+          loadFormData()
+        } catch (setupError) {
+          console.error('Erro ao configurar dados padrão:', setupError)
+          toast.error('Configure prioridades, tipos e categorias nas configurações')
+        }
+      }
     } catch (error) {
       console.error('Erro ao carregar dados do formulário:', error)
+      toast.error('Erro ao carregar formulário')
     }
   }
 
@@ -127,30 +147,26 @@ const NewTicket = () => {
             <label className="block text-sm font-medium mb-2">
               Descrição Detalhada <span className="text-red-500">*</span>
             </label>
+            
+            {/* Dicas antes do editor */}
+            <div className="mb-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <p className="text-xs font-medium text-blue-900 dark:text-blue-300 mb-1">
+                💡 Dicas para melhor descrever o problema:
+              </p>
+              <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-0.5 list-disc list-inside">
+                <li>Descreva o que aconteceu e quando</li>
+                <li>Liste os passos para reproduzir (se aplicável)</li>
+                <li>Inclua mensagens de erro (se houver)</li>
+                <li>Use a barra de formatação para organizar melhor</li>
+              </ul>
+            </div>
+
             <RichTextEditor
               value={description}
               onChange={setDescription}
-              placeholder="Descreva detalhadamente o problema ou solicitação...
-
-Você pode usar formatação para organizar melhor:
-• Negrito para destacar pontos importantes
-• Listas para passos ou itens
-• Cores para alertas
-• Links para referências
-
-Inclua:
-• O que aconteceu?
-• Quando aconteceu?
-• Passos para reproduzir (se aplicável)
-• Mensagens de erro (se houver)"
+              placeholder="Descreva detalhadamente o problema ou solicitação..."
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              💡 Use a barra de ferramentas para formatar o texto. Quanto mais detalhes, mais rápido poderemos ajudar!
-            </p>
           </div>
-
-          {/* Spacer */}
-          <div className="h-4"></div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Priority */}
@@ -158,6 +174,7 @@ Inclua:
               <label className="block text-sm font-medium mb-2">Prioridade</label>
               <select
                 {...register('priority')}
+                defaultValue={priorities.length > 0 ? priorities[0].name : ''}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
               >
                 {priorities.length === 0 ? (
@@ -180,6 +197,7 @@ Inclua:
               <label className="block text-sm font-medium mb-2">Tipo</label>
               <select
                 {...register('type')}
+                defaultValue={types.length > 0 ? types[0].name : ''}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
               >
                 {types.length === 0 ? (
@@ -220,21 +238,8 @@ Inclua:
               maxFiles={5}
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Anexe prints, documentos ou qualquer arquivo que ajude a entender o problema
+              Máximo 5 arquivos • Até 20MB cada
             </p>
-          </div>
-
-          {/* Help Text */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">
-              💡 Dicas para um atendimento mais rápido:
-            </h4>
-            <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1 list-disc list-inside">
-              <li>Seja específico no assunto</li>
-              <li>Descreva todos os passos que levaram ao problema</li>
-              <li>Inclua mensagens de erro, se houver</li>
-              <li>Adicione capturas de tela se possível (em breve)</li>
-            </ul>
           </div>
 
           {/* Actions */}

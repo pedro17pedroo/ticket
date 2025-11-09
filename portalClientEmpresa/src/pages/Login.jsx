@@ -15,11 +15,14 @@ const Login = () => {
   const onSubmit = async (data) => {
     setLoading(true)
     try {
+      console.log('🔐 Tentando login com:', data.email)
       const response = await authService.login(data.email, data.password)
       
-      // Verificar se é cliente
-      if (response.user.role !== 'cliente-org') {
-        toast.error('Acesso negado. Utilize o portal de organização.')
+      console.log('✅ Resposta do login:', response)
+      
+      // Verificar se é client user
+      if (!['client-admin', 'client-user', 'client-manager'].includes(response.user.role)) {
+        toast.error('Acesso negado. Utilize o portal adequado para o seu perfil.')
         setLoading(false)
         return
       }
@@ -28,7 +31,9 @@ const Login = () => {
       toast.success('Login realizado com sucesso!')
       navigate('/')
     } catch (error) {
-      console.error('Erro no login:', error)
+      console.error('❌ Erro no login:', error)
+      const message = error.response?.data?.error || error.message || 'Erro ao fazer login'
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -123,11 +128,13 @@ const Login = () => {
 
           {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">
-              Credencial de teste:
+            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-2">
+              Credenciais de teste:
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500">
-              cliente@empresademo.com / Cliente@123
+              <strong>ACME Admin:</strong> admin@acme.pt / ClientAdmin@123<br />
+              <strong>ACME User:</strong> user@acme.pt / ClientAdmin@123<br />
+              <strong>TechSolutions:</strong> admin@techsolutions.pt / ClientAdmin@123
             </p>
           </div>
         </div>
