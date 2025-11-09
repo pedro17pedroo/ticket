@@ -599,10 +599,24 @@ export const deleteCatalogItem = async (req, res, next) => {
 export const createServiceRequest = async (req, res, next) => {
   try {
     const { catalogItemId, formData, userProvidedPriority } = req.body;
+    
+    console.log('📥 Request body recebido:', req.body);
+    console.log('📋 catalogItemId:', catalogItemId);
+    console.log('📝 formData:', formData);
+    console.log('📝 typeof formData:', typeof formData);
 
-    if (!catalogItemId || !formData) {
+    if (!catalogItemId) {
+      console.log('❌ Validação falhou - catalogItemId ausente');
       return res.status(400).json({
-        error: 'catalogItemId e formData são obrigatórios'
+        error: 'catalogItemId é obrigatório'
+      });
+    }
+    
+    // formData pode ser um objeto vazio {} se não houver custom fields
+    if (formData === undefined || formData === null) {
+      console.log('❌ Validação falhou - formData ausente');
+      return res.status(400).json({
+        error: 'formData é obrigatório'
       });
     }
 

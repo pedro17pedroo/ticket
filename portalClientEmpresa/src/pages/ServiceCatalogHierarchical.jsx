@@ -179,12 +179,16 @@ const ServiceCatalogHierarchical = () => {
     setFormErrors({});
 
     try {
+      const payload = { 
+        catalogItemId: selectedItem.id,
+        formData 
+      };
+      
+      console.log('📤 Enviando solicitação:', payload);
+      
       const response = await api.post(
         `/catalog/requests`,
-        { 
-          catalogItemId: selectedItem.id,
-          formData 
-        }
+        payload
       );
 
       if (response.data.requiresApproval) {
