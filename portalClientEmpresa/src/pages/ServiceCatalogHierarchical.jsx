@@ -180,8 +180,11 @@ const ServiceCatalogHierarchical = () => {
 
     try {
       const response = await api.post(
-        `/catalog/items/${selectedItem.id}/request`,
-        { formData }
+        `/catalog/requests`,
+        { 
+          catalogItemId: selectedItem.id,
+          formData 
+        }
       );
 
       if (response.data.requiresApproval) {
