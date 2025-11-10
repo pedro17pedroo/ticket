@@ -854,18 +854,6 @@ const ServiceCatalogHierarchical = () => {
                   <h3 className="font-semibold">Detalhes Adicionais</h3>
                 </div>
                 <div className="pl-7">
-                  <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mb-2 font-medium">
-                      💡 Dicas para melhor descrever o problema:
-                    </p>
-                    <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-1 list-disc list-inside">
-                      <li>Descreva o que aconteceu e quando</li>
-                      <li>Liste os passos para reproduzir (se aplicável)</li>
-                      <li>Inclua mensagens de erro (se houver)</li>
-                      <li>Use a barra de formatação para organizar melhor</li>
-                    </ul>
-                  </div>
-                  
                   <RichTextEditor
                     value={additionalDetails}
                     onChange={setAdditionalDetails}
