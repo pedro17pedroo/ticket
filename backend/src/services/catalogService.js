@@ -271,7 +271,7 @@ class CatalogService {
         additionalDetails,
         userPriority,
         expectedResolutionTime,
-        attachments: attachments.map(a => ({
+        attachments: (attachments || []).map(a => ({
           name: a.name,
           size: a.size,
           type: a.type
@@ -429,7 +429,7 @@ class CatalogService {
       slaId,
       workflowId,
       // Metadados
-      source: 'catalog',
+      source: 'portal',
       tags: catalogItem.keywords || []
     });
 

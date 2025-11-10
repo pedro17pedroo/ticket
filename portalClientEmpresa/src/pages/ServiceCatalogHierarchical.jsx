@@ -235,7 +235,11 @@ const ServiceCatalogHierarchical = () => {
       console.log('📤 Enviando solicitação:');
       console.log('  - catalogItemId:', payload.catalogItemId);
       console.log('  - formData:', payload.formData);
-      console.log('  - formData JSON:', JSON.stringify(payload.formData));
+      console.log('  - additionalDetails:', payload.additionalDetails);
+      console.log('  - userPriority:', payload.userPriority);
+      console.log('  - expectedResolutionTime:', payload.expectedResolutionTime);
+      console.log('  - attachments:', payload.attachments.length);
+      console.log('  - payload completo:', JSON.stringify(payload, null, 2));
       
       const response = await api.post(
         `/catalog/requests`,
