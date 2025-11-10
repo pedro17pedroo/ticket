@@ -33,11 +33,16 @@ import {
   Headphones,
   FileText,
   Layers,
-  Zap
+  Zap,
+  Upload,
+  Paperclip,
+  AlertTriangle,
+  Calendar
 } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
+import RichTextEditor from '../components/RichTextEditor';
 
 const ServiceCatalogHierarchical = () => {
   // Estados de navegação
@@ -58,6 +63,10 @@ const ServiceCatalogHierarchical = () => {
   const [formData, setFormData] = useState({});
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [additionalDetails, setAdditionalDetails] = useState('');
+  const [userPriority, setUserPriority] = useState('');
+  const [expectedResolutionTime, setExpectedResolutionTime] = useState('');
 
   useEffect(() => {
     loadRootCategories();
@@ -171,6 +180,36 @@ const ServiceCatalogHierarchical = () => {
     setItems([]);
   };
 
+  // ===== UPLOAD DE FICHEIROS =====
+
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    for (const file of files) {
+      if (file.size > maxSize) {
+        toast.error(`Ficheiro ${file.name} excede o tamanho máximo de 10MB`);
+        continue;
+      }
+      
+      // Converter para base64
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setAttachments(prev => [...prev, {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          data: event.target.result
+        }]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeAttachment = (index) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   // ===== SUBMIT REQUEST =====
 
   const handleSubmitRequest = async (e) => {
@@ -181,7 +220,16 @@ const ServiceCatalogHierarchical = () => {
     try {
       const payload = { 
         catalogItemId: selectedItem.id,
-        formData 
+        formData,
+        additionalDetails,
+        userPriority,
+        expectedResolutionTime,
+        attachments: attachments.map(f => ({
+          name: f.name,
+          size: f.size,
+          type: f.type,
+          data: f.data
+        }))
       };
       
       console.log('📤 Enviando solicitação:');
@@ -202,6 +250,11 @@ const ServiceCatalogHierarchical = () => {
 
       setShowRequestModal(false);
       setSelectedItem(null);
+      setFormData({});
+      setAttachments([]);
+      setAdditionalDetails('');
+      setUserPriority('');
+      setExpectedResolutionTime('');
     } catch (error) {
       console.error('❌ Erro ao enviar solicitação:', error);
       
@@ -792,6 +845,134 @@ const ServiceCatalogHierarchical = () => {
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* Detalhes Adicionais */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <FileText className="w-5 h-5" />
+                  <h3 className="font-semibold">Detalhes Adicionais</h3>
+                </div>
+                <div className="pl-7">
+                  <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mb-2 font-medium">
+                      💡 Dicas para melhor descrever o problema:
+                    </p>
+                    <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-1 list-disc list-inside">
+                      <li>Descreva o que aconteceu e quando</li>
+                      <li>Liste os passos para reproduzir (se aplicável)</li>
+                      <li>Inclua mensagens de erro (se houver)</li>
+                      <li>Use a barra de formatação para organizar melhor</li>
+                    </ul>
+                  </div>
+                  
+                  <RichTextEditor
+                    value={additionalDetails}
+                    onChange={setAdditionalDetails}
+                    placeholder="Descreva detalhadamente a sua necessidade, problemas encontrados, ou qualquer informação adicional relevante..."
+                    className="min-h-[200px]"
+                  />
+                  
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Quanto mais detalhes fornecer, melhor poderemos atendê-lo
+                  </p>
+                </div>
+              </div>
+
+              {/* Upload de Ficheiros */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <Paperclip className="w-5 h-5" />
+                  <h3 className="font-semibold">Anexos</h3>
+                </div>
+                <div className="pl-7 space-y-3">
+                  <label className="flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 transition-colors cursor-pointer">
+                    <Upload className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Clique para selecionar ficheiros ou arraste aqui
+                    </span>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                    />
+                  </label>
+                  
+                  {attachments.length > 0 && (
+                    <div className="space-y-2">
+                      {attachments.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                              {file.name}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              ({(file.size / 1024).toFixed(1)} KB)
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeAttachment(index)}
+                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                          >
+                            <X className="w-4 h-4 text-gray-500" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Máximo 10MB por ficheiro. Formatos aceites: imagens, PDF, Word, Excel, texto
+                  </p>
+                </div>
+              </div>
+
+              {/* Prioridade do Cliente */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <AlertTriangle className="w-5 h-5" />
+                  <h3 className="font-semibold">Urgência da Solicitação</h3>
+                </div>
+                <div className="pl-7">
+                  <select
+                    value={userPriority}
+                    onChange={(e) => setUserPriority(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="">Selecione a urgência...</option>
+                    <option value="baixa">🟢 Baixa - Pode aguardar alguns dias</option>
+                    <option value="media">🟡 Média - Necessário em breve</option>
+                    <option value="alta">🟠 Alta - Necessário urgentemente</option>
+                    <option value="critica">🔴 Crítica - Bloqueando trabalho</option>
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Esta informação ajuda-nos a priorizar o atendimento
+                  </p>
+                </div>
+              </div>
+
+              {/* Prazo Esperado */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <Calendar className="w-5 h-5" />
+                  <h3 className="font-semibold">Prazo Esperado</h3>
+                </div>
+                <div className="pl-7">
+                  <input
+                    type="date"
+                    value={expectedResolutionTime}
+                    onChange={(e) => setExpectedResolutionTime(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Quando necessita que esta solicitação seja resolvida?
+                  </p>
+                </div>
               </div>
 
               </form>

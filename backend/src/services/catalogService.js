@@ -227,7 +227,13 @@ class CatalogService {
    * Criar Service Request com regras de negócio aplicadas
    */
   async createServiceRequest(catalogItemId, userId, formData, organizationId, options = {}) {
-    const { userProvidedPriority = null } = options;
+    const { 
+      userProvidedPriority = null,
+      additionalDetails = '',
+      userPriority = '',
+      expectedResolutionTime = null,
+      attachments = []
+    } = options;
 
     // Buscar item do catálogo
     const item = await CatalogItem.findOne({
@@ -255,12 +261,22 @@ class CatalogService {
     const routing = await this.determineRouting(item, item.category);
     const workflowId = this.getWorkflowByType(item);
 
-    // Criar service request
+    // Criar service request com todas as informações do cliente
     const serviceRequest = await ServiceRequest.create({
       organizationId,
       catalogItemId,
       userId,
-      formData,
+      formData: {
+        ...formData,
+        additionalDetails,
+        userPriority,
+        expectedResolutionTime,
+        attachments: attachments.map(a => ({
+          name: a.name,
+          size: a.size,
+          type: a.type
+        }))
+      },
       requestType: item.itemType,
       finalPriority,
       status: requiresApproval ? 'pending' : 'approved',
@@ -279,7 +295,8 @@ class CatalogService {
         item,
         routing,
         workflowId,
-        finalPriority
+        finalPriority,
+        { additionalDetails, userPriority, expectedResolutionTime, attachments }
       );
 
       await serviceRequest.update({
@@ -294,9 +311,30 @@ class CatalogService {
   }
 
   /**
+   * Gerar número de ticket único
+   */
+  async generateTicketNumber() {
+    const lastTicket = await Ticket.findOne({
+      order: [['createdAt', 'DESC']],
+      attributes: ['ticketNumber']
+    });
+
+    if (!lastTicket || !lastTicket.ticketNumber) {
+      return 'TKT-000001';
+    }
+
+    // Extrair número do último ticket (formato: TKT-XXXXXX)
+    const lastNumber = parseInt(lastTicket.ticketNumber.split('-')[1] || '0');
+    const nextNumber = (lastNumber + 1).toString().padStart(6, '0');
+    
+    return `TKT-${nextNumber}`;
+  }
+
+  /**
    * Criar ticket a partir de service request
    */
-  async createTicketFromRequest(serviceRequest, catalogItem, routing, workflowId, priority) {
+  async createTicketFromRequest(serviceRequest, catalogItem, routing, workflowId, priority, clientData = {}) {
+    const { additionalDetails = '', userPriority = '', expectedResolutionTime = null, attachments = [] } = clientData;
     const requester = await User.findByPk(serviceRequest.userId);
 
     // Montar descrição do ticket
@@ -307,11 +345,50 @@ class CatalogService {
       description += `${catalogItem.fullDescription}\n\n`;
     }
 
-    description += `**Informações Fornecidas:**\n`;
-    for (const [key, value] of Object.entries(serviceRequest.formData)) {
-      const field = catalogItem.customFields?.find(f => f.name === key);
-      const label = field ? field.label : key;
-      description += `- **${label}:** ${value}\n`;
+    // Informações do formulário custom
+    if (serviceRequest.formData && Object.keys(serviceRequest.formData).length > 0) {
+      description += `**Informações do Formulário:**\n`;
+      for (const [key, value] of Object.entries(serviceRequest.formData)) {
+        // Ignorar campos especiais
+        if (['additionalDetails', 'userPriority', 'expectedResolutionTime', 'attachments'].includes(key)) continue;
+        
+        const field = catalogItem.customFields?.find(f => f.name === key);
+        const label = field ? field.label : key;
+        description += `- **${label}:** ${value}\n`;
+      }
+      description += `\n`;
+    }
+
+    // Detalhes adicionais fornecidos pelo cliente
+    if (additionalDetails) {
+      description += `**Detalhes Adicionais do Cliente:**\n`;
+      description += `${additionalDetails}\n\n`;
+    }
+
+    // Informações de urgência e prazo do cliente
+    if (userPriority || expectedResolutionTime) {
+      description += `**Expectativas do Cliente:**\n`;
+      if (userPriority) {
+        const priorityLabels = {
+          'baixa': '🟢 Baixa - Pode aguardar alguns dias',
+          'media': '🟡 Média - Necessário em breve',
+          'alta': '🟠 Alta - Necessário urgentemente',
+          'critica': '🔴 Crítica - Bloqueando trabalho'
+        };
+        description += `- **Urgência Indicada:** ${priorityLabels[userPriority] || userPriority}\n`;
+      }
+      if (expectedResolutionTime) {
+        description += `- **Prazo Esperado:** ${new Date(expectedResolutionTime).toLocaleDateString('pt-PT')}\n`;
+      }
+      description += `\n`;
+    }
+
+    // Lista de anexos
+    if (attachments && attachments.length > 0) {
+      description += `**Anexos (${attachments.length}):**\n`;
+      attachments.forEach((att, index) => {
+        description += `${index + 1}. ${att.name} (${(att.size / 1024).toFixed(1)} KB)\n`;
+      });
     }
 
     // Determinar SLA (usar do item do catálogo)
@@ -324,8 +401,12 @@ class CatalogService {
     // Determinar tipo (preferir do item do catálogo)
     const typeId = catalogItem.typeId;
 
+    // Gerar número do ticket
+    const ticketNumber = await this.generateTicketNumber();
+
     // Criar ticket
     const ticket = await Ticket.create({
+      ticketNumber,
       organizationId: serviceRequest.organizationId,
       requesterId: serviceRequest.userId,
       subject: `[${this.getTypeLabel(catalogItem.itemType)}] ${catalogItem.name}`,

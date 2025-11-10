@@ -598,12 +598,24 @@ export const deleteCatalogItem = async (req, res, next) => {
  */
 export const createServiceRequest = async (req, res, next) => {
   try {
-    const { catalogItemId, formData, userProvidedPriority } = req.body;
+    const { 
+      catalogItemId, 
+      formData, 
+      userProvidedPriority,
+      additionalDetails,
+      userPriority,
+      expectedResolutionTime,
+      attachments
+    } = req.body;
     
     console.log('📥 Request body recebido:', req.body);
     console.log('📋 catalogItemId:', catalogItemId);
     console.log('📝 formData:', formData);
     console.log('📝 typeof formData:', typeof formData);
+    console.log('📋 additionalDetails:', additionalDetails);
+    console.log('⚠️  userPriority:', userPriority);
+    console.log('📅 expectedResolutionTime:', expectedResolutionTime);
+    console.log('📎 attachments:', attachments?.length || 0);
 
     if (!catalogItemId) {
       console.log('❌ Validação falhou - catalogItemId ausente');
@@ -626,7 +638,13 @@ export const createServiceRequest = async (req, res, next) => {
       req.user.id,
       formData,
       req.user.organizationId,
-      { userProvidedPriority }
+      { 
+        userProvidedPriority,
+        additionalDetails,
+        userPriority,
+        expectedResolutionTime,
+        attachments
+      }
     );
 
     res.json({
