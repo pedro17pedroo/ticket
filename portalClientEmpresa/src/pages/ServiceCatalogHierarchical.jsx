@@ -184,7 +184,10 @@ const ServiceCatalogHierarchical = () => {
         formData 
       };
       
-      console.log('📤 Enviando solicitação:', payload);
+      console.log('📤 Enviando solicitação:');
+      console.log('  - catalogItemId:', payload.catalogItemId);
+      console.log('  - formData:', payload.formData);
+      console.log('  - formData JSON:', JSON.stringify(payload.formData));
       
       const response = await api.post(
         `/catalog/requests`,
