@@ -12,6 +12,7 @@ import { CatalogCategory, CatalogItem, ServiceRequest } from './catalogModel.js'
 import catalogService from '../../services/catalogService.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
+import { User } from '../models/index.js';
 
 // ==================== CATEGORIAS DO CATÁLOGO ====================
 
@@ -355,7 +356,8 @@ export const getCatalogItemById = async (req, res, next) => {
     }
 
     // Cliente só pode ver itens públicos
-    if (req.user.role === 'cliente-org' && !item.isPublic) {
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+    if (isClientUser && !item.isPublic) {
       return res.status(403).json({ error: 'Item não disponível' });
     }
 
@@ -670,10 +672,45 @@ export const getServiceRequests = async (req, res, next) => {
     const { status, catalogItemId, requestType } = req.query;
 
     const where = { organizationId: req.user.organizationId };
+    const include = [
+      {
+        model: CatalogItem,
+        as: 'catalogItem',
+        attributes: ['id', 'name', 'icon', 'itemType', 'estimatedCost', 'estimatedDeliveryTime']
+      }
+    ];
 
-    // Clientes só veem suas próprias solicitações
-    if (req.user.role === 'cliente-org') {
-      where.userId = req.user.id;
+    // Log para debug
+    logger.info(`[getServiceRequests] User: ${req.user.id}, Role: ${req.user.role}, ClientId: ${req.user.clientId}`);
+
+    // Clientes só veem solicitações da sua própria empresa cliente
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+    if (isClientUser) {
+      // Se não tiver clientId no token (token antigo), buscar do banco
+      let clientId = req.user.clientId;
+      if (!clientId) {
+        const userWithClient = await User.findByPk(req.user.id, { attributes: ['clientId'] });
+        clientId = userWithClient?.clientId;
+        logger.warn(`[getServiceRequests] ClientId não estava no token, buscado do banco: ${clientId}`);
+      }
+
+      if (!clientId) {
+        logger.error(`[getServiceRequests] Usuário cliente sem clientId! userId: ${req.user.id}`);
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Usuário sem empresa cliente associada' 
+        });
+      }
+
+      // Filtrar por userId do solicitante que pertence ao mesmo clientId
+      include.push({
+        model: User,
+        as: 'user',
+        attributes: ['id', 'name', 'clientId'],
+        where: { clientId: clientId },
+        required: true
+      });
+      logger.info(`[getServiceRequests] Aplicando filtro por clientId: ${clientId}`);
     }
 
     if (status) {
@@ -690,19 +727,143 @@ export const getServiceRequests = async (req, res, next) => {
 
     const requests = await ServiceRequest.findAll({
       where,
-      include: [
-        {
-          model: CatalogItem,
-          as: 'catalogItem',
-          attributes: ['id', 'name', 'icon', 'itemType', 'estimatedCost', 'estimatedDeliveryTime']
-        }
-      ],
+      include,
       order: [['created_at', 'DESC']]
+    });
+
+    logger.info(`[getServiceRequests] Total de solicitações encontradas: ${requests.length}`);
+    
+    // Contar solicitações por status e quantas têm ticket
+    const statusCount = {};
+    let withTicket = 0;
+    let withoutTicket = 0;
+    
+    requests.forEach(req => {
+      statusCount[req.status] = (statusCount[req.status] || 0) + 1;
+      if (req.ticketId) {
+        withTicket++;
+      } else {
+        withoutTicket++;
+      }
+    });
+    
+    logger.info(`[getServiceRequests] Status das solicitações:`, statusCount);
+    logger.info(`[getServiceRequests] Com ticket: ${withTicket}, Sem ticket: ${withoutTicket}`);
+    
+    if (requests.length > 0) {
+      logger.info(`[getServiceRequests] Primeira solicitação:`, {
+        id: requests[0].id,
+        userId: requests[0].userId,
+        status: requests[0].status,
+        ticketId: requests[0].ticketId,
+        createdAt: requests[0].createdAt,
+        created_at: requests[0].created_at,
+        userClientId: requests[0].user?.clientId
+      });
+    }
+
+    // Serializar corretamente os dados
+    const serializedRequests = requests.map(req => {
+      const plain = req.get({ plain: true });
+      return {
+        ...plain,
+        createdAt: plain.createdAt || plain.created_at,
+        updatedAt: plain.updatedAt || plain.updated_at
+      };
     });
 
     res.json({
       success: true,
-      requests
+      data: serializedRequests
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Obter detalhes de uma solicitação específica
+ * GET /api/catalog/requests/:id
+ */
+export const getServiceRequestById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const where = {
+      id,
+      organizationId: req.user.organizationId
+    };
+
+    const include = [
+      {
+        model: CatalogItem,
+        as: 'catalogItem',
+        attributes: ['id', 'name', 'icon', 'itemType', 'shortDescription', 'fullDescription', 'estimatedCost', 'estimatedDeliveryTime', 'requiresApproval']
+      },
+      {
+        model: User,
+        as: 'user',
+        attributes: ['id', 'name', 'email'],
+        required: false
+      },
+      {
+        model: User,
+        as: 'approvedBy',
+        attributes: ['id', 'name', 'email'],
+        required: false
+      },
+      {
+        model: User,
+        as: 'rejectedBy',
+        attributes: ['id', 'name', 'email'],
+        required: false
+      }
+    ];
+
+    // Clientes só veem solicitações da sua própria empresa cliente
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+    if (isClientUser) {
+      // Adicionar filtro de clientId no include do User
+      include[1].where = { clientId: req.user.clientId };
+      include[1].required = true;
+    }
+
+    const request = await ServiceRequest.findOne({
+      where,
+      include
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: 'Solicitação não encontrada'
+      });
+    }
+
+    // Serializar corretamente os dados e mapear 'user' para 'requester'
+    const plain = request.get({ plain: true });
+    
+    // Parsear formData se for string JSON
+    let formData = plain.formData;
+    if (typeof formData === 'string') {
+      try {
+        formData = JSON.parse(formData);
+      } catch (e) {
+        // Se não for JSON válido, manter como string
+      }
+    }
+    
+    const serializedRequest = {
+      ...plain,
+      requester: plain.user, // Mapear user para requester
+      formData, // Usar formData parseado
+      createdAt: plain.createdAt || plain.created_at,
+      updatedAt: plain.updatedAt || plain.updated_at
+    };
+
+    res.json({
+      success: true,
+      data: serializedRequest
     });
   } catch (error) {
     next(error);
@@ -735,45 +896,49 @@ export const approveServiceRequest = async (req, res, next) => {
       return res.status(404).json({ error: 'Solicitação não encontrada' });
     }
 
-    if (serviceRequest.status !== 'pending_approval') {
+    // Aceitar tanto 'pending' quanto 'pending_approval'
+    if (!['pending', 'pending_approval'].includes(serviceRequest.status)) {
       return res.status(400).json({ error: 'Solicitação já foi processada' });
     }
 
     const updateData = {
       approvedById: req.user.id,
-      approvedAt: new Date(),
-      notes: comments
+      approvedAt: new Date()
     };
 
     if (approved) {
       updateData.status = 'approved';
+      updateData.approvalComments = comments;
 
-      // Determinar roteamento e criar ticket
-      const routing = await catalogService.determineRouting(
-        serviceRequest.catalogItem
-      );
-
-      const workflowId = catalogService.getWorkflowByType(serviceRequest.catalogItem);
-
-      const ticket = await catalogService.createTicketFromRequest(
-        serviceRequest,
-        serviceRequest.catalogItem,
-        routing,
-        workflowId,
-        serviceRequest.finalPriority || serviceRequest.catalogItem.defaultPriority
-      );
-
-      updateData.ticketId = ticket.id;
-      updateData.status = 'in_progress';
-
-      logger.info(`Service request aprovado: ${id} - Ticket: ${ticket.ticketNumber}`);
+      // Atualizar status do ticket existente de 'aguardando_aprovacao' para 'novo'
+      if (serviceRequest.ticketId) {
+        const { Ticket } = await import('../models/index.js');
+        await Ticket.update(
+          { status: 'novo' },
+          { where: { id: serviceRequest.ticketId } }
+        );
+        logger.info(`Service request aprovado: ${id} - Ticket ${serviceRequest.ticketId} mudou para novo`);
+      } else {
+        logger.warn(`Service request aprovado mas não tem ticketId: ${id}`);
+      }
     } else {
       updateData.status = 'rejected';
       updateData.rejectionReason = comments;
       updateData.rejectedById = req.user.id;
       updateData.rejectedAt = new Date();
 
-      logger.info(`Service request rejeitado: ${id}`);
+      // Cancelar/fechar o ticket associado
+      if (serviceRequest.ticketId) {
+        const { Ticket } = await import('../models/index.js');
+        await Ticket.update(
+          { 
+            status: 'fechado',
+            resolution: `Solicitação rejeitada: ${comments || 'Sem motivo informado'}`
+          },
+          { where: { id: serviceRequest.ticketId } }
+        );
+        logger.info(`Service request rejeitado: ${id} - Ticket ${serviceRequest.ticketId} fechado`);
+      }
     }
 
     await serviceRequest.update(updateData);
