@@ -13,7 +13,7 @@ import catalogService from '../../services/catalogService.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
 import { User } from '../models/index.js';
-import sequelize from '../../config/database.js';
+import { sequelize } from '../../config/database.js';
 
 // ==================== CATEGORIAS DO CATÁLOGO ====================
 
@@ -1111,16 +1111,16 @@ export const getAnalytics = async (req, res, next) => {
     // Total de solicitações no período
     const totalRequests = await ServiceRequest.count({
       where: {
-        organizationId: req.user.organizationId,
-        createdAt: { [Op.gte]: startDate }
+        organization_id: req.user.organizationId,
+        created_at: { [Op.gte]: startDate }
       }
     });
 
     // Solicitações por status
     const requestsByStatus = await ServiceRequest.findAll({
       where: {
-        organizationId: req.user.organizationId,
-        createdAt: { [Op.gte]: startDate }
+        organization_id: req.user.organizationId,
+        created_at: { [Op.gte]: startDate }
       },
       attributes: [
         'status',
@@ -1133,11 +1133,11 @@ export const getAnalytics = async (req, res, next) => {
     // Itens mais solicitados
     const topItems = await ServiceRequest.findAll({
       where: {
-        organizationId: req.user.organizationId,
-        createdAt: { [Op.gte]: startDate }
+        organization_id: req.user.organizationId,
+        created_at: { [Op.gte]: startDate }
       },
       attributes: [
-        'catalogItemId',
+        'catalog_item_id',
         [sequelize.fn('COUNT', sequelize.col('ServiceRequest.id')), 'count']
       ],
       include: [
@@ -1147,7 +1147,7 @@ export const getAnalytics = async (req, res, next) => {
           attributes: ['id', 'name', 'icon']
         }
       ],
-      group: ['catalogItemId', 'catalogItem.id', 'catalogItem.name', 'catalogItem.icon'],
+      group: ['catalog_item_id', 'catalogItem.id', 'catalogItem.name', 'catalogItem.icon'],
       order: [[sequelize.fn('COUNT', sequelize.col('ServiceRequest.id')), 'DESC']],
       limit: 10,
       raw: false
@@ -1156,19 +1156,19 @@ export const getAnalytics = async (req, res, next) => {
     // Tempo médio de aprovação (em horas)
     const approvedRequests = await ServiceRequest.findAll({
       where: {
-        organizationId: req.user.organizationId,
+        organization_id: req.user.organizationId,
         status: 'approved',
-        approvedAt: { [Op.gte]: startDate }
+        approved_at: { [Op.gte]: startDate }
       },
-      attributes: ['createdAt', 'approvedAt'],
+      attributes: ['created_at', 'approved_at'],
       raw: true
     });
 
     let avgApprovalTime = 0;
     if (approvedRequests.length > 0) {
       const totalTime = approvedRequests.reduce((sum, req) => {
-        const created = new Date(req.createdAt);
-        const approved = new Date(req.approvedAt);
+        const created = new Date(req.created_at);
+        const approved = new Date(req.approved_at);
         return sum + (approved - created);
       }, 0);
       avgApprovalTime = Math.round(totalTime / approvedRequests.length / (1000 * 60 * 60)); // horas
@@ -1186,8 +1186,8 @@ export const getAnalytics = async (req, res, next) => {
       
       const count = await ServiceRequest.count({
         where: {
-          organizationId: req.user.organizationId,
-          createdAt: {
+          organization_id: req.user.organizationId,
+          created_at: {
             [Op.gte]: date,
             [Op.lt]: nextDate
           }
@@ -1226,7 +1226,7 @@ export const getAnalytics = async (req, res, next) => {
           return acc;
         }, {}),
         topItems: topItems.map(item => ({
-          id: item.catalogItemId,
+          id: item.catalog_item_id,
           name: item.catalogItem?.name,
           icon: item.catalogItem?.icon,
           count: parseInt(item.get('count'))
