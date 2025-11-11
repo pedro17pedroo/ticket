@@ -252,8 +252,6 @@ router.get('/hours-banks/tickets/completed', authenticate, requirePermission('ho
 
 // ==================== TIME TRACKING (Cronômetro) ====================
 router.post('/tickets/:ticketId/timer/start', authenticate, timeTrackingController.startTimer);
-router.put('/timers/:id/pause', authenticate, timeTrackingController.pauseTimer);
-router.put('/timers/:id/resume', authenticate, timeTrackingController.resumeTimer);
 router.put('/timers/:id/stop', authenticate, timeTrackingController.stopTimer);
 router.get('/tickets/:ticketId/timer/active', authenticate, timeTrackingController.getActiveTimer);
 router.get('/tickets/:ticketId/timers', authenticate, timeTrackingController.getTicketTimers);

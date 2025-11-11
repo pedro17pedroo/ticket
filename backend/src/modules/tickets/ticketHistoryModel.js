@@ -68,13 +68,17 @@ const TicketHistory = sequelize.define('TicketHistory', {
   description: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  createdAt: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    field: 'created_at'
   }
 }, {
   tableName: 'ticket_history',
   timestamps: false,
   underscored: true,
-  createdAt: 'created_at',
-  updatedAt: false,
   indexes: [
     { fields: ['ticket_id'] },
     { fields: ['user_id'] },
