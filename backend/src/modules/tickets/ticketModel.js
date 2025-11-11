@@ -36,7 +36,7 @@ const Ticket = sequelize.define('Ticket', {
     }
   },
   status: {
-    type: DataTypes.ENUM('novo', 'em_progresso', 'aguardando_cliente', 'resolvido', 'fechado'),
+    type: DataTypes.ENUM('novo', 'aguardando_aprovacao', 'em_progresso', 'aguardando_cliente', 'resolvido', 'fechado'),
     allowNull: false,
     defaultValue: 'novo'
   },
