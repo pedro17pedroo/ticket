@@ -214,7 +214,11 @@ const CatalogAnalytics = () => {
             <h3 className="font-semibold">Tempo Médio de Resolução</h3>
           </div>
           <div className="text-3xl font-bold">
-            {stats.avgResolutionTime ? `${Math.round(stats.avgResolutionTime / 24)} dias` : 'N/A'}
+            {stats.summary?.avgResolutionTime ? (
+              stats.summary.avgResolutionTime >= 24 
+                ? `${Math.round(stats.summary.avgResolutionTime / 24)} dias`
+                : `${stats.summary.avgResolutionTime}h`
+            ) : 'N/A'}
           </div>
         </div>
 
@@ -224,7 +228,7 @@ const CatalogAnalytics = () => {
             <h3 className="font-semibold">Taxa de Conclusão</h3>
           </div>
           <div className="text-3xl font-bold">
-            {stats.completionRate ? `${stats.completionRate}%` : 'N/A'}
+            {stats.summary?.completionRate !== undefined ? `${stats.summary.completionRate}%` : 'N/A'}
           </div>
         </div>
       </div>

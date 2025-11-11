@@ -1212,6 +1212,67 @@ export const getAnalytics = async (req, res, next) => {
       ? Math.round((totalApproved / totalProcessed) * 100) 
       : 0;
 
+    // Tempo médio de resolução (considerando tickets associados que foram fechados)
+    let avgResolutionTime = 0;
+    try {
+      const { Ticket } = await import('../models/index.js');
+      const resolvedTickets = await Ticket.findAll({
+        where: {
+          organization_id: req.user.organizationId,
+          status: 'fechado',
+          updated_at: { [Op.gte]: startDate }
+        },
+        attributes: ['created_at', 'updated_at'],
+        raw: true
+      });
+
+      if (resolvedTickets.length > 0) {
+        const totalTime = resolvedTickets.reduce((sum, ticket) => {
+          const created = new Date(ticket.created_at);
+          const resolved = new Date(ticket.updated_at);
+          return sum + (resolved - created);
+        }, 0);
+        avgResolutionTime = Math.round(totalTime / resolvedTickets.length / (1000 * 60 * 60)); // horas
+      }
+    } catch (error) {
+      logger.warn('Erro ao calcular tempo médio de resolução:', error);
+    }
+
+    // Taxa de conclusão (solicitações aprovadas que geraram tickets resolvidos)
+    let completionRate = 0;
+    try {
+      const { Ticket } = await import('../models/index.js');
+      const approvedWithTickets = await ServiceRequest.count({
+        where: {
+          organization_id: req.user.organizationId,
+          status: 'approved',
+          ticket_id: { [Op.ne]: null },
+          created_at: { [Op.gte]: startDate }
+        }
+      });
+
+      if (approvedWithTickets > 0) {
+        const completedTickets = await ServiceRequest.count({
+          where: {
+            organization_id: req.user.organizationId,
+            status: 'approved',
+            ticket_id: { [Op.ne]: null },
+            created_at: { [Op.gte]: startDate }
+          },
+          include: [{
+            model: Ticket,
+            as: 'ticket',
+            where: { status: 'fechado' },
+            required: true
+          }]
+        });
+
+        completionRate = Math.round((completedTickets / approvedWithTickets) * 100);
+      }
+    } catch (error) {
+      logger.warn('Erro ao calcular taxa de conclusão:', error);
+    }
+
     res.json({
       success: true,
       data: {
@@ -1219,7 +1280,9 @@ export const getAnalytics = async (req, res, next) => {
         summary: {
           totalRequests,
           avgApprovalTime,
-          approvalRate
+          avgResolutionTime,
+          approvalRate,
+          completionRate
         },
         requestsByStatus: requestsByStatus.reduce((acc, item) => {
           acc[item.status] = parseInt(item.count);
