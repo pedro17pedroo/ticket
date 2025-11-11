@@ -24,7 +24,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/', icon: Home, label: 'Início' },
     { path: '/service-catalog', icon: ShoppingCart, label: 'Catálogo de Serviços' },
     { path: '/my-requests', icon: ShoppingBag, label: 'Minhas Solicitações' },
-    { path: '/tickets', icon: Ticket, label: 'Meus Tickets' },
     { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento' },
     { path: '/my-assets', icon: HardDrive, label: 'Meus Equipamentos' },
     { path: '/hours-bank', icon: Clock, label: 'Bolsa de Horas' },

@@ -173,6 +173,50 @@ const TicketDetail = () => {
             />
           </div>
 
+
+          {/* Form Fields */}
+          {ticket.customFields && Object.keys(ticket.customFields).length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="font-semibold mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Informações do Formulário
+              </h2>
+              <div className="space-y-3">
+                {Object.entries(ticket.customFields).map(([key, field]) => (
+                  <div key={key}>
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{field.label}:</span>
+                    <p className="text-gray-700 dark:text-gray-300">{field.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+
+          {/* Attachments from metadata */}
+          {ticket.metadata?.clientRequest?.attachments && ticket.metadata.clientRequest.attachments.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="font-semibold mb-4 flex items-center gap-2">
+                <Paperclip className="w-5 h-5" />
+                Anexos da Solicitação ({ticket.metadata.clientRequest.attachments.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {ticket.metadata.clientRequest.attachments.map((attachment, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border"
+                  >
+                    <FileText className="w-8 h-8 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{attachment.name}</p>
+                      <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Attachments */}
           {attachments.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -290,6 +334,63 @@ Você pode usar formatação para:
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Service Information */}
+          {ticket.metadata?.catalogItem && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Informações do Serviço
+              </h3>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Tipo:</span>
+                  <p className="font-medium text-gray-700 dark:text-gray-300">{ticket.metadata.catalogItem.typeLabel}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Serviço:</span>
+                  <p className="font-medium text-gray-700 dark:text-gray-300">{ticket.metadata.catalogItem.name}</p>
+                </div>
+                {ticket.metadata.catalogItem.description && (
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Sobre:</span>
+                    <p className="text-gray-700 dark:text-gray-300 text-xs mt-1">{ticket.metadata.catalogItem.description}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Client Expectations */}
+          {ticket.metadata?.clientRequest && (ticket.metadata.clientRequest.userPriority || ticket.metadata.clientRequest.expectedResolutionTime) && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Expectativas do Cliente
+              </h3>
+              <div className="space-y-3 text-sm">
+                {ticket.metadata.clientRequest.userPriority && (
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Urgência:</span>
+                    <p className="font-medium text-gray-700 dark:text-gray-300">
+                      {ticket.metadata.clientRequest.userPriority === 'baixa' && '🟢 Baixa'}
+                      {ticket.metadata.clientRequest.userPriority === 'media' && '🟡 Média'}
+                      {ticket.metadata.clientRequest.userPriority === 'alta' && '🟠 Alta'}
+                      {ticket.metadata.clientRequest.userPriority === 'critica' && '🔴 Crítica'}
+                    </p>
+                  </div>
+                )}
+                {ticket.metadata.clientRequest.expectedResolutionTime && (
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Prazo Esperado:</span>
+                    <p className="font-medium text-gray-700 dark:text-gray-300">
+                      {format(new Date(ticket.metadata.clientRequest.expectedResolutionTime), "dd/MM/yyyy", { locale: pt })}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Info Card */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 space-y-4">
             <h3 className="font-semibold">Informações</h3>

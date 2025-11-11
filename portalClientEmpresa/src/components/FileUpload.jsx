@@ -87,10 +87,10 @@ const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" 
   }
 
   return (
-    <div className="space-y-4">
-      {/* Drop Zone */}
+    <div className="space-y-3">
+      {/* Compact Drop Zone */}
       <div
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+        className={`relative border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
           dragActive
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10'
             : 'border-gray-300 dark:border-gray-600 hover:border-primary-400'
@@ -109,73 +109,58 @@ const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" 
           className="hidden"
         />
 
-        <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+        <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
         
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-          Arraste arquivos aqui ou{' '}
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             className="text-primary-600 hover:text-primary-700 font-medium"
           >
-            clique para selecionar
+            Clique para selecionar ficheiros
           </button>
+          {' '}ou arraste aqui
         </p>
         
-        <p className="text-xs text-gray-500 dark:text-gray-500">
-          Máximo {maxFiles} arquivos · Até {maxSize}MB cada
+        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+          Máximo {maxSize}MB por ficheiro. Formatos aceites: imagens, PDF, Word, Excel, texto
         </p>
       </div>
 
-      {/* File List */}
+      {/* File List - Compact */}
       {files.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Arquivos selecionados ({files.length})
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {files.map((file) => (
-              <div
-                key={file.id}
-                className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                {/* Preview or Icon */}
-                <div className="flex-shrink-0">
-                  {file.preview ? (
-                    <img
-                      src={file.preview}
-                      alt={file.name}
-                      className="w-12 h-12 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded text-gray-500">
-                      {getFileIcon(file.type)}
-                    </div>
-                  )}
-                </div>
-
-                {/* File Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatFileSize(file.size)}
-                  </p>
-                </div>
-
-                {/* Remove Button */}
-                <button
-                  type="button"
-                  onClick={() => removeFile(file.id)}
-                  className="flex-shrink-0 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-                >
-                  <X className="w-4 h-4 text-gray-500" />
-                </button>
+          {files.map((file) => (
+            <div
+              key={file.id}
+              className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+            >
+              {/* Icon */}
+              <div className="flex-shrink-0 text-gray-400">
+                <File className="w-4 h-4" />
               </div>
-            ))}
-          </div>
+
+              {/* File Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  {file.name}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {formatFileSize(file.size)}
+                </p>
+              </div>
+
+              {/* Remove Button */}
+              <button
+                type="button"
+                onClick={() => removeFile(file.id)}
+                className="flex-shrink-0 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                title="Remover"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -5,9 +5,7 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
-import MyTickets from './pages/MyTickets'
 import TicketDetail from './pages/TicketDetail'
-import NewTicket from './pages/NewTicket'
 import KnowledgeBase from './pages/KnowledgeBase'
 import Profile from './pages/Profile'
 import Users from './pages/Users'
@@ -70,8 +68,6 @@ function App() {
               <Layout>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
-                  <Route path="/tickets" element={<MyTickets />} />
-                  <Route path="/tickets/new" element={<NewTicket />} />
                   <Route path="/tickets/:id" element={<TicketDetail />} />
                   <Route path="/knowledge" element={<KnowledgeBase />} />
                   <Route path="/profile" element={<Profile />} />
