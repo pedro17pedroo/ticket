@@ -22,7 +22,7 @@ import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
 
 const CatalogApprovals = () => {
-  const [requests, setRequests] = useState([]);
+  const [allRequests, setAllRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('pending');
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -43,14 +43,17 @@ const CatalogApprovals = () => {
 
   useEffect(() => {
     loadRequests();
-  }, [filterStatus]);
+  }, []);
+  
+  // Filtrar solicitações baseado no filtro selecionado
+  const requests = allRequests.filter(r => r.status === filterStatus);
 
   const loadRequests = async () => {
     setLoading(true);
     try {
-      const params = { status: filterStatus };
-      const response = await api.get('/catalog/requests', { params });
-      setRequests(response.data.data || []);
+      // Carregar TODAS as solicitações sem filtro
+      const response = await api.get('/catalog/requests');
+      setAllRequests(response.data.data || []);
     } catch (error) {
       console.error('Erro ao carregar solicitações:', error);
       toast.error('Erro ao carregar solicitações');
@@ -157,44 +160,54 @@ const CatalogApprovals = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Total</div>
-          <div className="text-2xl font-bold mt-1">{requests.length}</div>
+          <div className="text-2xl font-bold mt-1">{allRequests.length}</div>
         </div>
         <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
           <div className="text-sm text-yellow-700 dark:text-yellow-400">Pendentes</div>
           <div className="text-2xl font-bold mt-1 text-yellow-700 dark:text-yellow-400">
-            {requests.filter(r => r.status === 'pending').length}
+            {allRequests.filter(r => r.status === 'pending').length}
           </div>
         </div>
         <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
           <div className="text-sm text-green-700 dark:text-green-400">Aprovados</div>
           <div className="text-2xl font-bold mt-1 text-green-700 dark:text-green-400">
-            {requests.filter(r => r.status === 'approved').length}
+            {allRequests.filter(r => r.status === 'approved').length}
           </div>
         </div>
         <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
           <div className="text-sm text-red-700 dark:text-red-400">Rejeitados</div>
           <div className="text-2xl font-bold mt-1 text-red-700 dark:text-red-400">
-            {requests.filter(r => r.status === 'rejected').length}
+            {allRequests.filter(r => r.status === 'rejected').length}
           </div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex gap-3">
-        {Object.entries(statusConfig).map(([status, config]) => (
-          <button
-            key={status}
-            onClick={() => setFilterStatus(status)}
-            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-              filterStatus === status
-                ? config.color
-                : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
-            }`}
-          >
-            <config.icon className="w-4 h-4" />
-            {config.label}
-          </button>
-        ))}
+        {Object.entries(statusConfig).map(([status, config]) => {
+          const count = allRequests.filter(r => r.status === status).length;
+          return (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                filterStatus === status
+                  ? config.color
+                  : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              <config.icon className="w-4 h-4" />
+              {config.label}
+              <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                filterStatus === status
+                  ? 'bg-white/20'
+                  : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Requests List */}
