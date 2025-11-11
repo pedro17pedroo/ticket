@@ -106,6 +106,7 @@ const Tickets = () => {
   const getStatusBadge = (status) => {
     const styles = {
       novo: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+      aguardando_aprovacao: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
       em_progresso: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
       aguardando_cliente: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
       resolvido: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
@@ -113,6 +114,7 @@ const Tickets = () => {
     }
     const labels = {
       novo: 'Novo',
+      aguardando_aprovacao: 'Aguardando Aprovação',
       em_progresso: 'Em Progresso',
       aguardando_cliente: 'Aguardando Cliente',
       resolvido: 'Resolvido',

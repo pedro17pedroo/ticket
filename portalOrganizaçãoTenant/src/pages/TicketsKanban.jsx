@@ -22,6 +22,7 @@ const TicketsKanban = () => {
   const [loading, setLoading] = useState(true);
   const [columns, setColumns] = useState({
     novo: [],
+    aguardando_aprovacao: [],
     em_progresso: [],
     aguardando_cliente: [],
     resolvido: [],
@@ -35,6 +36,13 @@ const TicketsKanban = () => {
       textColor: 'text-blue-800 dark:text-blue-200',
       borderColor: 'border-blue-300 dark:border-blue-700',
       icon: AlertCircle
+    },
+    aguardando_aprovacao: {
+      label: 'Aguardando Aprovação',
+      color: 'bg-orange-100 dark:bg-orange-900',
+      textColor: 'text-orange-800 dark:text-orange-200',
+      borderColor: 'border-orange-300 dark:border-orange-700',
+      icon: Clock
     },
     em_progresso: {
       label: 'Em Progresso',
@@ -83,6 +91,7 @@ const TicketsKanban = () => {
       // Organizar tickets por status
       const organized = {
         novo: validTickets.filter(t => t.status === 'novo'),
+        aguardando_aprovacao: validTickets.filter(t => t.status === 'aguardando_aprovacao'),
         em_progresso: validTickets.filter(t => t.status === 'em_progresso'),
         aguardando_cliente: validTickets.filter(t => t.status === 'aguardando_cliente'),
         resolvido: validTickets.filter(t => t.status === 'resolvido'),

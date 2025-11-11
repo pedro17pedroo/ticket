@@ -16,6 +16,11 @@ const ServiceCatalog = () => {
   const [priorities, setPriorities] = useState([])
   const [types, setTypes] = useState([])
   
+  // Estrutura organizacional
+  const [directions, setDirections] = useState([])
+  const [departments, setDepartments] = useState([])
+  const [sections, setSections] = useState([])
+  
   // Modals
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showItemModal, setShowItemModal] = useState(false)
@@ -60,6 +65,9 @@ const ServiceCatalog = () => {
     slaId: '',
     priorityId: '',  // NOVO: Prioridade configurável
     typeId: '',      // NOVO: Tipo configurável
+    defaultDirectionId: '',  // OBRIGATÓRIO: Direção responsável
+    defaultDepartmentId: '',  // OBRIGATÓRIO: Departamento responsável
+    defaultSectionId: '',  // OBRIGATÓRIO: Secção responsável
     defaultTicketCategoryId: '',
     defaultPriority: 'media',  // LEGADO
     requiresApproval: false,
@@ -79,20 +87,29 @@ const ServiceCatalog = () => {
 
   const loadConfigOptions = async () => {
     try {
-      const [slasRes, prioritiesRes, typesRes] = await Promise.all([
+      const [slasRes, prioritiesRes, typesRes, directionsRes, departmentsRes, sectionsRes] = await Promise.all([
         api.get('/slas'),
         api.get('/priorities'),
-        api.get('/types')
+        api.get('/types'),
+        api.get('/organizational-structure/directions'),
+        api.get('/organizational-structure/departments'),
+        api.get('/organizational-structure/sections')
       ])
       setSlas(slasRes.data.slas || [])
       setPriorities(prioritiesRes.data.priorities || [])
       setTypes(typesRes.data.types || [])
+      setDirections(directionsRes.data.directions || [])
+      setDepartments(departmentsRes.data.departments || [])
+      setSections(sectionsRes.data.sections || [])
     } catch (error) {
       console.error('Erro ao carregar opções de configuração:', error)
       // Garantir arrays vazios em caso de erro
       setSlas([])
       setPriorities([])
       setTypes([])
+      setDirections([])
+      setDepartments([])
+      setSections([])
     }
   }
 
@@ -708,6 +725,81 @@ const ServiceCatalog = () => {
                           </option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+
+                  {/* Roteamento Organizacional */}
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                      🏢 Roteamento Organizacional
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                      Defina a estrutura organizacional responsável por este serviço. A <strong>Direção é obrigatória</strong>, enquanto Departamento e Secção são opcionais.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Direção */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          🎯 Direção <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={itemForm.defaultDirectionId}
+                          onChange={(e) => setItemForm({ ...itemForm, defaultDirectionId: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                          required
+                        >
+                          <option value="">Selecione a direção...</option>
+                          {directions.map(direction => (
+                            <option key={direction.id} value={direction.id}>
+                              {direction.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Departamento */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          🏛️ Departamento
+                        </label>
+                        <select
+                          value={itemForm.defaultDepartmentId}
+                          onChange={(e) => setItemForm({ ...itemForm, defaultDepartmentId: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        >
+                          <option value="">Selecione o departamento...</option>
+                          {departments.map(department => (
+                            <option key={department.id} value={department.id}>
+                              {department.name}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Opcional - deixe vazio se não aplicável
+                        </p>
+                      </div>
+
+                      {/* Secção */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          📂 Secção
+                        </label>
+                        <select
+                          value={itemForm.defaultSectionId}
+                          onChange={(e) => setItemForm({ ...itemForm, defaultSectionId: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        >
+                          <option value="">Selecione a secção...</option>
+                          {sections.map(section => (
+                            <option key={section.id} value={section.id}>
+                              {section.name}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Opcional - deixe vazio se não aplicável
+                        </p>
+                      </div>
                     </div>
                   </div>
 
