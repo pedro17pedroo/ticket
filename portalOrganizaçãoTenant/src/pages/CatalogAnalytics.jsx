@@ -85,20 +85,15 @@ const CatalogAnalytics = () => {
             <ShoppingCart className="w-8 h-8 text-blue-500" />
             <TrendingUp className="w-5 h-5 text-green-500" />
           </div>
-          <div className="text-2xl font-bold">{stats.totalRequests || 0}</div>
+          <div className="text-2xl font-bold">{stats.summary?.totalRequests || 0}</div>
           <div className="text-sm text-gray-500">Total de Solicitações</div>
-          {stats.requestsGrowth && (
-            <div className="text-xs text-green-600 mt-1">
-              +{stats.requestsGrowth}% vs período anterior
-            </div>
-          )}
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
             <Clock className="w-8 h-8 text-yellow-500" />
           </div>
-          <div className="text-2xl font-bold">{stats.pendingApprovals || 0}</div>
+          <div className="text-2xl font-bold">{stats.requestsByStatus?.pending || 0}</div>
           <div className="text-sm text-gray-500">Aguardando Aprovação</div>
         </div>
 
@@ -106,11 +101,11 @@ const CatalogAnalytics = () => {
           <div className="flex items-center justify-between mb-2">
             <CheckCircle className="w-8 h-8 text-green-500" />
           </div>
-          <div className="text-2xl font-bold">{stats.approvedRequests || 0}</div>
+          <div className="text-2xl font-bold">{stats.requestsByStatus?.approved || 0}</div>
           <div className="text-sm text-gray-500">Aprovadas</div>
-          {stats.approvalRate && (
+          {stats.summary?.approvalRate && (
             <div className="text-xs text-gray-500 mt-1">
-              {stats.approvalRate}% de taxa de aprovação
+              {stats.summary.approvalRate}% de taxa de aprovação
             </div>
           )}
         </div>
@@ -119,8 +114,8 @@ const CatalogAnalytics = () => {
           <div className="flex items-center justify-between mb-2">
             <Users className="w-8 h-8 text-purple-500" />
           </div>
-          <div className="text-2xl font-bold">{stats.uniqueRequesters || 0}</div>
-          <div className="text-sm text-gray-500">Usuários Únicos</div>
+          <div className="text-2xl font-bold">{stats.requestsByStatus?.rejected || 0}</div>
+          <div className="text-sm text-gray-500">Rejeitadas</div>
         </div>
       </div>
 
@@ -138,19 +133,16 @@ const CatalogAnalytics = () => {
             {stats.topItems && stats.topItems.length > 0 ? (
               <div className="space-y-4">
                 {stats.topItems.map((item, index) => (
-                  <div key={item.id} className="flex items-center gap-4">
+                  <div key={item.id || index} className="flex items-center gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center font-bold text-primary-600">
                       {index + 1}
                     </div>
                     <div className="text-2xl">{item.icon}</div>
                     <div className="flex-1">
                       <div className="font-medium">{item.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {item.category?.name}
-                      </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-bold">{item.requestCount}</div>
+                      <div className="text-xl font-bold">{item.count}</div>
                       <div className="text-xs text-gray-500">solicitações</div>
                     </div>
                   </div>
@@ -173,8 +165,8 @@ const CatalogAnalytics = () => {
           <div className="p-6">
             {stats.topCategories && stats.topCategories.length > 0 ? (
               <div className="space-y-4">
-                {stats.topCategories.map((category) => (
-                  <div key={category.id}>
+                {stats.topCategories.map((category, index) => (
+                  <div key={category.id || index}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div
@@ -212,7 +204,7 @@ const CatalogAnalytics = () => {
             <h3 className="font-semibold">Tempo Médio de Aprovação</h3>
           </div>
           <div className="text-3xl font-bold">
-            {stats.avgApprovalTime ? `${Math.round(stats.avgApprovalTime / 60)} min` : 'N/A'}
+            {stats.summary?.avgApprovalTime ? `${stats.summary.avgApprovalTime}h` : 'N/A'}
           </div>
         </div>
 
@@ -250,7 +242,7 @@ const CatalogAnalytics = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {stats.topRequesters.map((user, index) => (
                 <div
-                  key={user.id}
+                  key={user.id || index}
                   className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
                 >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold">
