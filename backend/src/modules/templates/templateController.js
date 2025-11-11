@@ -1,4 +1,4 @@
-import { ResponseTemplate } from './templateModel.js';
+import Template from './templateModelV2.js';
 import { User, Category } from '../models/index.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
@@ -12,33 +12,16 @@ export const getTemplates = async (req, res, next) => {
       organizationId: req.user.organizationId
     };
 
-    // Se não é admin, só ver públicos ou próprios
-    if (req.user.role !== 'admin-org') {
-      where[Op.or] = [
-        { isPublic: true },
-        { createdBy: req.user.id }
-      ];
-    }
+    // Filtrar apenas templates ativos
+    where.isActive = true;
 
     if (categoryId) {
       where.categoryId = categoryId;
     }
 
-    const templates = await ResponseTemplate.findAll({
+    const templates = await Template.findAll({
       where,
-      include: [
-        {
-          model: User,
-          as: 'creator',
-          attributes: ['id', 'name']
-        },
-        {
-          model: Category,
-          as: 'category',
-          attributes: ['id', 'name']
-        }
-      ],
-      order: [['usageCount', 'DESC'], ['name', 'ASC']]
+      order: [['name', 'ASC']]
     });
 
     res.json({
@@ -53,19 +36,22 @@ export const getTemplates = async (req, res, next) => {
 // Criar template
 export const createTemplate = async (req, res, next) => {
   try {
-    const { name, subject, content, isPublic, categoryId } = req.body;
+    const { name, description, type, subject, content, categoryId, priorityId, typeId } = req.body;
 
     if (!name || !content) {
       return res.status(400).json({ error: 'Nome e conteúdo são obrigatórios' });
     }
 
-    const template = await ResponseTemplate.create({
+    const template = await Template.create({
       organizationId: req.user.organizationId,
       name,
+      description,
+      type: type || 'ticket',
       subject,
       content,
-      isPublic: isPublic !== undefined ? isPublic : true,
       categoryId: categoryId || null,
+      priorityId: priorityId || null,
+      typeId: typeId || null,
       createdBy: req.user.id
     });
 
@@ -85,31 +71,16 @@ export const getTemplateById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const template = await ResponseTemplate.findOne({
+    const template = await Template.findOne({
       where: {
         id,
         organizationId: req.user.organizationId
-      },
-      include: [
-        {
-          model: User,
-          as: 'creator',
-          attributes: ['id', 'name']
-        },
-        {
-          model: Category,
-          as: 'category',
-          attributes: ['id', 'name']
-        }
-      ]
+      }
     });
 
     if (!template) {
       return res.status(404).json({ error: 'Template não encontrado' });
     }
-
-    // Incrementar contagem de uso
-    await template.increment('usageCount');
 
     res.json({
       success: true,
@@ -124,9 +95,9 @@ export const getTemplateById = async (req, res, next) => {
 export const updateTemplate = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, subject, content, isPublic, categoryId } = req.body;
+    const { name, description, type, subject, content, categoryId, priorityId, typeId, isActive } = req.body;
 
-    const template = await ResponseTemplate.findOne({
+    const template = await Template.findOne({
       where: {
         id,
         organizationId: req.user.organizationId
@@ -144,10 +115,14 @@ export const updateTemplate = async (req, res, next) => {
 
     await template.update({
       name,
+      description,
+      type,
       subject,
       content,
-      isPublic,
-      categoryId
+      categoryId,
+      priorityId,
+      typeId,
+      isActive
     });
 
     res.json({
@@ -164,7 +139,7 @@ export const deleteTemplate = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const template = await ResponseTemplate.findOne({
+    const template = await Template.findOne({
       where: {
         id,
         organizationId: req.user.organizationId

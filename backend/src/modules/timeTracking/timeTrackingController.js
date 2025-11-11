@@ -1,4 +1,4 @@
-import { TimeTracking } from './timeTrackingModel.js';
+import TimeEntry from '../tickets/timeEntryModel.js';
 import { Ticket, User, HoursBank, HoursTransaction } from '../models/index.js';
 import logger from '../../config/logger.js';
 
@@ -21,11 +21,11 @@ export const startTimer = async (req, res, next) => {
     }
 
     // Verificar se já existe timer ativo para este usuário neste ticket
-    const activeTimer = await TimeTracking.findOne({
+    const activeTimer = await TimeEntry.findOne({
       where: {
         ticketId,
         userId: req.user.id,
-        status: ['running', 'paused']
+        isActive: true
       }
     });
 
@@ -37,13 +37,13 @@ export const startTimer = async (req, res, next) => {
     }
 
     // Criar novo timer
-    const timer = await TimeTracking.create({
+    const timer = await TimeEntry.create({
       ticketId,
       userId: req.user.id,
       organizationId: req.user.organizationId,
       startTime: new Date(),
       description: description || null,
-      status: 'running'
+      isActive: true
     });
 
     logger.info(`Timer iniciado para ticket ${ticketId} por ${req.user.name}`);
@@ -62,7 +62,7 @@ export const pauseTimer = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const timer = await TimeTracking.findOne({
+    const timer = await TimeEntry.findOne({
       where: {
         id,
         userId: req.user.id,
@@ -94,7 +94,7 @@ export const resumeTimer = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const timer = await TimeTracking.findOne({
+    const timer = await TimeEntry.findOne({
       where: {
         id,
         userId: req.user.id,
@@ -130,7 +130,7 @@ export const stopTimer = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const timer = await TimeTracking.findOne({
+    const timer = await TimeEntry.findOne({
       where: {
         id,
         userId: req.user.id,
@@ -180,7 +180,7 @@ export const getActiveTimer = async (req, res, next) => {
   try {
     const { ticketId } = req.params;
 
-    const timer = await TimeTracking.findOne({
+    const timer = await TimeEntry.findOne({
       where: {
         ticketId,
         userId: req.user.id,
@@ -207,7 +207,7 @@ export const getTicketTimers = async (req, res, next) => {
   try {
     const { ticketId } = req.params;
 
-    const timers = await TimeTracking.findAll({
+    const timers = await TimeEntry.findAll({
       where: {
         ticketId,
         organizationId: req.user.organizationId
@@ -240,7 +240,7 @@ export const getTicketTimers = async (req, res, next) => {
 export const autoConsumeOnTicketComplete = async (ticketId, userId, organizationId) => {
   try {
     // Buscar todos os timers parados e não consumidos do ticket
-    const timers = await TimeTracking.findAll({
+    const timers = await TimeEntry.findAll({
       where: {
         ticketId,
         status: 'stopped',
