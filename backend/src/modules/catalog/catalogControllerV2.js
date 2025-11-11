@@ -13,6 +13,7 @@ import catalogService from '../../services/catalogService.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
 import { User } from '../models/index.js';
+import sequelize from '../../config/database.js';
 
 // ==================== CATEGORIAS DO CATÁLOGO ====================
 
@@ -1096,6 +1097,149 @@ export const getCatalogStatistics = async (req, res, next) => {
   }
 };
 
+/**
+ * Analytics do catálogo
+ * GET /api/catalog/analytics
+ */
+export const getAnalytics = async (req, res, next) => {
+  try {
+    const { period = 30 } = req.query;
+    const periodDays = parseInt(period) || 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - periodDays);
+
+    // Total de solicitações no período
+    const totalRequests = await ServiceRequest.count({
+      where: {
+        organizationId: req.user.organizationId,
+        createdAt: { [Op.gte]: startDate }
+      }
+    });
+
+    // Solicitações por status
+    const requestsByStatus = await ServiceRequest.findAll({
+      where: {
+        organizationId: req.user.organizationId,
+        createdAt: { [Op.gte]: startDate }
+      },
+      attributes: [
+        'status',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      group: ['status'],
+      raw: true
+    });
+
+    // Itens mais solicitados
+    const topItems = await ServiceRequest.findAll({
+      where: {
+        organizationId: req.user.organizationId,
+        createdAt: { [Op.gte]: startDate }
+      },
+      attributes: [
+        'catalogItemId',
+        [sequelize.fn('COUNT', sequelize.col('ServiceRequest.id')), 'count']
+      ],
+      include: [
+        {
+          model: CatalogItem,
+          as: 'catalogItem',
+          attributes: ['id', 'name', 'icon']
+        }
+      ],
+      group: ['catalogItemId', 'catalogItem.id', 'catalogItem.name', 'catalogItem.icon'],
+      order: [[sequelize.fn('COUNT', sequelize.col('ServiceRequest.id')), 'DESC']],
+      limit: 10,
+      raw: false
+    });
+
+    // Tempo médio de aprovação (em horas)
+    const approvedRequests = await ServiceRequest.findAll({
+      where: {
+        organizationId: req.user.organizationId,
+        status: 'approved',
+        approvedAt: { [Op.gte]: startDate }
+      },
+      attributes: ['createdAt', 'approvedAt'],
+      raw: true
+    });
+
+    let avgApprovalTime = 0;
+    if (approvedRequests.length > 0) {
+      const totalTime = approvedRequests.reduce((sum, req) => {
+        const created = new Date(req.createdAt);
+        const approved = new Date(req.approvedAt);
+        return sum + (approved - created);
+      }, 0);
+      avgApprovalTime = Math.round(totalTime / approvedRequests.length / (1000 * 60 * 60)); // horas
+    }
+
+    // Solicitações por dia (últimos 7 dias)
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+      
+      const count = await ServiceRequest.count({
+        where: {
+          organizationId: req.user.organizationId,
+          createdAt: {
+            [Op.gte]: date,
+            [Op.lt]: nextDate
+          }
+        }
+      });
+      
+      last7Days.push({
+        date: date.toISOString().split('T')[0],
+        count
+      });
+    }
+
+    // Taxa de aprovação
+    const totalProcessed = requestsByStatus
+      .filter(r => r.status === 'approved' || r.status === 'rejected')
+      .reduce((sum, r) => sum + parseInt(r.count), 0);
+    
+    const totalApproved = requestsByStatus
+      .find(r => r.status === 'approved')?.count || 0;
+    
+    const approvalRate = totalProcessed > 0 
+      ? Math.round((totalApproved / totalProcessed) * 100) 
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        period: periodDays,
+        summary: {
+          totalRequests,
+          avgApprovalTime,
+          approvalRate
+        },
+        requestsByStatus: requestsByStatus.reduce((acc, item) => {
+          acc[item.status] = parseInt(item.count);
+          return acc;
+        }, {}),
+        topItems: topItems.map(item => ({
+          id: item.catalogItemId,
+          name: item.catalogItem?.name,
+          icon: item.catalogItem?.icon,
+          count: parseInt(item.get('count'))
+        })),
+        timeline: last7Days
+      }
+    });
+  } catch (error) {
+    logger.error('Erro ao obter analytics:', error);
+    next(error);
+  }
+};
+
 export default {
   // Categorias
   getCatalogCategories,
@@ -1112,11 +1256,13 @@ export default {
   // Service Requests
   createServiceRequest,
   getServiceRequests,
+  getServiceRequestById,
   approveServiceRequest,
   // Portal do Cliente
   getPortalCategories,
   getPortalCategoryItems,
   getPortalPopularItems,
   // Estatísticas
-  getCatalogStatistics
+  getCatalogStatistics,
+  getAnalytics
 };

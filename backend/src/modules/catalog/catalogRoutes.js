@@ -181,6 +181,17 @@ router.get(
 );
 
 /**
+ * @route   GET /api/catalog/requests/:id
+ * @desc    Obter detalhes de uma solicitação
+ * @access  Private
+ */
+router.get(
+  '/requests/:id',
+  authenticate,
+  catalogController.getServiceRequestById
+);
+
+/**
  * @route   POST /api/catalog/requests/:id/approve
  * @desc    Aprovar ou rejeitar service request
  * @body    approved (boolean), comments, approvedCost
@@ -243,6 +254,19 @@ router.get(
   authenticate,
   requirePermission('catalog', 'view'),
   catalogController.getCatalogStatistics
+);
+
+/**
+ * @route   GET /api/catalog/analytics
+ * @desc    Analytics detalhados do catálogo
+ * @query   period - Período em dias (padrão: 30)
+ * @access  Private (Admin, Agente)
+ */
+router.get(
+  '/analytics',
+  authenticate,
+  requirePermission('catalog', 'view'),
+  catalogController.getAnalytics
 );
 
 export default router;
