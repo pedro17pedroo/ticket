@@ -24,16 +24,32 @@ const TicketRelationship = sequelize.define('TicketRelationship', {
     }
   },
   relationshipType: {
-    type: DataTypes.ENUM('related', 'duplicate', 'blocks', 'blocked_by', 'parent', 'child'),
-    defaultValue: 'related'
+    type: DataTypes.ENUM(
+      'blocks',
+      'blocked_by',
+      'relates_to',
+      'duplicates',
+      'duplicated_by',
+      'parent_of',
+      'child_of',
+      'precedes',
+      'follows',
+      'caused_by',
+      'causes'
+    ),
+    defaultValue: 'relates_to'
   },
-  notes: {
-    type: DataTypes.TEXT,
-    allowNull: true
+  createdBy: {
+    type: DataTypes.UUID,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   }
 }, {
   tableName: 'ticket_relationships',
-  timestamps: true
+  timestamps: true,
+  underscored: true
 });
 
 export default TicketRelationship;

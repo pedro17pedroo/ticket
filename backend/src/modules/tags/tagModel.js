@@ -30,6 +30,7 @@ export const Tag = sequelize.define('Tag', {
 }, {
   tableName: 'tags',
   timestamps: true,
+  underscored: true,
   indexes: [
     {
       unique: true,
@@ -64,6 +65,7 @@ export const TicketTag = sequelize.define('TicketTag', {
 }, {
   tableName: 'ticket_tags',
   timestamps: true,
+  underscored: true,
   indexes: [
     {
       unique: true,

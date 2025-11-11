@@ -17,24 +17,26 @@ const TicketHistory = sequelize.define('TicketHistory', {
   },
   userId: {
     type: DataTypes.UUID,
-    allowNull: false,
     references: {
       model: 'users',
       key: 'id'
     }
   },
-  organizationId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'organizations',
-      key: 'id'
-    }
-  },
   action: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    // created, updated, status_changed, assigned, transferred, priority_changed, etc.
+    type: DataTypes.ENUM(
+      'created',
+      'updated',
+      'status_changed',
+      'priority_changed',
+      'assigned',
+      'commented',
+      'attachment_added',
+      'tag_added',
+      'tag_removed',
+      'relationship_added',
+      'relationship_removed'
+    ),
+    allowNull: false
   },
   field: {
     type: DataTypes.STRING,
@@ -65,21 +67,17 @@ const TicketHistory = sequelize.define('TicketHistory', {
   },
   description: {
     type: DataTypes.TEXT,
-    allowNull: true,
-    // Descrição legível da mudança
-  },
-  metadata: {
-    type: DataTypes.JSONB,
-    defaultValue: {},
-    // Metadados adicionais (IP, user agent, etc.)
+    allowNull: true
   }
 }, {
   tableName: 'ticket_history',
-  timestamps: true,
+  timestamps: false,
+  underscored: true,
+  createdAt: 'created_at',
+  updatedAt: false,
   indexes: [
     { fields: ['ticket_id'] },
     { fields: ['user_id'] },
-    { fields: ['organization_id'] },
     { fields: ['action'] },
     { fields: ['created_at'] }
   ]
