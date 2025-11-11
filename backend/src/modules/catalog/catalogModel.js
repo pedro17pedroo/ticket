@@ -192,11 +192,12 @@ export const CatalogItem = sequelize.define('CatalogItem', {
   // Direção responsável
   defaultDirectionId: {
     type: DataTypes.UUID,
-    allowNull: true,
+    allowNull: false,
     references: {
       model: 'directions',
       key: 'id'
-    }
+    },
+    comment: 'Direção responsável pelo item/serviço (OBRIGATÓRIO)'
   },
   // Departamento responsável
   defaultDepartmentId: {
@@ -205,7 +206,8 @@ export const CatalogItem = sequelize.define('CatalogItem', {
     references: {
       model: 'departments',
       key: 'id'
-    }
+    },
+    comment: 'Departamento responsável pelo item/serviço (Opcional)'
   },
   // Seção responsável
   defaultSectionId: {
@@ -214,7 +216,8 @@ export const CatalogItem = sequelize.define('CatalogItem', {
     references: {
       model: 'sections',
       key: 'id'
-    }
+    },
+    comment: 'Secção responsável pelo item/serviço (Opcional)'
   },
   // SLA padrão para este item/serviço
   slaId: {

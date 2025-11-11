@@ -288,26 +288,30 @@ class CatalogService {
 
     logger.info(`Service request criado: ${item.name} (Tipo: ${item.itemType}, Prioridade: ${finalPriority})`);
 
-    // Se não requer aprovação, criar ticket automaticamente
-    if (!requiresApproval) {
-      const ticket = await this.createTicketFromRequest(
-        serviceRequest,
-        item,
-        routing,
-        workflowId,
-        finalPriority,
-        { additionalDetails, userPriority, expectedResolutionTime, attachments }
-      );
+    // SEMPRE criar ticket imediatamente
+    const ticket = await this.createTicketFromRequest(
+      serviceRequest,
+      item,
+      routing,
+      workflowId,
+      finalPriority,
+      { additionalDetails, userPriority, expectedResolutionTime, attachments }
+    );
 
-      await serviceRequest.update({
-        ticketId: ticket.id,
-        status: 'in_progress'
-      });
+    // Se requer aprovação, ticket fica com status aguardando_aprovacao
+    // Se não requer aprovação, ticket fica com status novo/aberto
+    const ticketStatus = requiresApproval ? 'aguardando_aprovacao' : 'novo';
+    const requestStatus = requiresApproval ? 'pending' : 'in_progress';
 
-      return { serviceRequest, ticket, autoCreated: true };
-    }
+    await ticket.update({ status: ticketStatus });
+    await serviceRequest.update({
+      ticketId: ticket.id,
+      status: requestStatus
+    });
 
-    return { serviceRequest, ticket: null, autoCreated: false };
+    logger.info(`Ticket criado: ${ticket.ticketNumber} - Status: ${ticketStatus}`);
+
+    return { serviceRequest, ticket, requiresApproval };
   }
 
   /**
@@ -337,59 +341,54 @@ class CatalogService {
     const { additionalDetails = '', userPriority = '', expectedResolutionTime = null, attachments = [] } = clientData;
     const requester = await User.findByPk(serviceRequest.userId);
 
-    // Montar descrição do ticket
-    let description = `**Tipo:** ${this.getTypeLabel(catalogItem.itemType)}\n`;
-    description += `**Serviço Solicitado:** ${catalogItem.name}\n\n`;
+    // Descrição: APENAS detalhes adicionais do cliente
+    let description = additionalDetails || 'Sem detalhes adicionais fornecidos.';
 
-    if (catalogItem.fullDescription) {
-      description += `${catalogItem.fullDescription}\n\n`;
-    }
-
-    // Informações do formulário custom
+    // Preparar campos do formulário custom para customFields
+    const customFields = {};
     if (serviceRequest.formData && Object.keys(serviceRequest.formData).length > 0) {
-      description += `**Informações do Formulário:**\n`;
       for (const [key, value] of Object.entries(serviceRequest.formData)) {
-        // Ignorar campos especiais
+        // Ignorar campos especiais que já são armazenados em metadata
         if (['additionalDetails', 'userPriority', 'expectedResolutionTime', 'attachments'].includes(key)) continue;
         
         const field = catalogItem.customFields?.find(f => f.name === key);
         const label = field ? field.label : key;
-        description += `- **${label}:** ${value}\n`;
-      }
-      description += `\n`;
-    }
-
-    // Detalhes adicionais fornecidos pelo cliente
-    if (additionalDetails) {
-      description += `**Detalhes Adicionais do Cliente:**\n`;
-      description += `${additionalDetails}\n\n`;
-    }
-
-    // Informações de urgência e prazo do cliente
-    if (userPriority || expectedResolutionTime) {
-      description += `**Expectativas do Cliente:**\n`;
-      if (userPriority) {
-        const priorityLabels = {
-          'baixa': '🟢 Baixa - Pode aguardar alguns dias',
-          'media': '🟡 Média - Necessário em breve',
-          'alta': '🟠 Alta - Necessário urgentemente',
-          'critica': '🔴 Crítica - Bloqueando trabalho'
+        customFields[key] = {
+          label,
+          value,
+          type: field?.type || 'text'
         };
-        description += `- **Urgência Indicada:** ${priorityLabels[userPriority] || userPriority}\n`;
       }
-      if (expectedResolutionTime) {
-        description += `- **Prazo Esperado:** ${new Date(expectedResolutionTime).toLocaleDateString('pt-PT')}\n`;
-      }
-      description += `\n`;
     }
 
-    // Lista de anexos
-    if (attachments && attachments.length > 0) {
-      description += `**Anexos (${attachments.length}):**\n`;
-      attachments.forEach((att, index) => {
-        description += `${index + 1}. ${att.name} (${(att.size / 1024).toFixed(1)} KB)\n`;
-      });
-    }
+    // Metadata estruturado: todas as informações do catálogo e cliente
+    const metadata = {
+      // Informações do catálogo
+      catalogItem: {
+        id: catalogItem.id,
+        name: catalogItem.name,
+        type: catalogItem.itemType,
+        typeLabel: this.getTypeLabel(catalogItem.itemType),
+        description: catalogItem.fullDescription || catalogItem.description
+      },
+      // Informações do cliente
+      clientRequest: {
+        userPriority: userPriority || null,
+        expectedResolutionTime: expectedResolutionTime || null,
+        attachments: attachments.map(att => ({
+          name: att.name,
+          size: att.size,
+          type: att.type,
+          uploadedAt: new Date().toISOString()
+        }))
+      },
+      // Metadados da solicitação
+      requestMetadata: {
+        serviceRequestId: serviceRequest.id,
+        requestType: serviceRequest.requestType,
+        createdAt: serviceRequest.createdAt
+      }
+    };
 
     // Determinar SLA (usar do item do catálogo)
     const slaId = catalogItem.slaId || await this.determineSLA(catalogItem, catalogItem.itemType);
@@ -421,14 +420,16 @@ class CatalogService {
       priorityId: priorityId,    // Prioridade configurável
       typeId: typeId,            // Tipo configurável
       status: 'aberto',
-      // Roteamento
-      directionId: routing.directionId,
-      departmentId: routing.departmentId,
-      sectionId: routing.sectionId,
+      // Roteamento: SEMPRE usar do catalogItem (obrigatório)
+      directionId: catalogItem.defaultDirectionId,
+      departmentId: catalogItem.defaultDepartmentId,
+      sectionId: catalogItem.defaultSectionId,
       // SLA e Workflow
       slaId,
       workflowId,
-      // Metadados
+      // Metadados estruturados
+      customFields,   // Campos do formulário dinâmico
+      metadata,       // Informações do catálogo e cliente estruturadas
       source: 'portal',
       tags: catalogItem.keywords || []
     });

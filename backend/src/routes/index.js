@@ -127,6 +127,26 @@ router.post('/sections', authenticate, authorize('admin-org'), validate(schemas.
 router.put('/sections/:id', authenticate, authorize('admin-org'), validate(schemas.updateSection), auditLog('update', 'section'), sectionController.updateSection);
 router.delete('/sections/:id', authenticate, authorize('admin-org'), auditLog('delete', 'section'), sectionController.deleteSection);
 
+// ==================== ORGANIZATIONAL STRUCTURE (Aliases) ====================
+// Rotas alternativas para compatibilidade com frontend
+router.get('/organizational-structure/directions', authenticate, directionController.getDirections);
+router.get('/organizational-structure/directions/:id', authenticate, directionController.getDirectionById);
+router.post('/organizational-structure/directions', authenticate, authorize('admin-org'), validate(schemas.createDirection), auditLog('create', 'direction'), directionController.createDirection);
+router.put('/organizational-structure/directions/:id', authenticate, authorize('admin-org'), validate(schemas.updateDirection), auditLog('update', 'direction'), directionController.updateDirection);
+router.delete('/organizational-structure/directions/:id', authenticate, authorize('admin-org'), auditLog('delete', 'direction'), directionController.deleteDirection);
+
+router.get('/organizational-structure/departments', authenticate, departmentController.getDepartments);
+router.get('/organizational-structure/departments/:id', authenticate, departmentController.getDepartmentById);
+router.post('/organizational-structure/departments', authenticate, authorize('admin-org'), validate(schemas.createDepartment), auditLog('create', 'department'), departmentController.createDepartment);
+router.put('/organizational-structure/departments/:id', authenticate, authorize('admin-org'), validate(schemas.updateDepartment), auditLog('update', 'department'), departmentController.updateDepartment);
+router.delete('/organizational-structure/departments/:id', authenticate, authorize('admin-org'), auditLog('delete', 'department'), departmentController.deleteDepartment);
+
+router.get('/organizational-structure/sections', authenticate, sectionController.getSections);
+router.get('/organizational-structure/sections/:id', authenticate, sectionController.getSectionById);
+router.post('/organizational-structure/sections', authenticate, authorize('admin-org'), validate(schemas.createSection), auditLog('create', 'section'), sectionController.createSection);
+router.put('/organizational-structure/sections/:id', authenticate, authorize('admin-org'), validate(schemas.updateSection), auditLog('update', 'section'), sectionController.updateSection);
+router.delete('/organizational-structure/sections/:id', authenticate, authorize('admin-org'), auditLog('delete', 'section'), sectionController.deleteSection);
+
 // ==================== CATEGORIES ====================
 router.get('/categories', authenticate, categoryController.getCategories);
 router.get('/categories/:id', authenticate, categoryController.getCategoryById);

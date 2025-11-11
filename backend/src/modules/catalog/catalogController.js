@@ -144,7 +144,8 @@ export const getCatalogItems = async (req, res, next) => {
     }
 
     // Para clientes, mostrar apenas públicos
-    if (req.user.role === 'cliente-org') {
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+    if (isClientUser) {
       where.isPublic = true;
     }
 
@@ -220,7 +221,8 @@ export const getCatalogItemById = async (req, res, next) => {
     }
 
     // Cliente só pode ver itens públicos
-    if (req.user.role === 'cliente-org' && !item.isPublic) {
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+    if (isClientUser && !item.isPublic) {
       return res.status(403).json({ error: 'Item não disponível' });
     }
 
@@ -471,7 +473,8 @@ export const getServiceRequests = async (req, res, next) => {
     const where = { organizationId: req.user.organizationId };
 
     // Clientes só veem suas próprias solicitações
-    if (req.user.role === 'cliente-org') {
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+    if (isClientUser) {
       where.requesterId = req.user.id;
     }
 
