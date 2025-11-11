@@ -652,25 +652,38 @@ const CatalogApprovals = () => {
 
                   {/* Informações de Aprovação/Rejeição */}
                   {selectedRequest.status === 'approved' && selectedRequest.approvedBy && (
-                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-5 border-2 border-green-300 dark:border-green-700">
                       <div className="flex items-start gap-3">
-                        <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                        <div className="w-10 h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center flex-shrink-0">
+                          <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-300" />
+                        </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-green-800 dark:text-green-300 mb-1">Aprovado</h3>
-                          <p className="text-sm text-green-700 dark:text-green-400 mb-2">
-                            Aprovado por <strong>{selectedRequest.approvedBy.name}</strong> em{' '}
-                            {new Date(selectedRequest.approvedAt).toLocaleDateString('pt-PT', {
-                              day: '2-digit',
-                              month: 'long',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
+                          <h3 className="font-bold text-green-900 dark:text-green-200 mb-2 text-lg">Aprovado</h3>
+                          <div className="flex items-center gap-2 mb-3">
+                            <User className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            <p className="text-sm text-green-800 dark:text-green-300">
+                              Aprovado por <strong className="font-semibold">{selectedRequest.approvedBy.name}</strong>
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            <p className="text-sm text-green-800 dark:text-green-300">
+                              {new Date(selectedRequest.approvedAt).toLocaleDateString('pt-PT', {
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
                           {selectedRequest.approvalComments && (
-                            <div className="mt-2 p-3 bg-green-100 dark:bg-green-900/30 rounded border border-green-200 dark:border-green-800">
-                              <div className="text-xs font-medium text-green-700 dark:text-green-400 mb-1">Comentários</div>
-                              <p className="text-sm text-green-800 dark:text-green-300">{selectedRequest.approvalComments}</p>
+                            <div className="mt-3 p-4 bg-white dark:bg-green-950/50 rounded-lg border border-green-200 dark:border-green-800">
+                              <div className="flex items-center gap-2 mb-2">
+                                <MessageSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                <div className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide">Comentários</div>
+                              </div>
+                              <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed">{selectedRequest.approvalComments}</p>
                             </div>
                           )}
                         </div>
@@ -679,25 +692,38 @@ const CatalogApprovals = () => {
                   )}
 
                   {selectedRequest.status === 'rejected' && selectedRequest.rejectedBy && (
-                    <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
+                    <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-5 border-2 border-red-300 dark:border-red-700">
                       <div className="flex items-start gap-3">
-                        <XCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                        <div className="w-10 h-10 bg-red-100 dark:bg-red-800 rounded-full flex items-center justify-center flex-shrink-0">
+                          <XCircle className="w-6 h-6 text-red-600 dark:text-red-300" />
+                        </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-red-800 dark:text-red-300 mb-1">Rejeitado</h3>
-                          <p className="text-sm text-red-700 dark:text-red-400 mb-2">
-                            Rejeitado por <strong>{selectedRequest.rejectedBy.name}</strong> em{' '}
-                            {new Date(selectedRequest.rejectedAt).toLocaleDateString('pt-PT', {
-                              day: '2-digit',
-                              month: 'long',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
+                          <h3 className="font-bold text-red-900 dark:text-red-200 mb-2 text-lg">Rejeitado</h3>
+                          <div className="flex items-center gap-2 mb-3">
+                            <User className="w-4 h-4 text-red-600 dark:text-red-400" />
+                            <p className="text-sm text-red-800 dark:text-red-300">
+                              Rejeitado por <strong className="font-semibold">{selectedRequest.rejectedBy.name}</strong>
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Calendar className="w-4 h-4 text-red-600 dark:text-red-400" />
+                            <p className="text-sm text-red-800 dark:text-red-300">
+                              {new Date(selectedRequest.rejectedAt).toLocaleDateString('pt-PT', {
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
                           {selectedRequest.rejectionReason && (
-                            <div className="mt-2 p-3 bg-red-100 dark:bg-red-900/30 rounded border border-red-200 dark:border-red-800">
-                              <div className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">Motivo</div>
-                              <p className="text-sm text-red-800 dark:text-red-300">{selectedRequest.rejectionReason}</p>
+                            <div className="mt-3 p-4 bg-white dark:bg-red-950/50 rounded-lg border border-red-200 dark:border-red-800">
+                              <div className="flex items-center gap-2 mb-2">
+                                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                                <div className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">Motivo da Rejeição</div>
+                              </div>
+                              <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed">{selectedRequest.rejectionReason}</p>
                             </div>
                           )}
                         </div>
