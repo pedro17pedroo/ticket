@@ -5,22 +5,17 @@ import { User, Department, Direction, Section, Category } from '../models/index.
  * Registra uma mudança no histórico do ticket
  */
 export const logTicketChange = async (ticketId, userId, organizationId, changeData, transaction = null) => {
-  const { action, field, oldValue, newValue, description, metadata = {} } = changeData;
+  const { action, field, oldValue, newValue, description } = changeData;
 
   try {
     await TicketHistory.create({
       ticketId,
       userId,
-      organizationId,
       action,
       field,
       oldValue,
       newValue,
-      description,
-      metadata: {
-        ...metadata,
-        timestamp: new Date().toISOString()
-      }
+      description
     }, { transaction });
   } catch (error) {
     console.error('Erro ao registrar histórico:', error);
@@ -97,19 +92,14 @@ export const createChangeDescription = async (field, oldValue, newValue, models 
 export const getTicketHistory = async (ticketId, organizationId, options = {}) => {
   const { limit = 100, offset = 0, action = null } = options;
 
-  const where = { ticketId, organizationId };
+  const where = { ticketId };
   if (action) {
     where.action = action;
   }
 
   const history = await TicketHistory.findAll({
     where,
-    include: [{
-      model: User,
-      as: 'user',
-      attributes: ['id', 'name', 'avatar', 'role']
-    }],
-    order: [['createdAt', 'DESC']],
+    order: [['created_at', 'DESC']],
     limit,
     offset
   });

@@ -57,73 +57,9 @@ export const startTimer = async (req, res, next) => {
   }
 };
 
-// Pausar timer
-export const pauseTimer = async (req, res, next) => {
-  try {
-    const { id } = req.params;
+// Pausar timer - REMOVIDO (não suportado no novo modelo)
 
-    const timer = await TimeEntry.findOne({
-      where: {
-        id,
-        userId: req.user.id,
-        organizationId: req.user.organizationId,
-        status: 'running'
-      }
-    });
-
-    if (!timer) {
-      return res.status(404).json({ error: 'Timer não encontrado ou já pausado' });
-    }
-
-    await timer.update({
-      pausedAt: new Date(),
-      status: 'paused'
-    });
-
-    res.json({
-      success: true,
-      timer
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Retomar timer pausado
-export const resumeTimer = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const timer = await TimeEntry.findOne({
-      where: {
-        id,
-        userId: req.user.id,
-        organizationId: req.user.organizationId,
-        status: 'paused'
-      }
-    });
-
-    if (!timer) {
-      return res.status(404).json({ error: 'Timer não encontrado ou não está pausado' });
-    }
-
-    // Calcular tempo pausado
-    const pausedSeconds = Math.floor((new Date() - new Date(timer.pausedAt)) / 1000);
-
-    await timer.update({
-      totalPausedTime: timer.totalPausedTime + pausedSeconds,
-      pausedAt: null,
-      status: 'running'
-    });
-
-    res.json({
-      success: true,
-      timer
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// Retomar timer - REMOVIDO (não suportado no novo modelo)
 
 // Parar timer
 export const stopTimer = async (req, res, next) => {
@@ -135,7 +71,7 @@ export const stopTimer = async (req, res, next) => {
         id,
         userId: req.user.id,
         organizationId: req.user.organizationId,
-        status: ['running', 'paused']
+        isActive: true
       }
     });
 
@@ -144,31 +80,20 @@ export const stopTimer = async (req, res, next) => {
     }
 
     const now = new Date();
-    let totalPausedTime = timer.totalPausedTime;
-
-    // Se estava pausado, adicionar tempo da última pausa
-    if (timer.status === 'paused' && timer.pausedAt) {
-      const lastPausedSeconds = Math.floor((now - new Date(timer.pausedAt)) / 1000);
-      totalPausedTime += lastPausedSeconds;
-    }
-
-    // Calcular tempo total
-    const totalElapsed = Math.floor((now - new Date(timer.startTime)) / 1000);
-    const totalSeconds = totalElapsed - totalPausedTime;
+    const duration = Math.floor((now - new Date(timer.startTime)) / 1000);
 
     await timer.update({
       endTime: now,
-      status: 'stopped',
-      totalSeconds,
-      totalPausedTime
+      duration,
+      isActive: false
     });
 
-    logger.info(`Timer parado: ${totalSeconds}s (${(totalSeconds / 3600).toFixed(2)}h)`);
+    logger.info(`Timer parado: ${duration}s (${(duration / 3600).toFixed(2)}h)`);
 
     res.json({
       success: true,
       timer,
-      totalHours: (totalSeconds / 3600).toFixed(2)
+      totalHours: (duration / 3600).toFixed(2)
     });
   } catch (error) {
     next(error);
@@ -184,13 +109,8 @@ export const getActiveTimer = async (req, res, next) => {
       where: {
         ticketId,
         userId: req.user.id,
-        status: ['running', 'paused']
-      },
-      include: [{
-        model: User,
-        as: 'user',
-        attributes: ['id', 'name', 'email']
-      }]
+        isActive: true
+      }
     });
 
     res.json({
@@ -212,18 +132,13 @@ export const getTicketTimers = async (req, res, next) => {
         ticketId,
         organizationId: req.user.organizationId
       },
-      include: [{
-        model: User,
-        as: 'user',
-        attributes: ['id', 'name', 'email']
-      }],
       order: [['createdAt', 'DESC']]
     });
 
     // Calcular total de horas
     const totalSeconds = timers
-      .filter(t => t.status === 'stopped')
-      .reduce((sum, t) => sum + (t.totalSeconds || 0), 0);
+      .filter(t => !t.isActive && t.duration)
+      .reduce((sum, t) => sum + (t.duration || 0), 0);
 
     res.json({
       success: true,
@@ -239,12 +154,11 @@ export const getTicketTimers = async (req, res, next) => {
 // Auto-consumir tempo ao concluir ticket
 export const autoConsumeOnTicketComplete = async (ticketId, userId, organizationId) => {
   try {
-    // Buscar todos os timers parados e não consumidos do ticket
+    // Buscar todos os timers parados do ticket
     const timers = await TimeEntry.findAll({
       where: {
         ticketId,
-        status: 'stopped',
-        autoConsumed: false
+        isActive: false
       }
     });
 
@@ -274,7 +188,7 @@ export const autoConsumeOnTicketComplete = async (ticketId, userId, organization
     }
 
     // Calcular total de horas
-    const totalSeconds = timers.reduce((sum, t) => sum + (t.totalSeconds || 0), 0);
+    const totalSeconds = timers.reduce((sum, t) => sum + (t.duration || 0), 0);
     const totalHours = totalSeconds / 3600;
 
     // Verificar saldo
@@ -316,13 +230,7 @@ export const autoConsumeOnTicketComplete = async (ticketId, userId, organization
       performedById: userId
     });
 
-    // Marcar timers como consumidos
-    await Promise.all(timers.map(timer => 
-      timer.update({ 
-        autoConsumed: true,
-        hoursBankId: hoursBank.id
-      })
-    ));
+    // Timers já foram consumidos (marcados como isActive: false)
 
     logger.info(`Auto-consumo: ${totalHours.toFixed(2)}h do ticket ${ticketId} na bolsa ${hoursBank.id}`);
 
@@ -339,8 +247,6 @@ export const autoConsumeOnTicketComplete = async (ticketId, userId, organization
 
 export default {
   startTimer,
-  pauseTimer,
-  resumeTimer,
   stopTimer,
   getActiveTimer,
   getTicketTimers,
