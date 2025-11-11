@@ -44,6 +44,26 @@ export const connectPostgreSQL = async () => {
   try {
     await sequelize.authenticate();
     console.log('✅ PostgreSQL conectado com sucesso');
+    
+    // Adicionar novo status ao enum (se não existir)
+    try {
+      await sequelize.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_enum 
+            WHERE enumlabel = 'aguardando_aprovacao' 
+            AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'enum_tickets_status')
+          ) THEN
+            ALTER TYPE enum_tickets_status ADD VALUE 'aguardando_aprovacao';
+          END IF;
+        END
+        $$;
+      `);
+      console.log('✅ Enum de status atualizado');
+    } catch (enumError) {
+      console.log('⚠️  Enum status já atualizado ou erro:', enumError.message);
+    }
   } catch (error) {
     console.error('❌ Erro ao conectar PostgreSQL:', error.message);
     process.exit(1);

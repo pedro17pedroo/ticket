@@ -108,7 +108,8 @@ export const generateToken = (user) => {
       id: user.id, 
       email: user.email, 
       role: user.role,
-      organizationId: user.organizationId
+      organizationId: user.organizationId,
+      clientId: user.clientId || null
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
