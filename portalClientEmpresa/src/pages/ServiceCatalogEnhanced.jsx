@@ -28,6 +28,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal';
+import WatchersField from '../components/WatchersField';
 
 const ServiceCatalogEnhanced = () => {
   const navigate = useNavigate();
@@ -45,6 +46,7 @@ const ServiceCatalogEnhanced = () => {
   const [formData, setFormData] = useState({});
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [watchers, setWatchers] = useState([]); // Emails para notificar
   const [view, setView] = useState('grid'); // 'grid' ou 'list'
   const [sortBy, setSortBy] = useState('popular'); // 'popular', 'name', 'recent'
 
@@ -130,8 +132,12 @@ const ServiceCatalogEnhanced = () => {
 
     try {
       const response = await api.post(
-        `/catalog/items/${selectedItem.id}/request`,
-        { formData }
+        `/catalog/requests`,
+        { 
+          catalogItemId: selectedItem.id,
+          formData,
+          clientWatchers: watchers // Incluir watchers no payload
+        }
       );
 
       if (response.data.requiresApproval) {
@@ -149,6 +155,7 @@ const ServiceCatalogEnhanced = () => {
       setShowRequestModal(false);
       setSelectedItem(null);
       setFormData({});
+      setWatchers([]); // Limpar watchers
 
       // Redirecionar após delay
       setTimeout(() => navigate('/my-tickets'), 1500);
@@ -672,6 +679,24 @@ const ServiceCatalogEnhanced = () => {
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* Campo de Watchers - NOVO RECURSO */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    🆕 Notificar Outras Pessoas
+                  </h3>
+                  <p className="text-sm text-blue-600 dark:text-blue-300">
+                    Adicione emails de pessoas que devem receber notificações sobre este ticket
+                  </p>
+                </div>
+                <WatchersField
+                  watchers={watchers}
+                  onChange={setWatchers}
+                  placeholder="Digite emails de pessoas que devem ser notificadas..."
+                />
               </div>
 
               </form>

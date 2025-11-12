@@ -42,6 +42,7 @@ import {
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
+import WatchersField from '../components/WatchersField';
 import RichTextEditor from '../components/RichTextEditor';
 
 const ServiceCatalogHierarchical = () => {
@@ -67,6 +68,7 @@ const ServiceCatalogHierarchical = () => {
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [userPriority, setUserPriority] = useState('');
   const [expectedResolutionTime, setExpectedResolutionTime] = useState('');
+  const [watchers, setWatchers] = useState([]); // Emails para notificar
 
   useEffect(() => {
     loadRootCategories();
@@ -229,7 +231,8 @@ const ServiceCatalogHierarchical = () => {
           size: f.size,
           type: f.type,
           data: f.data
-        }))
+        })),
+        clientWatchers: watchers // Incluir emails de observadores
       };
       
       console.log('📤 Enviando solicitação:');
@@ -259,6 +262,7 @@ const ServiceCatalogHierarchical = () => {
       setAdditionalDetails('');
       setUserPriority('');
       setExpectedResolutionTime('');
+      setWatchers([]); // Limpar watchers
     } catch (error) {
       console.error('❌ Erro ao enviar solicitação:', error);
       
@@ -965,6 +969,24 @@ const ServiceCatalogHierarchical = () => {
                     Quando necessita que esta solicitação seja resolvida?
                   </p>
                 </div>
+              </div>
+
+              {/* Campo de Watchers - NOVO RECURSO */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    🆕 Notificar Outras Pessoas
+                  </h3>
+                  <p className="text-sm text-blue-600 dark:text-blue-300">
+                    Adicione emails de pessoas que devem receber notificações sobre este ticket
+                  </p>
+                </div>
+                <WatchersField
+                  watchers={watchers}
+                  onChange={setWatchers}
+                  placeholder="Digite emails de pessoas que devem ser notificadas..."
+                />
               </div>
 
               </form>
