@@ -1,4 +1,4 @@
-import { Asset, Software as SoftwareInstalled, License as SoftwareLicense, AssetLicense } from '../models/index.js';
+import { Asset, Software, License as SoftwareLicense, AssetLicense } from '../models/index.js';
 import { OrganizationUser, ClientUser, Client } from '../models/index.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../../config/database.js';
@@ -75,7 +75,7 @@ export const getAssets = async (req, res, next) => {
       where,
       include: [
         {
-          model: SoftwareInstalled,
+          model: Software,
           as: 'software',
           attributes: ['id', 'name', 'vendor', 'version'],
           required: false
@@ -131,7 +131,7 @@ export const getAssetById = async (req, res, next) => {
       where,
       include: [
         {
-          model: SoftwareInstalled,
+          model: Software,
           as: 'software',
           attributes: ['id', 'name', 'vendor', 'version', 'installDate'],
           required: false
@@ -717,7 +717,7 @@ export const getStatistics = async (req, res, next) => {
     ] = await Promise.all([
       Asset.count({ where }),
       Asset.count({ where: { ...where, status: 'active' } }),
-      SoftwareInstalled.count({ 
+      Software.count({ 
         include: [{
           model: Asset,
           as: 'asset',
@@ -990,7 +990,7 @@ export const agentCollect = async (req, res, next) => {
           name: sw.name,
           version: sw.version,
           publisher: sw.publisher || sw.vendor,
-          category: sw.category || 'application',
+          category: sw.category || 'other',
           installDate: sw.installDate,
           size: sw.size
         });
@@ -1258,7 +1258,7 @@ export const getUserInventory = async (req, res, next) => {
       },
       include: [
         {
-          model: SoftwareInstalled,
+          model: Software,
           as: 'software',
           attributes: ['id', 'name', 'vendor', 'version'],
           required: false
@@ -1301,7 +1301,7 @@ export const getClientInventory = async (req, res, next) => {
           required: false,
           include: [
             {
-              model: SoftwareInstalled,
+              model: Software,
               as: 'software',
               attributes: ['id', 'name'],
               required: false
@@ -1333,7 +1333,7 @@ export const getClientInventory = async (req, res, next) => {
           required: false,
           include: [
             {
-              model: SoftwareInstalled,
+              model: Software,
               as: 'software',
               attributes: ['id', 'name'],
               required: false
