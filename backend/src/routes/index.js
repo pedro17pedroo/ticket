@@ -80,7 +80,7 @@ router.delete('/users/:id', authenticate, requirePermission('users', 'delete'), 
 
 // ==================== TICKETS ====================
 router.get('/tickets', authenticate, requirePermission('tickets', 'read'), ticketController.getTickets);
-router.get('/tickets/statistics', authenticate, requirePermission('tickets', 'read'), ticketController.getStatistics);
+router.get('/tickets/statistics', authenticate, requirePermission('tickets', 'read_all'), ticketController.getStatistics);
 router.get('/tickets/:id', authenticate, requirePermission('tickets', 'read'), ticketController.getTicketById);
 router.post('/tickets', authenticate, requirePermission('tickets', 'create'), validate(schemas.createTicket), auditLog('create', 'ticket'), ticketController.createTicket);
 router.put('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
