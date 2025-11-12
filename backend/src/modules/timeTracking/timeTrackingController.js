@@ -68,6 +68,28 @@ export const startTimer = async (req, res, next) => {
 
     logger.info(`Timer iniciado para ticket ${ticketId} por ${req.user.name}`);
 
+    // 🔔 NOTIFICAR WATCHERS SOBRE CRONÔMETRO INICIADO
+    try {
+      // Carregar ticket completo com relacionamentos
+      const fullTicket = await Ticket.findByPk(ticketId, {
+        include: [
+          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+        ]
+      });
+
+      if (fullTicket) {
+        const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
+        await notifyTicketWatchers(fullTicket, 'timer_started', { 
+          startedBy: req.user.name,
+          description: description || null
+        });
+        logger.info(`✅ Watchers notificados sobre cronômetro iniciado no ticket ${fullTicket.ticketNumber}`);
+      }
+    } catch (error) {
+      logger.error(`❌ Erro ao notificar watchers sobre cronômetro iniciado:`, error);
+    }
+
     res.json({
       success: true,
       timer
@@ -106,6 +128,27 @@ export const pauseTimer = async (req, res, next) => {
     await timer.reload();
 
     logger.info(`Timer pausado: ${id} por ${req.user.name}`);
+
+    // 🔔 NOTIFICAR WATCHERS SOBRE CRONÔMETRO PAUSADO
+    try {
+      // Carregar ticket completo com relacionamentos
+      const fullTicket = await Ticket.findByPk(timer.ticketId, {
+        include: [
+          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+        ]
+      });
+
+      if (fullTicket) {
+        const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
+        await notifyTicketWatchers(fullTicket, 'timer_paused', { 
+          pausedBy: req.user.name
+        });
+        logger.info(`✅ Watchers notificados sobre cronômetro pausado no ticket ${fullTicket.ticketNumber}`);
+      }
+    } catch (error) {
+      logger.error(`❌ Erro ao notificar watchers sobre cronômetro pausado:`, error);
+    }
 
     res.json({
       success: true,
@@ -214,6 +257,29 @@ export const stopTimer = async (req, res, next) => {
     await timer.reload();
 
     logger.info(`Timer parado: ${duration}s (${(duration / 3600).toFixed(2)}h)`);
+
+    // 🔔 NOTIFICAR WATCHERS SOBRE CRONÔMETRO PARADO
+    try {
+      // Carregar ticket completo com relacionamentos
+      const fullTicket = await Ticket.findByPk(timer.ticketId, {
+        include: [
+          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+        ]
+      });
+
+      if (fullTicket) {
+        const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
+        await notifyTicketWatchers(fullTicket, 'timer_stopped', { 
+          stoppedBy: req.user.name,
+          duration: duration,
+          totalHours: (duration / 3600).toFixed(2)
+        });
+        logger.info(`✅ Watchers notificados sobre cronômetro parado no ticket ${fullTicket.ticketNumber} - ${(duration / 3600).toFixed(2)}h trabalhadas`);
+      }
+    } catch (error) {
+      logger.error(`❌ Erro ao notificar watchers sobre cronômetro parado:`, error);
+    }
 
     res.json({
       success: true,
