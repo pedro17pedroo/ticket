@@ -742,6 +742,12 @@ class TicketManager extends EventEmitter {
    */
   async getRemoteAccessPending() {
     try {
+      // Verificar se está inicializado
+      if (!this.baseUrl || !this.token) {
+        console.log('TicketManager não inicializado ainda');
+        return [];
+      }
+
       const response = await axios.get(
         `${this.baseUrl}/api/remote-access/pending`,
         {
