@@ -31,6 +31,7 @@ import * as templateController from '../modules/templates/templateController.js'
 import * as ticketMergeController from '../modules/tickets/ticketMergeController.js';
 import * as catalogController from '../modules/catalog/catalogController.js';
 import * as notificationController from '../modules/notifications/notificationController.js';
+import * as inventoryController from '../modules/inventory/inventoryController.js';
 import remoteAccessRoutes from '../modules/remoteAccess/remoteAccessRoutes.js';
 import emailTestRoutes from './emailTest.js';
 import * as setupController from '../modules/setup/setupController.js';
@@ -326,8 +327,8 @@ router.delete('/notifications/:id', authenticate, notificationController.deleteN
 // router.post('/inventory/licenses/:id/assign', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.assignLicense);
 // router.post('/inventory/licenses/:id/unassign', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.unassignLicense);
 
-// Statistics (comentado temporariamente - controller não existe)
-// router.get('/inventory/statistics', authenticate, inventoryController.getStatistics);
+// Statistics
+router.get('/inventory/statistics', authenticate, inventoryController.getStatistics);
 
 // Browser Collection (comentado temporariamente - controller não existe)
 // router.post('/inventory/browser-collect', authenticate, inventoryController.browserCollect);
