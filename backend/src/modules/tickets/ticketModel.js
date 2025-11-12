@@ -235,6 +235,17 @@ const Ticket = sequelize.define('Ticket', {
   metadata: {
     type: DataTypes.JSONB,
     defaultValue: {}
+  },
+  // WATCHERS/OBSERVADORES
+  clientWatchers: {
+    type: DataTypes.ARRAY(DataTypes.STRING), // Array de emails
+    defaultValue: [],
+    comment: 'Array de emails de usuários do lado cliente que devem receber notificações sobre este ticket'
+  },
+  orgWatchers: {
+    type: DataTypes.ARRAY(DataTypes.UUID), // Array de UUIDs
+    defaultValue: [],
+    comment: 'Array de UUIDs de usuários da organização que devem receber notificações sobre este ticket'
   }
 }, {
   tableName: 'tickets',
