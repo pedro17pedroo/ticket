@@ -334,8 +334,8 @@ router.get('/inventory/statistics', authenticate, inventoryController.getStatist
 // Browser Collection (comentado temporariamente - controller não existe)
 // router.post('/inventory/browser-collect', authenticate, inventoryController.browserCollect);
 
-// Desktop Agent Collection (comentado temporariamente - controller não existe)
-// router.post('/inventory/agent-collect', authenticate, inventoryController.agentCollect);
+// Desktop Agent Collection
+router.post('/inventory/agent-collect', authenticate, inventoryController.agentCollect);
 
 // Organization Inventory (comentado temporariamente - controller não existe)
 // router.get('/inventory/organization/users', authenticate, requirePermission('assets', 'read_all'), inventoryController.getOrganizationUsers);
