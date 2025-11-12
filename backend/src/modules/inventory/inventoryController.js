@@ -1,4 +1,4 @@
-import { Asset, SoftwareInstalled, SoftwareLicense, AssetLicense } from './inventoryModelsSimple.js';
+import { Asset, Software as SoftwareInstalled, License as SoftwareLicense, AssetLicense } from '../models/index.js';
 import { OrganizationUser, ClientUser, Client } from '../models/index.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../../config/database.js';
