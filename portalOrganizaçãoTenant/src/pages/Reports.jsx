@@ -111,7 +111,10 @@ const Reports = () => {
 
   const loadTicketStats = async () => {
     try {
-      const { data } = await ticketService.getStatistics();
+      const { data } = await ticketService.getStatistics({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      });
       setTicketStats(data?.statistics || data || {});
     } catch (error) {
       console.error('Erro ao carregar estatísticas de tickets:', error);

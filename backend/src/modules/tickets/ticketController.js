@@ -668,6 +668,15 @@ export const getStatistics = async (req, res, next) => {
       where.requesterId = req.user.id;
     }
 
+    // Aplicar filtros de data se fornecidos
+    const { startDate, endDate } = req.query;
+    if (startDate && endDate) {
+      where.createdAt = {
+        [Op.gte]: new Date(startDate),
+        [Op.lte]: new Date(endDate + 'T23:59:59.999Z')
+      };
+    }
+
     const [total, novo, emProgresso, aguardandoCliente, resolvido, fechado] = await Promise.all([
       Ticket.count({ where }),
       Ticket.count({ where: { ...where, status: 'novo' } }),

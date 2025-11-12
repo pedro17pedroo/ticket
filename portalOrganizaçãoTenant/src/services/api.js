@@ -157,8 +157,8 @@ export const ticketService = {
     return response.data
   },
   
-  getStatistics: async () => {
-    const response = await api.get('/tickets/statistics')
+  getStatistics: async (params = {}) => {
+    const response = await api.get('/tickets/statistics', { params })
     return response.data
   },
 }
