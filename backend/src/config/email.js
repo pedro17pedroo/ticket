@@ -4,22 +4,22 @@ import logger from './logger.js';
 const createTransporter = () => {
   // Configuração para Gmail (pode ser alterada para outros provedores)
   const config = {
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
+    host: process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT) || 587,
     secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: process.env.SMTP_USER || process.env.EMAIL_USER,
+      pass: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD,
     },
   };
 
   // Se não houver configuração SMTP, usar ethereal para testes
-  if (!process.env.SMTP_USER) {
+  if (!config.auth.user) {
     logger.warn('Configuração SMTP não encontrada. Usando modo de teste (emails não serão enviados).');
     return null;
   }
 
-  const transporter = nodemailer.createTransporter(config);
+  const transporter = nodemailer.createTransport(config);
 
   // Verificar conexão
   transporter.verify((error, success) => {
