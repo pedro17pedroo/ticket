@@ -58,6 +58,7 @@ const Software = sequelize.define('Software', {
       'productivity',
       'utility',
       'game',
+      'system',
       'other'
     ),
     defaultValue: 'other'
