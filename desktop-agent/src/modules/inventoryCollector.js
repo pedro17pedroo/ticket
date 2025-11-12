@@ -48,24 +48,35 @@ class InventoryCollector {
       console.log('🔄 Coletando inventário...');
       
       const inventory = await this.getSystemInfo();
+      console.log('📊 Inventário coletado:', {
+        machineId: inventory.machineId,
+        hostname: inventory.hostname,
+        manufacturer: inventory.manufacturer,
+        model: inventory.model
+      });
       
-      // Enviar para o backend
-      if (this.apiClient.isConnected()) {
-        await this.apiClient.sendInventory(inventory);
-        this.store.set('lastSync', new Date().toISOString());
-        console.log('✅ Inventário enviado com sucesso');
-        
-        if (global.sendNotification) {
-          global.sendNotification('success', 'Inventário sincronizado');
-        }
+      // Verificar conexão com o backend
+      if (!this.apiClient.isConnected()) {
+        console.log('⚠️ Cliente não conectado ao backend');
+        throw new Error('Cliente não conectado ao servidor');
+      }
+      
+      console.log('📡 Enviando inventário para o backend...');
+      await this.apiClient.sendInventory(inventory);
+      this.store.set('lastSync', new Date().toISOString());
+      console.log('✅ Inventário enviado com sucesso');
+      
+      if (global.sendNotification) {
+        global.sendNotification('success', 'Inventário sincronizado');
       }
       
       return inventory;
     } catch (error) {
       console.error('❌ Erro ao coletar inventário:', error);
+      console.error('❌ Stack trace:', error.stack);
       
       if (global.sendNotification) {
-        global.sendNotification('error', 'Erro ao sincronizar inventário');
+        global.sendNotification('error', `Erro ao sincronizar: ${error.message}`);
       }
       
       throw error;
