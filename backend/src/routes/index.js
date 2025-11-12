@@ -337,17 +337,17 @@ router.get('/inventory/statistics', authenticate, inventoryController.getStatist
 // Desktop Agent Collection
 router.post('/inventory/agent-collect', authenticate, inventoryController.agentCollect);
 
-// Organization Inventory (comentado temporariamente - controller não existe)
-// router.get('/inventory/organization/users', authenticate, requirePermission('assets', 'read_all'), inventoryController.getOrganizationUsers);
-// router.get('/inventory/organization/statistics', authenticate, requirePermission('assets', 'read_all'), inventoryController.getOrganizationInventoryStats);
+// Organization Inventory
+router.get('/inventory/organization/users', authenticate, requirePermission('assets', 'read_all'), inventoryController.getOrganizationUsers);
+router.get('/inventory/organization/statistics', authenticate, requirePermission('assets', 'read_all'), inventoryController.getOrganizationInventoryStats);
 
-// Clients Inventory (comentado temporariamente - controller não existe)
-// router.get('/inventory/clients', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientsWithInventory);
-// router.get('/inventory/clients/statistics', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientsInventoryStats);
-// router.get('/inventory/clients/:clientId', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientInventory);
+// Clients Inventory
+router.get('/inventory/clients', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientsWithInventory);
+router.get('/inventory/clients/statistics', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientsInventoryStats);
+router.get('/inventory/clients/:clientId', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientInventory);
 
-// User Inventory (comentado temporariamente - controller não existe)
-// router.get('/inventory/users/:userId', authenticate, requirePermission('assets', 'read_all'), inventoryController.getUserInventory);
+// User Inventory
+router.get('/inventory/users/:userId', authenticate, requirePermission('assets', 'read_all'), inventoryController.getUserInventory);
 
 // ==================== REMOTE ACCESS ====================
 router.use('/remote-access', remoteAccessRoutes);
