@@ -24,6 +24,7 @@ import InternalPriorityManager from '../components/InternalPriorityManager'
 import StatusManager from '../components/StatusManager'
 import RichTextEditor from '../components/RichTextEditor'
 import RemoteAccessButton from '../components/RemoteAccessButton'
+import TicketWatchers from '../components/TicketWatchers'
 
 const TicketDetail = () => {
   const { id } = useParams()
@@ -534,6 +535,12 @@ Você pode usar formatação para destacar informações importantes:
               onUpdate={loadTicket}
             />
           )}
+
+          {/* Ticket Watchers */}
+          <TicketWatchers
+            ticket={ticket}
+            onUpdate={loadTicket}
+          />
 
           {/* Ticket History */}
           <TicketHistoryPanel ticketId={id} />
