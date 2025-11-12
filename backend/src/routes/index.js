@@ -31,8 +31,8 @@ import * as templateController from '../modules/templates/templateController.js'
 import * as ticketMergeController from '../modules/tickets/ticketMergeController.js';
 import * as catalogController from '../modules/catalog/catalogController.js';
 import * as notificationController from '../modules/notifications/notificationController.js';
-import * as inventoryController from '../modules/inventory/inventoryController.js';
 import remoteAccessRoutes from '../modules/remoteAccess/remoteAccessRoutes.js';
+import emailTestRoutes from './emailTest.js';
 import * as setupController from '../modules/setup/setupController.js';
 import commentRoutes from './commentRoutes.js';
 
@@ -83,6 +83,7 @@ router.get('/tickets/:id', authenticate, requirePermission('tickets', 'read'), t
 router.post('/tickets', authenticate, requirePermission('tickets', 'create'), validate(schemas.createTicket), auditLog('create', 'ticket'), ticketController.createTicket);
 router.put('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
 router.patch('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
+router.patch('/tickets/:id/watchers', authenticate, requirePermission('tickets', 'update'), auditLog('update', 'ticket_watchers'), ticketController.updateTicketWatchers);
 router.post('/tickets/:id/comments', authenticate, requirePermission('comments', 'create'), validate(schemas.createComment), auditLog('create', 'comment'), ticketController.addComment);
 
 // Comment routes (endpoints separados)
@@ -304,47 +305,47 @@ router.patch('/notifications/mark-all-read', authenticate, notificationControlle
 router.delete('/notifications/:id', authenticate, notificationController.deleteNotification);
 
 // ==================== INVENTORY ====================
-// Assets
-router.get('/inventory/assets', authenticate, requirePermission('assets', 'read'), inventoryController.getAssets);
-router.get('/inventory/assets/:id', authenticate, requirePermission('assets', 'read'), inventoryController.getAssetById);
-router.post('/inventory/assets', authenticate, requirePermission('assets', 'create'), auditLog('create', 'asset'), inventoryController.createAsset);
-router.put('/inventory/assets/:id', authenticate, requirePermission('assets', 'update'), auditLog('update', 'asset'), inventoryController.updateAsset);
-router.delete('/inventory/assets/:id', authenticate, requirePermission('assets', 'delete'), auditLog('delete', 'asset'), inventoryController.deleteAsset);
+// Assets (comentado temporariamente - controller não existe)
+// router.get('/inventory/assets', authenticate, requirePermission('assets', 'read'), inventoryController.getAssets);
+// router.get('/inventory/assets/:id', authenticate, requirePermission('assets', 'read'), inventoryController.getAssetById);
+// router.post('/inventory/assets', authenticate, requirePermission('assets', 'create'), auditLog('create', 'asset'), inventoryController.createAsset);
+// router.put('/inventory/assets/:id', authenticate, requirePermission('assets', 'update'), auditLog('update', 'asset'), inventoryController.updateAsset);
+// router.delete('/inventory/assets/:id', authenticate, requirePermission('assets', 'delete'), auditLog('delete', 'asset'), inventoryController.deleteAsset);
 
-// Software
-router.get('/inventory/software', authenticate, requirePermission('assets', 'read'), inventoryController.getSoftware);
-router.post('/inventory/software', authenticate, requirePermission('assets', 'create'), auditLog('create', 'software'), inventoryController.addSoftware);
-router.delete('/inventory/software/:id', authenticate, requirePermission('assets', 'delete'), auditLog('delete', 'software'), inventoryController.deleteSoftware);
+// Software (comentado temporariamente - controller não existe)
+// router.get('/inventory/software', authenticate, requirePermission('assets', 'read'), inventoryController.getSoftware);
+// router.post('/inventory/software', authenticate, requirePermission('assets', 'create'), auditLog('create', 'software'), inventoryController.addSoftware);
+// router.delete('/inventory/software/:id', authenticate, requirePermission('assets', 'delete'), auditLog('delete', 'software'), inventoryController.deleteSoftware);
 
-// Licenses
-router.get('/inventory/licenses', authenticate, requirePermission('assets', 'read'), inventoryController.getLicenses);
-router.get('/inventory/licenses/:id', authenticate, requirePermission('assets', 'read'), inventoryController.getLicenseById);
-router.post('/inventory/licenses', authenticate, requirePermission('assets', 'create'), auditLog('create', 'license'), inventoryController.createLicense);
-router.put('/inventory/licenses/:id', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.updateLicense);
-router.delete('/inventory/licenses/:id', authenticate, requirePermission('assets', 'delete'), auditLog('delete', 'license'), inventoryController.deleteLicense);
-router.post('/inventory/licenses/:id/assign', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.assignLicense);
-router.post('/inventory/licenses/:id/unassign', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.unassignLicense);
+// Licenses (comentado temporariamente - controller não existe)
+// router.get('/inventory/licenses', authenticate, requirePermission('assets', 'read'), inventoryController.getLicenses);
+// router.get('/inventory/licenses/:id', authenticate, requirePermission('assets', 'read'), inventoryController.getLicenseById);
+// router.post('/inventory/licenses', authenticate, requirePermission('assets', 'create'), auditLog('create', 'license'), inventoryController.createLicense);
+// router.put('/inventory/licenses/:id', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.updateLicense);
+// router.delete('/inventory/licenses/:id', authenticate, requirePermission('assets', 'delete'), auditLog('delete', 'license'), inventoryController.deleteLicense);
+// router.post('/inventory/licenses/:id/assign', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.assignLicense);
+// router.post('/inventory/licenses/:id/unassign', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.unassignLicense);
 
-// Statistics
-router.get('/inventory/statistics', authenticate, inventoryController.getStatistics);
+// Statistics (comentado temporariamente - controller não existe)
+// router.get('/inventory/statistics', authenticate, inventoryController.getStatistics);
 
-// Browser Collection
-router.post('/inventory/browser-collect', authenticate, inventoryController.browserCollect);
+// Browser Collection (comentado temporariamente - controller não existe)
+// router.post('/inventory/browser-collect', authenticate, inventoryController.browserCollect);
 
-// Desktop Agent Collection
-router.post('/inventory/agent-collect', authenticate, inventoryController.agentCollect);
+// Desktop Agent Collection (comentado temporariamente - controller não existe)
+// router.post('/inventory/agent-collect', authenticate, inventoryController.agentCollect);
 
-// Organization Inventory
-router.get('/inventory/organization/users', authenticate, requirePermission('assets', 'read_all'), inventoryController.getOrganizationUsers);
-router.get('/inventory/organization/statistics', authenticate, requirePermission('assets', 'read_all'), inventoryController.getOrganizationInventoryStats);
+// Organization Inventory (comentado temporariamente - controller não existe)
+// router.get('/inventory/organization/users', authenticate, requirePermission('assets', 'read_all'), inventoryController.getOrganizationUsers);
+// router.get('/inventory/organization/statistics', authenticate, requirePermission('assets', 'read_all'), inventoryController.getOrganizationInventoryStats);
 
-// Clients Inventory
-router.get('/inventory/clients', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientsWithInventory);
-router.get('/inventory/clients/statistics', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientsInventoryStats);
-router.get('/inventory/clients/:clientId', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientInventory);
+// Clients Inventory (comentado temporariamente - controller não existe)
+// router.get('/inventory/clients', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientsWithInventory);
+// router.get('/inventory/clients/statistics', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientsInventoryStats);
+// router.get('/inventory/clients/:clientId', authenticate, requirePermission('assets', 'read_all'), inventoryController.getClientInventory);
 
-// User Inventory
-router.get('/inventory/users/:userId', authenticate, requirePermission('assets', 'read_all'), inventoryController.getUserInventory);
+// User Inventory (comentado temporariamente - controller não existe)
+// router.get('/inventory/users/:userId', authenticate, requirePermission('assets', 'read_all'), inventoryController.getUserInventory);
 
 // ==================== REMOTE ACCESS ====================
 router.use('/remote-access', remoteAccessRoutes);
@@ -392,5 +393,8 @@ router.use('/catalog', catalogRoutes);
 // ==================== RBAC (Role-Based Access Control) ====================
 import rbacRoutes from './rbacRoutes.js';
 router.use('/rbac', rbacRoutes);
+
+// ==================== EMAIL TEST ====================
+router.use('/', emailTestRoutes);
 
 export default router;

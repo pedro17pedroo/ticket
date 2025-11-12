@@ -15,6 +15,7 @@ import { User, SLA, Department, Category } from '../modules/models/index.js';
 import logger from '../config/logger.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
+import { notifyTicketWatchers } from './watcherNotificationService.js';
 
 class CatalogService {
   
@@ -232,7 +233,8 @@ class CatalogService {
       additionalDetails = '',
       userPriority = '',
       expectedResolutionTime = null,
-      attachments = []
+      attachments = [],
+      clientWatchers = [] // Novos watchers do cliente
     } = options;
 
     // Buscar item do catálogo
@@ -295,7 +297,7 @@ class CatalogService {
       routing,
       workflowId,
       finalPriority,
-      { additionalDetails, userPriority, expectedResolutionTime, attachments }
+      { additionalDetails, userPriority, expectedResolutionTime, attachments, clientWatchers }
     );
 
     // Se requer aprovação, ticket fica com status aguardando_aprovacao
@@ -310,6 +312,30 @@ class CatalogService {
     });
 
     logger.info(`Ticket criado: ${ticket.ticketNumber} - Status: ${ticketStatus}`);
+
+    // 🔔 NOTIFICAR WATCHERS
+    try {
+      // Carregar ticket completo com relacionamentos para notificações
+      const fullTicket = await Ticket.findByPk(ticket.id, {
+        include: [
+          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+        ]
+      });
+
+      logger.info(`🔔 Iniciando notificação de watchers para ticket ${fullTicket.ticketNumber}`);
+      logger.info(`📧 Client watchers: ${JSON.stringify(fullTicket.clientWatchers)}`);
+      logger.info(`👥 Org watchers: ${JSON.stringify(fullTicket.orgWatchers)}`);
+      logger.info(`👤 Requester: ${fullTicket.requester?.email || 'N/A'}`);
+      logger.info(`🎯 Assignee: ${fullTicket.assignee?.email || 'N/A'}`);
+      
+      await notifyTicketWatchers(fullTicket, 'created');
+      logger.info(`✅ Watchers notificados para ticket ${fullTicket.ticketNumber}`);
+    } catch (error) {
+      logger.error(`❌ Erro ao notificar watchers do ticket ${ticket.ticketNumber}:`, error);
+      console.error('Stack trace completo:', error.stack);
+      // Não falhar a criação do ticket por erro de notificação
+    }
 
     return { serviceRequest, ticket, requiresApproval };
   }
@@ -338,7 +364,7 @@ class CatalogService {
    * Criar ticket a partir de service request
    */
   async createTicketFromRequest(serviceRequest, catalogItem, routing, workflowId, priority, clientData = {}) {
-    const { additionalDetails = '', userPriority = '', expectedResolutionTime = null, attachments = [] } = clientData;
+    const { additionalDetails = '', userPriority = '', expectedResolutionTime = null, attachments = [], clientWatchers = [] } = clientData;
     const requester = await User.findByPk(serviceRequest.userId);
 
     // Descrição: APENAS detalhes adicionais do cliente
@@ -431,7 +457,9 @@ class CatalogService {
       customFields,   // Campos do formulário dinâmico
       metadata,       // Informações do catálogo e cliente estruturadas
       source: 'portal',
-      tags: catalogItem.keywords || []
+      tags: catalogItem.keywords || [],
+      // Watchers
+      clientWatchers: clientWatchers || [] // Emails de observadores do cliente
     });
 
     logger.info(`Ticket criado a partir de catálogo: ${ticket.ticketNumber} (Tipo: ${catalogItem.itemType})`);

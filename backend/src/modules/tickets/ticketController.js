@@ -437,6 +437,27 @@ export const updateTicket = async (req, res, next) => {
       notificationService.notifyStatusChange(ticket, oldStatus, updates.status, req.user.id, req.user.name)
         .catch(err => logger.error('Erro ao notificar mudança de status:', err));
       
+      // 🔔 NOTIFICAR WATCHERS SOBRE MUDANÇA DE STATUS
+      try {
+        // Carregar ticket completo com relacionamentos
+        const fullTicket = await Ticket.findByPk(ticket.id, {
+          include: [
+            { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+            { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+          ]
+        });
+
+        const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
+        await notifyTicketWatchers(fullTicket, 'status_changed', { 
+          oldStatus: oldStatus,
+          newStatus: updates.status,
+          changedBy: req.user.name
+        });
+        logger.info(`✅ Watchers notificados sobre mudança de status do ticket ${fullTicket.ticketNumber}: ${oldStatus} → ${updates.status}`);
+      } catch (error) {
+        logger.error(`❌ Erro ao notificar watchers sobre mudança de status:`, error);
+      }
+      
       // Notificações específicas
       if (updates.status === 'resolvido') {
         notificationService.notifyTicketResolved(ticket, req.user.id, req.user.name)
@@ -451,6 +472,26 @@ export const updateTicket = async (req, res, next) => {
     if (updates.assigneeId && oldAssigneeId !== updates.assigneeId) {
       notificationService.notifyTicketAssigned(ticket, updates.assigneeId, req.user.id, req.user.name)
         .catch(err => logger.error('Erro ao notificar atribuição:', err));
+      
+      // 🔔 NOTIFICAR WATCHERS SOBRE ATRIBUIÇÃO
+      try {
+        // Carregar ticket completo com relacionamentos
+        const fullTicket = await Ticket.findByPk(ticket.id, {
+          include: [
+            { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+            { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+          ]
+        });
+
+        const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
+        await notifyTicketWatchers(fullTicket, 'assigned', { 
+          assignedTo: req.user.name,
+          previousAssignee: oldAssigneeId
+        });
+        logger.info(`✅ Watchers notificados sobre atribuição do ticket ${fullTicket.ticketNumber}`);
+      } catch (error) {
+        logger.error(`❌ Erro ao notificar watchers sobre atribuição:`, error);
+      }
     }
 
     // Auto-consumir tempo rastreado ao concluir ticket
@@ -594,6 +635,18 @@ export const addComment = async (req, res, next) => {
       authorType,
       req.user.name
     ).catch(err => logger.error('Erro ao notificar comentário:', err));
+
+    // 🔔 NOTIFICAR WATCHERS SOBRE O COMENTÁRIO
+    try {
+      const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
+      await notifyTicketWatchers(ticket, 'commented', { 
+        comment: comment.content,
+        author: req.user.name
+      });
+      logger.info(`✅ Watchers notificados sobre comentário no ticket ${ticket.ticketNumber}`);
+    } catch (error) {
+      logger.error(`❌ Erro ao notificar watchers sobre comentário:`, error);
+    }
 
     res.status(201).json({
       message: 'Comentário adicionado com sucesso',
@@ -1271,6 +1324,67 @@ export const updateResolutionStatus = async (req, res, next) => {
     });
   } catch (error) {
     await transaction.rollback();
+    next(error);
+  }
+};
+
+/**
+ * Atualizar watchers do ticket
+ */
+export const updateTicketWatchers = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { orgWatchers, clientWatchers } = req.body;
+
+    const ticket = await Ticket.findByPk(id);
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Verificar permissões
+    if (ticket.organizationId !== req.user.organizationId) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    // Atualizar apenas os campos fornecidos
+    const updates = {};
+    if (orgWatchers !== undefined) {
+      updates.orgWatchers = orgWatchers;
+    }
+    if (clientWatchers !== undefined) {
+      updates.clientWatchers = clientWatchers;
+    }
+
+    await ticket.update(updates);
+
+    logger.info(`Watchers atualizados para ticket ${ticket.ticketNumber} por ${req.user.name}`);
+
+    // Registrar no histórico
+    await logTicketChange(
+      ticket.id,
+      req.user.id,
+      'watchers_updated',
+      null,
+      null,
+      { orgWatchers, clientWatchers }
+    );
+
+    res.json({
+      success: true,
+      ticket: await Ticket.findByPk(id, {
+        include: [
+          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
+          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] },
+          { model: Department, as: 'department', attributes: ['id', 'name'] },
+          { model: Category, as: 'category', attributes: ['id', 'name'] },
+          { model: Priority, as: 'ticketPriority', attributes: ['id', 'name', 'color'] },
+          { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name', 'description'] }
+        ]
+      })
+    });
+
+  } catch (error) {
+    logger.error('Erro ao atualizar watchers do ticket:', error);
     next(error);
   }
 };
