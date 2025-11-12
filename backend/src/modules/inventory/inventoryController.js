@@ -1,7 +1,31 @@
 import { Asset, SoftwareInstalled, SoftwareLicense, AssetLicense } from './inventoryModelsSimple.js';
+import { OrganizationUser, ClientUser, Client } from '../models/index.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 import logger from '../../config/logger.js';
+
+// ==================== HELPERS ====================
+
+/**
+ * Busca um usuário em qualquer uma das 3 tabelas
+ * @param {string} userId - ID do usuário
+ * @returns {Promise<{user: Object, userType: string} | null>}
+ */
+async function findUserAnyTable(userId) {
+  // Tentar OrganizationUser primeiro
+  let user = await OrganizationUser.findByPk(userId);
+  if (user) {
+    return { user, userType: 'organization', clientId: null };
+  }
+
+  // Tentar ClientUser
+  user = await ClientUser.findByPk(userId);
+  if (user) {
+    return { user, userType: 'client', clientId: user.clientId };
+  }
+
+  return null;
+}
 
 // ==================== ASSETS ====================
 
@@ -803,19 +827,19 @@ export const browserCollect = async (req, res, next) => {
     } else {
       // Buscar clientId do usuário (se for cliente)
       logger.info('Fetching user data for clientId:', userId);
-      const user = await User.findByPk(userId);
+      const userData = await findUserAnyTable(userId);
       
-      if (!user) {
+      if (!userData) {
         logger.error('User not found:', userId);
         return res.status(404).json({ error: 'Usuário não encontrado' });
       }
 
-      logger.info('User found:', { userId, clientId: user.clientId, role: user.role });
+      logger.info('User found:', { userId, clientId: userData.clientId, userType: userData.userType });
       
       // Criar novo asset com todos os dados
       const newAssetData = {
         organizationId,
-        clientId: user.clientId || null,
+        clientId: userData.clientId,
         userId,
         assetTag: `BROWSER-${userId}`,
         serialNumber: `BROWSER-${Date.now()}`,
@@ -884,11 +908,13 @@ export const agentCollect = async (req, res, next) => {
     });
 
     // Buscar usuário para obter clientId
-    const user = await User.findByPk(userId);
+    const userData = await findUserAnyTable(userId);
     
-    if (!user) {
+    if (!userData) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
+
+    const user = userData.user;
 
     // Preparar dados do asset
     const assetData = {
@@ -1007,10 +1033,9 @@ export const getOrganizationUsers = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
 
-    const users = await User.findAll({
+    const users = await OrganizationUser.findAll({
       where: { 
-        organizationId,
-        role: { [Op.ne]: 'cliente-org' } // Excluir usuários clientes
+        organizationId
       },
       attributes: ['id', 'name', 'email', 'role', 'isActive'],
       include: [
@@ -1060,17 +1085,15 @@ export const getOrganizationInventoryStats = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     const [totalUsers, totalAssets, onlineUsers] = await Promise.all([
-      User.count({ 
+      OrganizationUser.count({ 
         where: { 
-          organizationId,
-          role: { [Op.ne]: 'cliente-org' }
+          organizationId
         }
       }),
       Asset.count({ where: { organizationId } }),
-      User.count({ 
+      OrganizationUser.count({ 
         where: { 
-          organizationId,
-          role: { [Op.ne]: 'cliente-org' },
+          organizationId
           // Adicionar lógica de online se tiver campo lastSeen
         }
       })
@@ -1100,14 +1123,12 @@ export const getClientsWithInventory = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
 
-    // Buscar apenas empresas clientes (client_id IS NULL = empresa master)
-    const clients = await User.findAll({
+    // Buscar empresas clientes da tabela clients
+    const clients = await Client.findAll({
       where: { 
-        organizationId,
-        role: 'cliente-org',
-        clientId: null // Apenas empresas master, não usuários das empresas
+        organizationId
       },
-      attributes: ['id', 'name', 'email', 'isActive'],
+      attributes: ['id', 'name', 'tradeName', 'isActive'],
       include: [
         {
           model: Asset,
@@ -1118,10 +1139,10 @@ export const getClientsWithInventory = async (req, res, next) => {
       ]
     });
 
-    // Para cada cliente, contar quantos usuários filhos tem
+    // Para cada cliente, contar quantos usuários tem
     const clientsWithUserCounts = await Promise.all(
       clients.map(async (client) => {
-        const childUsersCount = await User.count({
+        const usersCount = await ClientUser.count({
           where: {
             organizationId,
             clientId: client.id // Usuários que pertencem a este cliente
@@ -1129,7 +1150,7 @@ export const getClientsWithInventory = async (req, res, next) => {
         });
         return {
           ...client.toJSON(),
-          usersCount: 1 + childUsersCount // 1 (master) + usuários filhos
+          usersCount
         };
       })
     );
@@ -1138,9 +1159,9 @@ export const getClientsWithInventory = async (req, res, next) => {
     const clientsWithStats = clientsWithUserCounts.map(client => ({
       id: client.id,
       name: client.name,
-      email: client.email,
+      tradeName: client.tradeName,
       isActive: client.isActive,
-      usersCount: client.usersCount, // ✅ Incluir contagem de usuários
+      usersCount: client.usersCount,
       assetsCount: client.clientAssets?.length || 0,
       assetsSummary: {
         hasDesktop: client.clientAssets?.some(a => a.type === 'desktop') || false,
@@ -1170,60 +1191,35 @@ export const getClientsInventoryStats = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
 
-    const [totalClients, totalClientUsers, totalClientAssets, totalUserAssets] = await Promise.all([
-      // Total de empresas clientes (clientId IS NULL)
-      User.count({ 
+    const [totalClients, totalClientUsers, totalClientAssets] = await Promise.all([
+      // Total de empresas clientes
+      Client.count({ 
         where: { 
-          organizationId,
-          role: 'cliente-org',
-          clientId: null
+          organizationId
         }
       }),
-      // Total de usuários de empresas clientes (clientId IS NOT NULL)
-      User.count({ 
+      // Total de usuários de empresas clientes
+      ClientUser.count({ 
+        where: { 
+          organizationId
+        }
+      }),
+      // Assets das empresas clientes
+      Asset.count({ 
         where: { 
           organizationId,
-          role: 'cliente-org',
           clientId: { [Op.ne]: null }
         }
-      }),
-      // Assets das empresas clientes (user com clientId IS NULL)
-      Asset.count({ 
-        where: { organizationId },
-        include: [{
-          model: User,
-          as: 'client',
-          where: { 
-            role: 'cliente-org',
-            clientId: null
-          },
-          required: true
-        }]
-      }),
-      // Assets dos usuários de empresas (user com clientId IS NOT NULL)
-      Asset.count({ 
-        where: { organizationId },
-        include: [{
-          model: User,
-          as: 'user',
-          where: { 
-            role: 'cliente-org',
-            clientId: { [Op.ne]: null }
-          },
-          required: true
-        }]
       })
     ]);
 
     res.json({
       success: true,
       statistics: {
-        totalClients, // Empresas clientes master
-        totalClientUsers, // Usuários de empresas clientes (sem masters)
-        totalUsers: totalClients + totalClientUsers, // Total: masters + usuários filhos
-        totalClientAssets, // Assets das empresas
-        totalUserAssets, // Assets dos usuários de empresas
-        totalAssets: totalClientAssets + totalUserAssets // Total geral
+        totalClients,
+        totalClientUsers,
+        totalUsers: totalClientUsers,
+        totalAssets: totalClientAssets
       }
     });
   } catch (error) {
@@ -1241,17 +1237,16 @@ export const getUserInventory = async (req, res, next) => {
     const { userId } = req.params;
     const organizationId = req.user.organizationId;
 
-    const user = await User.findOne({
-      where: { id: userId, organizationId },
-      attributes: ['id', 'name', 'email', 'role', 'isActive']
-    });
+    const userData = await findUserAnyTable(userId);
 
-    if (!user) {
+    if (!userData) {
       return res.status(404).json({
         success: false,
         error: 'Usuário não encontrado'
       });
     }
+
+    const user = userData.user;
 
     const assets = await Asset.findAll({
       where: { 
@@ -1263,9 +1258,9 @@ export const getUserInventory = async (req, res, next) => {
       },
       include: [
         {
-          model: Software,
+          model: SoftwareInstalled,
           as: 'software',
-          attributes: ['id', 'name', 'vendor', 'version', 'category'],
+          attributes: ['id', 'name', 'vendor', 'version'],
           required: false
         }
       ]
@@ -1291,15 +1286,13 @@ export const getClientInventory = async (req, res, next) => {
     const { clientId } = req.params;
     const organizationId = req.user.organizationId;
 
-    // Verificar se é uma empresa cliente master (clientId IS NULL)
-    const client = await User.findOne({
+    // Buscar empresa cliente
+    const client = await Client.findOne({
       where: { 
         id: clientId, 
-        organizationId,
-        role: 'cliente-org',
-        clientId: null // Garantir que é empresa master, não usuário
+        organizationId
       },
-      attributes: ['id', 'name', 'email', 'isActive'],
+      attributes: ['id', 'name', 'tradeName', 'isActive'],
       include: [
         {
           model: Asset,
@@ -1308,7 +1301,7 @@ export const getClientInventory = async (req, res, next) => {
           required: false,
           include: [
             {
-              model: Software,
+              model: SoftwareInstalled,
               as: 'software',
               attributes: ['id', 'name'],
               required: false
@@ -1325,11 +1318,11 @@ export const getClientInventory = async (req, res, next) => {
       });
     }
 
-    // Buscar usuários da empresa cliente (clientId = id da empresa)
-    const users = await User.findAll({
+    // Buscar usuários da empresa cliente
+    const users = await ClientUser.findAll({
       where: { 
         organizationId,
-        clientId // Usuários que pertencem a esta empresa
+        clientId
       },
       attributes: ['id', 'name', 'email', 'isActive'],
       include: [
@@ -1340,7 +1333,7 @@ export const getClientInventory = async (req, res, next) => {
           required: false,
           include: [
             {
-              model: Software,
+              model: SoftwareInstalled,
               as: 'software',
               attributes: ['id', 'name'],
               required: false
@@ -1350,31 +1343,12 @@ export const getClientInventory = async (req, res, next) => {
       ]
     });
 
-    // Incluir o usuário master (o próprio cliente) como primeiro usuário
-    const masterUser = {
-      id: client.id,
-      name: client.name,
-      email: client.email,
-      isActive: client.isActive,
-      isMaster: true, // Identificar como usuário master
-      assetsCount: client.clientAssets?.length || 0,
-      assetsSummary: {
-        hasDesktop: client.clientAssets?.some(a => a.type === 'desktop') || false,
-        hasLaptop: client.clientAssets?.some(a => a.type === 'laptop') || false,
-        desktopCount: client.clientAssets?.filter(a => a.type === 'desktop').length || 0,
-        laptopCount: client.clientAssets?.filter(a => a.type === 'laptop').length || 0,
-        agentCount: client.clientAssets?.filter(a => a.collectionMethod === 'agent').length || 0,
-        webCount: client.clientAssets?.filter(a => a.collectionMethod === 'web').length || 0
-      }
-    };
-
-    // Mapear usuários filhos com suas estatísticas
-    const childUsersWithStats = users.map(u => ({
+    // Mapear usuários com suas estatísticas
+    const usersWithStats = users.map(u => ({
       id: u.id,
       name: u.name,
       email: u.email,
       isActive: u.isActive,
-      isMaster: false,
       assetsCount: u.userAssets?.length || 0,
       assetsSummary: {
         hasDesktop: u.userAssets?.some(a => a.type === 'desktop') || false,
@@ -1386,15 +1360,12 @@ export const getClientInventory = async (req, res, next) => {
       }
     }));
 
-    // Combinar: master + usuários filhos
-    const allUsers = [masterUser, ...childUsersWithStats];
-
     res.json({
       success: true,
       client: {
         id: client.id,
         name: client.name,
-        email: client.email,
+        tradeName: client.tradeName,
         isActive: client.isActive,
         assetsCount: client.clientAssets?.length || 0,
         assetsSummary: {
@@ -1406,8 +1377,8 @@ export const getClientInventory = async (req, res, next) => {
           webCount: client.clientAssets?.filter(a => a.collectionMethod === 'web').length || 0
         }
       },
-      users: allUsers, // Inclui master + usuários filhos
-      totalUsers: allUsers.length, // Total inclui o master
+      users: usersWithStats, // Apenas usuários reais
+      totalUsers: usersWithStats.length,
       totalAssets: (client.clientAssets?.length || 0) + users.reduce((acc, u) => acc + (u.userAssets?.length || 0), 0),
       totalSoftware: (
         // Software dos assets do cliente master

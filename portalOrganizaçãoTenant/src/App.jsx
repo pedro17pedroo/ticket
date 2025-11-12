@@ -23,6 +23,7 @@ import Priorities from './pages/Priorities'
 import Types from './pages/Types'
 import HoursBank from './pages/HoursBank'
 import Settings from './pages/Settings'
+import Profile from './pages/Profile'
 import ServiceCatalog from './pages/ServiceCatalog'
 import CatalogCategories from './pages/CatalogCategories'
 import CatalogApprovals from './pages/CatalogApprovals'
@@ -134,6 +135,7 @@ function App() {
                   <Route path="/inventory/:id" element={<InventoryDetail />} />
                   <Route path="/inventory/:id/edit" element={<AssetForm />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/profile" element={<Profile />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </Layout>

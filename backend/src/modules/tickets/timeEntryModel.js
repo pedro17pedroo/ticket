@@ -53,6 +53,21 @@ export const TimeEntry = sequelize.define('TimeEntry', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
     comment: 'True if timer is currently running'
+  },
+  status: {
+    type: DataTypes.ENUM('running', 'paused', 'stopped'),
+    defaultValue: 'running',
+    comment: 'Timer status: running, paused, or stopped'
+  },
+  totalPausedTime: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    comment: 'Total paused time in seconds'
+  },
+  lastPauseStart: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Timestamp when timer was last paused'
   }
 }, {
   tableName: 'time_entries',

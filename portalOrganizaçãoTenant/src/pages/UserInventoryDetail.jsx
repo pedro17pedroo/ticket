@@ -45,7 +45,14 @@ const UserInventoryDetail = () => {
       }
     } catch (error) {
       console.error('Erro ao carregar inventário:', error);
-      toast.error('Erro ao carregar inventário do utilizador');
+      
+      // Se for 404, redirecionar de volta
+      if (error.response?.status === 404) {
+        toast.error('Utilizador não encontrado');
+        setTimeout(() => navigate(-1), 1500);
+      } else {
+        toast.error('Erro ao carregar inventário do utilizador');
+      }
     } finally {
       setLoading(false);
     }

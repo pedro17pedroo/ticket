@@ -1,17 +1,16 @@
-import { User, Organization, Direction, Department, Section } from '../models/index.js';
+import { OrganizationUser, Organization, Direction, Department, Section } from '../models/index.js';
 import { Op } from 'sequelize';
 import logger from '../../config/logger.js';
 
-// GET /api/users - Listar usuários da organização (apenas internos, não clientes)
+// GET /api/users - Listar usuários da organização tenant (organization_users)
 export const getUsers = async (req, res, next) => {
   try {
     const { search, role, isActive } = req.query;
     const organizationId = req.user.organizationId;
 
-    // Excluir utilizadores de clientes - mostrar apenas utilizadores internos do tenant
+    // Filtrar apenas usuários da tabela organization_users
     const where = { 
-      organizationId,
-      role: { [Op.ne]: 'cliente-org' } // Excluir clientes
+      organizationId
     };
 
     if (role) {
@@ -29,7 +28,7 @@ export const getUsers = async (req, res, next) => {
       ];
     }
 
-    const users = await User.findAll({
+    const users = await OrganizationUser.findAll({
       where,
       attributes: [
         'id', 'name', 'email', 'phone', 'role',
@@ -45,12 +44,27 @@ export const getUsers = async (req, res, next) => {
         {
           model: Department,
           as: 'department',
-          attributes: ['id', 'name']
+          attributes: ['id', 'name', 'directionId'],
+          include: [{
+            model: Direction,
+            as: 'direction',
+            attributes: ['id', 'name']
+          }]
         },
         {
           model: Section,
           as: 'section',
-          attributes: ['id', 'name']
+          attributes: ['id', 'name', 'departmentId'],
+          include: [{
+            model: Department,
+            as: 'department',
+            attributes: ['id', 'name', 'directionId'],
+            include: [{
+              model: Direction,
+              as: 'direction',
+              attributes: ['id', 'name']
+            }]
+          }]
         }
       ],
       order: [['name', 'ASC']]
@@ -65,17 +79,16 @@ export const getUsers = async (req, res, next) => {
   }
 };
 
-// GET /api/users/:id - Buscar usuário por ID (apenas internos, não clientes)
+// GET /api/users/:id - Buscar usuário por ID (organization_users)
 export const getUserById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    const user = await User.findOne({
+    const user = await OrganizationUser.findOne({
       where: { 
         id, 
-        organizationId,
-        role: { [Op.ne]: 'cliente-org' } // Excluir clientes
+        organizationId
       },
       attributes: [
         'id', 'name', 'email', 'phone', 'role',
@@ -126,23 +139,25 @@ export const createUser = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     // Apenas admin pode criar usuários
-    if (req.user.role !== 'admin-org' && req.user.role !== 'super-admin' && req.user.role !== 'tenant-admin') {
+    const allowedAdminRoles = ['admin-org', 'super-admin', 'org-admin'];
+    if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem criar usuários'
       });
     }
 
-    // Não permitir criar utilizadores cliente-org por este endpoint
-    if (role === 'cliente-org') {
+    // Validar role permitido (roles da tabela organization_users)
+    const validRoles = ['org-admin', 'org-manager', 'agent', 'technician'];
+    if (role && !validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        error: 'Utilize o endpoint /api/clients para criar utilizadores de clientes'
+        error: `Role inválido. Utilize: ${validRoles.join(', ')}`
       });
     }
 
     // Verificar se email já existe na organização
-    const existingUser = await User.findOne({
+    const existingUser = await OrganizationUser.findOne({
       where: {
         email,
         organizationId
@@ -156,12 +171,12 @@ export const createUser = async (req, res, next) => {
       });
     }
 
-    const user = await User.create({
+    const user = await OrganizationUser.create({
       name,
       email,
       phone,
       password, // Será hasheado pelo hook do modelo
-      role: role || 'agent', // Default: agent (suporte)
+      role: role || 'agent', // Default: agent
       organizationId,
       directionId: directionId || null,
       departmentId: departmentId || null,
@@ -192,39 +207,40 @@ export const updateUser = async (req, res, next) => {
     const { name, email, phone, role, directionId, departmentId, sectionId, isActive } = req.body;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org' && req.user.role !== 'super-admin') {
+    const allowedAdminRoles = ['admin-org', 'super-admin', 'org-admin'];
+    if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem atualizar usuários'
       });
     }
 
-    const user = await User.findOne({
+    const user = await OrganizationUser.findOne({
       where: { 
         id, 
-        organizationId,
-        role: { [Op.ne]: 'cliente-org' } // Apenas utilizadores internos
+        organizationId
       }
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'Utilizador não encontrado ou é um utilizador de cliente'
+        error: 'Utilizador não encontrado'
       });
     }
 
-    // Não permitir mudar role para cliente-org
-    if (role === 'cliente-org') {
+    // Validar role se estiver sendo alterado
+    const validRoles = ['org-admin', 'org-manager', 'agent', 'technician'];
+    if (role && !validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        error: 'Não é possível alterar role para cliente-org através deste endpoint'
+        error: `Role inválido. Utilize: ${validRoles.join(', ')}`
       });
     }
 
     // Verificar se email já existe em outro usuário
     if (email && email !== user.email) {
-      const existingUser = await User.findOne({
+      const existingUser = await OrganizationUser.findOne({
         where: {
           email,
           organizationId,
@@ -272,7 +288,8 @@ export const deleteUser = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org' && req.user.role !== 'super-admin') {
+    const allowedAdminRoles = ['admin-org', 'super-admin', 'org-admin'];
+    if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem desativar usuários'
@@ -287,18 +304,17 @@ export const deleteUser = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({
+    const user = await OrganizationUser.findOne({
       where: { 
         id, 
-        organizationId,
-        role: { [Op.ne]: 'cliente-org' } // Apenas utilizadores internos
+        organizationId
       }
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'Utilizador não encontrado ou é um utilizador de cliente'
+        error: 'Utilizador não encontrado'
       });
     }
 
@@ -321,25 +337,25 @@ export const activateUser = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org' && req.user.role !== 'super-admin') {
+    const allowedAdminRoles = ['admin-org', 'super-admin', 'org-admin'];
+    if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem reativar usuários'
       });
     }
 
-    const user = await User.findOne({
+    const user = await OrganizationUser.findOne({
       where: { 
         id, 
-        organizationId,
-        role: { [Op.ne]: 'cliente-org' } // Apenas utilizadores internos
+        organizationId
       }
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'Utilizador não encontrado ou é um utilizador de cliente'
+        error: 'Utilizador não encontrado'
       });
     }
 
@@ -363,25 +379,25 @@ export const resetPassword = async (req, res, next) => {
     const { newPassword } = req.body;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org' && req.user.role !== 'super-admin') {
+    const allowedAdminRoles = ['admin-org', 'super-admin', 'org-admin'];
+    if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem redefinir senhas'
       });
     }
 
-    const user = await User.findOne({
+    const user = await OrganizationUser.scope('withPassword').findOne({
       where: { 
         id, 
-        organizationId,
-        role: { [Op.ne]: 'cliente-org' } // Apenas utilizadores internos
+        organizationId
       }
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'Utilizador não encontrado ou é um utilizador de cliente'
+        error: 'Utilizador não encontrado'
       });
     }
 

@@ -1,6 +1,7 @@
 import TimeEntry from '../tickets/timeEntryModel.js';
 import { Ticket, User, HoursBank, HoursTransaction } from '../models/index.js';
 import logger from '../../config/logger.js';
+import { isTicketClosed, isTicketAssigned } from '../../utils/ticketValidations.js';
 
 // Iniciar timer no ticket
 export const startTimer = async (req, res, next) => {
@@ -18,6 +19,23 @@ export const startTimer = async (req, res, next) => {
 
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // ✅ VALIDAÇÃO: Ticket não pode estar fechado/resolvido
+    if (isTicketClosed(ticket)) {
+      return res.status(403).json({ 
+        error: 'Não é possível iniciar cronômetro em ticket concluído',
+        reason: 'ticket_closed',
+        status: ticket.status
+      });
+    }
+
+    // ✅ VALIDAÇÃO: Ticket deve estar atribuído
+    if (!isTicketAssigned(ticket)) {
+      return res.status(403).json({ 
+        error: 'Ticket deve ser atribuído antes de iniciar o cronômetro',
+        reason: 'ticket_not_assigned'
+      });
     }
 
     // Verificar se já existe timer ativo para este usuário neste ticket
@@ -43,7 +61,9 @@ export const startTimer = async (req, res, next) => {
       organizationId: req.user.organizationId,
       startTime: new Date(),
       description: description || null,
-      isActive: true
+      isActive: true,
+      status: 'running',
+      totalPausedTime: 0
     });
 
     logger.info(`Timer iniciado para ticket ${ticketId} por ${req.user.name}`);
@@ -57,9 +77,98 @@ export const startTimer = async (req, res, next) => {
   }
 };
 
-// Pausar timer - REMOVIDO (não suportado no novo modelo)
+// Pausar timer
+export const pauseTimer = async (req, res, next) => {
+  try {
+    const { id } = req.params;
 
-// Retomar timer - REMOVIDO (não suportado no novo modelo)
+    const timer = await TimeEntry.findOne({
+      where: {
+        id,
+        userId: req.user.id,
+        organizationId: req.user.organizationId,
+        isActive: true,
+        status: 'running'
+      }
+    });
+
+    if (!timer) {
+      return res.status(404).json({ error: 'Timer ativo não encontrado' });
+    }
+
+    // Marcar momento da pausa
+    await timer.update({
+      status: 'paused',
+      lastPauseStart: new Date()
+    });
+    
+    // Recarregar para pegar valores atualizados
+    await timer.reload();
+
+    logger.info(`Timer pausado: ${id} por ${req.user.name}`);
+
+    res.json({
+      success: true,
+      timer
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Retomar timer
+export const resumeTimer = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const timer = await TimeEntry.findOne({
+      where: {
+        id,
+        userId: req.user.id,
+        organizationId: req.user.organizationId,
+        isActive: true,
+        status: 'paused'
+      }
+    });
+
+    if (!timer) {
+      return res.status(404).json({ error: 'Timer pausado não encontrado' });
+    }
+
+    // Calcular tempo pausado
+    const now = new Date();
+    const pauseStart = new Date(timer.lastPauseStart);
+    const pausedSeconds = Math.floor((now - pauseStart) / 1000);
+    let newTotalPausedTime = (timer.totalPausedTime || 0) + pausedSeconds;
+    
+    // Validação: totalPausedTime não pode ser maior que tempo total decorrido
+    const totalElapsed = Math.floor((now - new Date(timer.startTime)) / 1000);
+    if (newTotalPausedTime >= totalElapsed) {
+      logger.warn(`⚠️ totalPausedTime (${newTotalPausedTime}s) >= totalElapsed (${totalElapsed}s). Ajustando para evitar timer negativo.`);
+      // Deixar pelo menos 1 segundo de trabalho efetivo
+      newTotalPausedTime = Math.max(0, totalElapsed - 1);
+    }
+
+    // Retomar timer
+    await timer.update({
+      status: 'running',
+      totalPausedTime: newTotalPausedTime,
+      lastPauseStart: null
+    });
+    
+    // Recarregar para pegar valores atualizados
+    await timer.reload();
+
+    logger.info(`Timer retomado: ${id} por ${req.user.name}. Pausado por ${pausedSeconds}s`);
+
+    res.json({
+      success: true,
+      timer
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Parar timer
 export const stopTimer = async (req, res, next) => {
@@ -80,13 +189,29 @@ export const stopTimer = async (req, res, next) => {
     }
 
     const now = new Date();
-    const duration = Math.floor((now - new Date(timer.startTime)) / 1000);
+    
+    // Se estava pausado, calcular tempo da última pausa
+    let finalPausedTime = timer.totalPausedTime || 0;
+    if (timer.status === 'paused' && timer.lastPauseStart) {
+      const pauseStart = new Date(timer.lastPauseStart);
+      const lastPauseDuration = Math.floor((now - pauseStart) / 1000);
+      finalPausedTime += lastPauseDuration;
+    }
+    
+    // Calcular duração total (descontando pausas)
+    const totalElapsed = Math.floor((now - new Date(timer.startTime)) / 1000);
+    const duration = totalElapsed - finalPausedTime;
 
     await timer.update({
       endTime: now,
       duration,
-      isActive: false
+      totalPausedTime: finalPausedTime,
+      isActive: false,
+      status: 'stopped'
     });
+    
+    // Recarregar para pegar valores atualizados
+    await timer.reload();
 
     logger.info(`Timer parado: ${duration}s (${(duration / 3600).toFixed(2)}h)`);
 
@@ -109,13 +234,43 @@ export const getActiveTimer = async (req, res, next) => {
       where: {
         ticketId,
         userId: req.user.id,
+        organizationId: req.user.organizationId,
         isActive: true
-      }
+      },
+      order: [['createdAt', 'DESC']]
     });
 
+    // Validar e corrigir timer corrompido
+    if (timer) {
+      const now = new Date();
+      const totalElapsed = Math.floor((now - new Date(timer.startTime)) / 1000);
+      const totalPausedTime = timer.totalPausedTime || 0;
+      
+      // Se totalPausedTime > 50% do totalElapsed, timer está corrompido
+      // (Timer pausado por mais da metade do tempo é suspeito)
+      if (totalPausedTime > totalElapsed * 0.5) {
+        logger.error(
+          `🔴 Timer CORROMPIDO detectado: ${timer.id}. ` +
+          `totalPausedTime=${totalPausedTime}s (${(totalPausedTime/totalElapsed*100).toFixed(0)}%), ` +
+          `totalElapsed=${totalElapsed}s. ` +
+          `DELETANDO timer corrompido.`
+        );
+        
+        // Parar e desativar timer corrompido
+        await timer.update({ 
+          isActive: false,
+          status: 'stopped',
+          endTime: now,
+          duration: Math.max(1, totalElapsed - totalPausedTime)
+        });
+        
+        // Retornar null para frontend saber que timer foi removido
+        return res.json({ timer: null });
+      }
+    }
+
     res.json({
-      success: true,
-      timer
+      timer: timer || null
     });
   } catch (error) {
     next(error);
@@ -247,6 +402,8 @@ export const autoConsumeOnTicketComplete = async (ticketId, userId, organization
 
 export default {
   startTimer,
+  pauseTimer,
+  resumeTimer,
   stopTimer,
   getActiveTimer,
   getTicketTimers,

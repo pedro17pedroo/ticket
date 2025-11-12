@@ -13,7 +13,9 @@ import catalogService from '../../services/catalogService.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
 import { User } from '../models/index.js';
+import * as notificationService from '../notifications/notificationService.js';
 import { sequelize } from '../../config/database.js';
+import Ticket from '../tickets/ticketModel.js';
 
 // ==================== CATEGORIAS DO CATÁLOGO ====================
 
@@ -678,6 +680,12 @@ export const getServiceRequests = async (req, res, next) => {
         model: CatalogItem,
         as: 'catalogItem',
         attributes: ['id', 'name', 'icon', 'itemType', 'estimatedCost', 'estimatedDeliveryTime']
+      },
+      {
+        model: Ticket,
+        as: 'ticket',
+        attributes: ['id', 'ticketNumber', 'status', 'priority', 'createdAt', 'updatedAt'],
+        required: false
       }
     ];
 
@@ -943,6 +951,39 @@ export const approveServiceRequest = async (req, res, next) => {
     }
 
     await serviceRequest.update(updateData);
+
+    // Enviar notificações (async - não bloqueia resposta)
+    if (serviceRequest.ticketId) {
+      const { Ticket } = await import('../models/index.js');
+      const ticket = await Ticket.findByPk(serviceRequest.ticketId);
+      
+      if (ticket) {
+        if (approved) {
+          notificationService.notifyTicketApproved(ticket, req.user.id, req.user.name)
+            .catch(err => logger.error('Erro ao notificar aprovação:', err));
+        } else {
+          // Notificar rejeição (usando tipo ticket_rejected)
+          notificationService.createNotification({
+            recipientId: ticket.requesterId,
+            recipientType: ticket.requesterType === 'client' ? 'client' : 'organization',
+            organizationId: ticket.organizationId,
+            type: 'ticket_rejected',
+            title: 'Solicitação Rejeitada',
+            message: `Solicitação #${ticket.ticketNumber} foi rejeitada`,
+            ticketId: ticket.id,
+            link: `/tickets/${ticket.id}`,
+            priority: 'high',
+            data: {
+              ticketNumber: ticket.ticketNumber,
+              rejectionReason: comments || 'Sem motivo informado'
+            },
+            actorId: req.user.id,
+            actorType: 'organization',
+            actorName: req.user.name
+          }).catch(err => logger.error('Erro ao notificar rejeição:', err));
+        }
+      }
+    }
 
     res.json({
       success: true,

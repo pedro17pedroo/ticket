@@ -21,7 +21,14 @@ passport.use(
         return done(null, false);
       }
       
-      return done(null, user);
+      // Adicionar userType e clientId do payload ao user
+      const userData = {
+        ...user.toJSON(),
+        userType: payload.userType || 'organization', // Fallback para organization
+        clientId: payload.clientId || null
+      };
+      
+      return done(null, userData);
     } catch (error) {
       logger.error('Erro na autenticação JWT:', error);
       return done(error, false);
@@ -109,6 +116,7 @@ export const generateToken = (user) => {
       email: user.email, 
       role: user.role,
       organizationId: user.organizationId,
+      userType: user.userType || 'organization', // Importante para notificações
       clientId: user.clientId || null
     },
     process.env.JWT_SECRET,

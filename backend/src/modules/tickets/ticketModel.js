@@ -211,6 +211,11 @@ const Ticket = sequelize.define('Ticket', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  firstResponseAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Timestamp da primeira resposta de um agente/técnico ao ticket'
+  },
   resolvedAt: {
     type: DataTypes.DATE,
     allowNull: true

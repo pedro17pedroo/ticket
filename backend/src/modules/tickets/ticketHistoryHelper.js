@@ -89,7 +89,7 @@ export const createChangeDescription = async (field, oldValue, newValue, models 
 /**
  * Obtém histórico completo de um ticket
  */
-export const getTicketHistory = async (ticketId, organizationId, options = {}) => {
+export const getTicketHistory = async (ticketId, options = {}) => {
   const { limit = 100, offset = 0, action = null } = options;
 
   const where = { ticketId };
@@ -98,6 +98,7 @@ export const getTicketHistory = async (ticketId, organizationId, options = {}) =
   }
 
   const history = await TicketHistory.findAll({
+    attributes: ['id', 'ticketId', 'userId', 'action', 'field', 'oldValue', 'newValue', 'description', 'createdAt'],
     where,
     order: [['created_at', 'DESC']],
     limit,
@@ -110,7 +111,7 @@ export const getTicketHistory = async (ticketId, organizationId, options = {}) =
 /**
  * Compara valores antigos e novos de um ticket e registra mudanças
  */
-export const trackTicketChanges = async (oldTicket, newTicket, userId, organizationId, transaction = null) => {
+export const trackTicketChanges = async (oldTicket, newTicket, userId, transaction = null) => {
   const fieldsToTrack = [
     'status',
     'priority',
@@ -136,7 +137,6 @@ export const trackTicketChanges = async (oldTicket, newTicket, userId, organizat
       await logTicketChange(
         oldTicket.id,
         userId,
-        organizationId,
         {
           action: 'updated',
           field,

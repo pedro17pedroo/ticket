@@ -79,6 +79,11 @@ const TicketHistory = sequelize.define('TicketHistory', {
   tableName: 'ticket_history',
   timestamps: false,
   underscored: true,
+  defaultScope: {
+    attributes: {
+      exclude: []
+    }
+  },
   indexes: [
     { fields: ['ticket_id'] },
     { fields: ['user_id'] },

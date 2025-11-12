@@ -3,21 +3,23 @@ import api from './api';
 export const clientUserService = {
   // Listar usuários do cliente atual
   async getUsers() {
-    try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (!user?.clientId) throw new Error('Client ID não encontrado');
-      
-      const { data } = await api.get(`/client-users-b2b/clients/${user.clientId}/users`);
+    try {      
+      const { data } = await api.get(`/client/users`);
       return data;
     } catch (error) {
       throw error.response?.data || error;
     }
   },
 
+  // Alias para getUsers (compatibilidade)
+  getAll() {
+    return this.getUsers();
+  },
+
   // Buscar usuário por ID
   async getUserById(id) {
     try {
-      const { data } = await api.get(`/client-users-b2b/${id}`);
+      const { data } = await api.get(`/client/users/${id}`);
       return data;
     } catch (error) {
       throw error.response?.data || error;
@@ -27,10 +29,7 @@ export const clientUserService = {
   // Criar novo usuário (apenas Client Admin)
   async createUser(userData) {
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (!user?.clientId) throw new Error('Client ID não encontrado');
-      
-      const { data } = await api.post(`/client-users-b2b/clients/${user.clientId}/users`, userData);
+      const { data } = await api.post(`/client/users`, userData);
       return data;
     } catch (error) {
       throw error.response?.data || error;
@@ -40,7 +39,7 @@ export const clientUserService = {
   // Atualizar usuário
   async updateUser(id, userData) {
     try {
-      const { data } = await api.put(`/client-users-b2b/${id}`, userData);
+      const { data } = await api.put(`/client/users/${id}`, userData);
       return data;
     } catch (error) {
       throw error.response?.data || error;
@@ -50,27 +49,27 @@ export const clientUserService = {
   // Desativar usuário
   async deactivateUser(id) {
     try {
-      const { data } = await api.delete(`/client-users-b2b/${id}`);
+      const { data } = await api.delete(`/client/users/${id}`);
       return data;
     } catch (error) {
       throw error.response?.data || error;
     }
   },
 
-  // Reativar usuário
+  // Reativar usuário (via update)
   async activateUser(id) {
     try {
-      const { data } = await api.put(`/client-users-b2b/${id}/activate`);
+      const { data } = await api.put(`/client/users/${id}`, { isActive: true });
       return data;
     } catch (error) {
       throw error.response?.data || error;
     }
   },
 
-  // Alterar senha
+  // Alterar senha (usando endpoint geral de update)
   async changePassword(id, passwordData) {
     try {
-      const { data } = await api.put(`/client-users-b2b/${id}/change-password`, passwordData);
+      const { data } = await api.put(`/client/users/${id}`, passwordData);
       return data;
     } catch (error) {
       throw error.response?.data || error;

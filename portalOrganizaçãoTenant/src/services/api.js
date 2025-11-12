@@ -121,11 +121,16 @@ export const ticketService = {
     return response.data
   },
 
-  uploadAttachments: async (ticketId, files) => {
+  uploadAttachments: async (ticketId, files, commentId = null) => {
     const formData = new FormData()
     files.forEach(file => {
       formData.append('files', file)
     })
+    
+    // Se houver commentId, adicionar ao FormData
+    if (commentId) {
+      formData.append('commentId', commentId)
+    }
     
     const response = await api.post(`/tickets/${ticketId}/upload`, formData, {
       headers: {

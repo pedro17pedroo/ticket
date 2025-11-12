@@ -97,9 +97,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/templates', icon: FileText, label: 'Templates' },
   ]
 
-  // Menu inferior
+  // Menu inferior (removido Configurações)
   const bottomMenuItems = [
-    { path: '/settings', icon: SettingsIcon, label: t('nav.settings') },
+    // { path: '/settings', icon: SettingsIcon, label: t('nav.settings') },
   ]
 
   const isActive = (path) => {

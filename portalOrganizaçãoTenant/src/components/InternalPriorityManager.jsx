@@ -3,7 +3,7 @@ import { Flag, AlertTriangle } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-const InternalPriorityManager = ({ ticketId, clientPriority, internalPriority, onUpdate }) => {
+const InternalPriorityManager = ({ ticketId, clientPriority, internalPriority, catalogItemPriority, onUpdate }) => {
   const [priority, setPriority] = useState(internalPriority || '');
   const [priorities, setPriorities] = useState([]);
   const [reason, setReason] = useState('');
@@ -72,14 +72,32 @@ const InternalPriorityManager = ({ ticketId, clientPriority, internalPriority, o
         <h3 className="font-semibold">Prioridades</h3>
       </div>
 
+      {/* Catalog Item Priority */}
+      {catalogItemPriority && (
+        <div className="mb-3">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 flex items-center gap-1">
+            📦 Prioridade do Item/Serviço
+          </label>
+          <div className={`px-3 py-2 rounded-lg ${getPriorityColor(catalogItemPriority)}`}>
+            <span className="font-medium">{catalogItemPriority}</span>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Prioridade definida no catálogo para este serviço
+          </p>
+        </div>
+      )}
+
       {/* Client Priority */}
       <div className="mb-3">
-        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-          Prioridade do Cliente
+        <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 flex items-center gap-1">
+          👤 Prioridade do Cliente
         </label>
         <div className={`px-3 py-2 rounded-lg ${getPriorityColor(clientPriority)}`}>
           <span className="font-medium">{clientPriority || 'Não definida'}</span>
         </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Prioridade selecionada pelo cliente ao criar o ticket
+        </p>
       </div>
 
       {/* Internal Priority */}

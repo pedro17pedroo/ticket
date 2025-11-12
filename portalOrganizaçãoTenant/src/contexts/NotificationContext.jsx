@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { useSocket } from './SocketContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/authStore';
 
 const NotificationContext = createContext(null);
 
@@ -18,30 +19,45 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const { token, user } = useAuthStore();
 
   // Carregar notificações iniciais
   const loadNotifications = useCallback(async (options = {}) => {
+    // 🛡️ GUARD: Não carregar se não há usuário logado
+    if (!token || !user) {
+      console.log('⚠️ [ORGANIZAÇÃO] Sem usuário logado - cancelando carregamento');
+      return;
+    }
+
     setLoading(true);
     try {
+      console.log('🔄 Carregando notificações...', options);
       const { data } = await api.get('/notifications', { params: options });
+      console.log('📬 Notificações carregadas:', data);
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
     } catch (error) {
-      console.error('Erro ao carregar notificações:', error);
+      console.error('❌ Erro ao carregar notificações:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token, user]);
 
   // Carregar contagem de não lidas
   const loadUnreadCount = useCallback(async () => {
+    // 🛡️ GUARD: Não carregar se não há usuário logado
+    if (!token || !user) {
+      console.log('⚠️ [ORGANIZAÇÃO] Sem usuário logado - cancelando contagem');
+      return;
+    }
+
     try {
       const { data } = await api.get('/notifications/unread-count');
       setUnreadCount(data.unreadCount || 0);
     } catch (error) {
       console.error('Erro ao carregar contagem:', error);
     }
-  }, []);
+  }, [token, user]);
 
   // Marcar como lida
   const markAsRead = useCallback(async (notificationId) => {
@@ -167,12 +183,28 @@ export const NotificationProvider = ({ children }) => {
     };
   }, [socket, isConnected]);
 
-  // Carregar notificações ao montar
+  // Carregar ao montar E limpar quando usuário sair
   useEffect(() => {
-    if (isConnected) {
+    if (token && user) {
+      // Usuário logado - carregar notificações
       loadNotifications({ limit: 20 });
+      loadUnreadCount();
+    } else {
+      // Usuário deslogado - limpar estado
+      console.log('🧹 [ORGANIZAÇÃO] Limpando notificações - usuário deslogado');
+      setNotifications([]);
+      setUnreadCount(0);
+      setLoading(false);
     }
-  }, [isConnected, loadNotifications]);
+  }, [token, user]); // Depende de token e user
+
+  // Recarregar quando WebSocket conectar (mas só se logado)
+  useEffect(() => {
+    if (isConnected && token && user) {
+      loadNotifications({ limit: 20 });
+      loadUnreadCount();
+    }
+  }, [isConnected, token, user]);
 
   // Função para tocar som de notificação (opcional)
   const playNotificationSound = () => {

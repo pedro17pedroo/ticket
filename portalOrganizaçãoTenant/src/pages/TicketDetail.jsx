@@ -17,9 +17,11 @@ import ActivityTimeline from '../components/ActivityTimeline'
 import RelatedTickets from '../components/RelatedTickets'
 import MergeTicketsModal from '../components/MergeTicketsModal'
 import TransferTicketModal from '../components/TransferTicketModal'
+import AssignTicketModal from '../components/AssignTicketModal'
 import TicketHistoryPanel from '../components/TicketHistoryPanel'
 import ResolutionStatusManager from '../components/ResolutionStatusManager'
 import InternalPriorityManager from '../components/InternalPriorityManager'
+import StatusManager from '../components/StatusManager'
 import RichTextEditor from '../components/RichTextEditor'
 import RemoteAccessButton from '../components/RemoteAccessButton'
 
@@ -31,30 +33,19 @@ const TicketDetail = () => {
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
   const [isInternal, setIsInternal] = useState(false)
-  const [agents, setAgents] = useState([])
-  const [showAssignSelect, setShowAssignSelect] = useState(false)
   const [attachments, setAttachments] = useState([])
+  const [ticketAttachments, setTicketAttachments] = useState([])
+  const [commentsAttachments, setCommentsAttachments] = useState([])
   const [commentAttachments, setCommentAttachments] = useState([])
   const [showMergeModal, setShowMergeModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
+  const [showAssignModal, setShowAssignModal] = useState(false)
 
   useEffect(() => {
     loadTicket()
-    loadAgents()
     loadAttachments()
   }, [id])
 
-  const loadAgents = async () => {
-    try {
-      const response = await api.get('/users')
-      const agentsList = response.data.users?.filter(
-        u => u.role === 'agente' || u.role === 'admin-org'
-      ) || []
-      setAgents(agentsList)
-    } catch (error) {
-      console.error('Erro ao carregar agentes:', error)
-    }
-  }
 
   const loadTicket = async () => {
     try {
@@ -71,13 +62,15 @@ const TicketDetail = () => {
     try {
       const data = await ticketService.getAttachments(id)
       setAttachments(data.attachments || [])
+      setTicketAttachments(data.ticketAttachments || [])
+      setCommentsAttachments(data.commentAttachments || [])
     } catch (error) {
       console.error('Erro ao carregar anexos:', error)
     }
   }
 
   const handleAddComment = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     
     // Validar se há comentário ou anexos (verificar HTML vazio)
     const isCommentEmpty = !comment || comment.trim() === '' || comment === '<p><br></p>'
@@ -86,22 +79,48 @@ const TicketDetail = () => {
       return
     }
 
+    // Validar se ticket está concluído
+    const isTicketClosed = ['fechado', 'resolvido'].includes(ticket.status);
+    if (isTicketClosed) {
+      toast.error('Não é possível adicionar comentários em ticket concluído');
+      return;
+    }
+
+    // Validar se ticket está atribuído (apenas para agentes)
+    const isAgent = ['admin-org', 'agente'].includes(user.role);
+    const isTicketAssigned = ticket.assigneeId !== null && ticket.assigneeId !== undefined;
+    if (isAgent && !isTicketAssigned) {
+      toast.error('Ticket deve ser atribuído antes de adicionar comentários');
+      return;
+    }
+
     try {
-      // Se há comentário, adicionar
+      let commentId = null
+      
+      // Se há comentário, adicionar e obter ID
       if (!isCommentEmpty) {
-        await ticketService.addComment(id, { content: comment, isInternal })
+        const response = await ticketService.addComment(id, { content: comment, isInternal })
+        commentId = response.comment?.id
       }
       
-      // Upload anexos se houver
+      // Upload anexos se houver, associando ao comentário se existir
       if (commentAttachments.length > 0) {
-        await ticketService.uploadAttachments(id, commentAttachments)
+        await ticketService.uploadAttachments(id, commentAttachments, commentId)
         loadAttachments()
       }
       
       setComment('')
       setIsInternal(false)
       setCommentAttachments([])
-      toast.success(!isCommentEmpty ? 'Comentário adicionado' : 'Anexos adicionados')
+      
+      if (!isCommentEmpty && commentAttachments.length > 0) {
+        toast.success('Comentário e anexos adicionados')
+      } else if (!isCommentEmpty) {
+        toast.success('Comentário adicionado')
+      } else {
+        toast.success('Anexos adicionados')
+      }
+      
       loadTicket()
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error)
@@ -145,29 +164,6 @@ const TicketDetail = () => {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
   }
 
-  const handleAssignToMe = async () => {
-    try {
-      await api.put(`/tickets/${id}`, { assigneeId: user.id })
-      toast.success('Ticket atribuído a você')
-      loadTicket()
-    } catch (error) {
-      console.error('Erro ao atribuir ticket:', error)
-      toast.error('Erro ao atribuir ticket')
-    }
-  }
-
-  const handleAssignTo = async (assigneeId) => {
-    try {
-      await api.put(`/tickets/${id}`, { assigneeId })
-      const agent = agents.find(a => a.id === assigneeId)
-      toast.success(`Ticket atribuído a ${agent?.name}`)
-      setShowAssignSelect(false)
-      loadTicket()
-    } catch (error) {
-      console.error('Erro ao atribuir ticket:', error)
-      toast.error('Erro ao atribuir ticket')
-    }
-  }
 
   if (loading) {
     return (
@@ -198,25 +194,41 @@ const TicketDetail = () => {
             <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>
           </div>
         </div>
-        {(user.role === 'admin-org' || user.role === 'agente') && (
-          <div className="flex gap-2">
-            <RemoteAccessButton ticket={ticket} />
-            <button
-              onClick={() => setShowTransferModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-            >
-              <ArrowRightLeft className="w-4 h-4" />
-              Transferir
-            </button>
-            <button
-              onClick={() => setShowMergeModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-            >
-              <GitMerge className="w-4 h-4" />
-              Mesclar
-            </button>
-          </div>
-        )}
+{(user.role === 'admin-org' || user.role === 'agente') && (() => {
+          const isTicketClosed = ['fechado', 'resolvido'].includes(ticket.status);
+          return (
+            <div className="flex gap-2">
+              <RemoteAccessButton ticket={ticket} />
+              <button
+                onClick={() => setShowAssignModal(true)}
+                disabled={isTicketClosed}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={isTicketClosed ? 'Não é possível atribuir ticket concluído' : 'Atribuir ticket'}
+              >
+                <UserPlus className="w-4 h-4" />
+                Atribuir
+              </button>
+              <button
+                onClick={() => setShowTransferModal(true)}
+                disabled={isTicketClosed}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={isTicketClosed ? 'Não é possível transferir ticket concluído' : 'Transferir ticket'}
+              >
+                <ArrowRightLeft className="w-4 h-4" />
+                Transferir
+              </button>
+              <button
+                onClick={() => setShowMergeModal(true)}
+                disabled={isTicketClosed}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={isTicketClosed ? 'Não é possível mesclar ticket concluído' : 'Mesclar tickets'}
+              >
+                <GitMerge className="w-4 h-4" />
+                Mesclar
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -232,14 +244,54 @@ const TicketDetail = () => {
           </div>
 
           {/* Attachments */}
-          {attachments.length > 0 && (
+          {ticketAttachments.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="font-semibold mb-4 flex items-center gap-2">
                 <Paperclip className="w-5 h-5" />
-                Anexos ({attachments.length})
+                Anexos do Ticket ({ticketAttachments.length})
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {attachments.map((attachment) => (
+                {ticketAttachments.map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border"
+                  >
+                    <FileText className="w-8 h-8 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{attachment.originalName}</p>
+                      <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDownloadAttachment(attachment.id, attachment.originalName)}
+                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                        title="Download"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAttachment(attachment.id)}
+                        className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Comment Attachments */}
+          {commentsAttachments.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="font-semibold mb-4 flex items-center gap-2">
+                <Paperclip className="w-5 h-5" />
+                Anexos de Comentários ({commentsAttachments.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {commentsAttachments.map((attachment) => (
                   <div
                     key={attachment.id}
                     className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border"
@@ -283,6 +335,35 @@ const TicketDetail = () => {
 
             {/* Add Comment Form */}
             <form onSubmit={handleAddComment} className="space-y-4">
+              {/* Alerta se ticket não está atribuído */}
+              {(() => {
+                const isAgent = ['admin-org', 'agente'].includes(user.role);
+                const isTicketAssigned = ticket.assigneeId !== null && ticket.assigneeId !== undefined;
+                const isTicketClosed = ['fechado', 'resolvido'].includes(ticket.status);
+                
+                if (isTicketClosed) {
+                  return (
+                    <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-4">
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        ℹ️ <strong>Ticket concluído.</strong> Não é possível adicionar comentários.
+                      </p>
+                    </div>
+                  );
+                }
+                
+                if (isAgent && !isTicketAssigned) {
+                  return (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-4">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                        ⚠️ <strong>Ticket não atribuído.</strong> Atribua o ticket a alguém antes de adicionar comentários.
+                      </p>
+                    </div>
+                  );
+                }
+                
+                return null;
+              })()}
+
               {/* Template Selector */}
               {(user.role === 'admin-org' || user.role === 'agente') && (
                 <TemplateSelector onSelect={(content) => setComment(comment + content)} />
@@ -305,7 +386,7 @@ Você pode usar formatação para destacar informações importantes:
               
               {/* File Upload */}
               <div>
-                <label className="block text-sm font-medium mb-2">Anexos (opcional)</label>
+                <label className="block text-sm font-medium mb-1">Anexos (opcional)</label>
                 <FileUpload
                   onFilesChange={setCommentAttachments}
                   maxSize={20}
@@ -404,7 +485,7 @@ Você pode usar formatação para destacar informações importantes:
 
           {/* Time Tracker */}
           {(user.role === 'admin-org' || user.role === 'agente') && (
-            <TimeTracker ticketId={id} />
+            <TimeTracker ticketId={id} ticket={ticket} />
           )}
 
           {/* Tags */}
@@ -425,12 +506,22 @@ Você pode usar formatação para destacar informações importantes:
           {/* Related Tickets */}
           <RelatedTickets ticketId={id} />
 
+          {/* Status Manager */}
+          {(user.role === 'admin-org' || user.role === 'agente') && (
+            <StatusManager
+              ticketId={id}
+              currentStatus={ticket.status}
+              onUpdate={loadTicket}
+            />
+          )}
+
           {/* Internal Priority Manager */}
           {(user.role === 'admin-org' || user.role === 'agente') && (
             <InternalPriorityManager
               ticketId={id}
               clientPriority={ticket.priority}
               internalPriority={ticket.internalPriority}
+              catalogItemPriority={ticket.catalogItem?.priority?.name}
               onUpdate={loadTicket}
             />
           )}
@@ -447,52 +538,6 @@ Você pode usar formatação para destacar informações importantes:
           {/* Ticket History */}
           <TicketHistoryPanel ticketId={id} />
 
-          {/* Assignment Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <UserPlus className="w-5 h-5" />
-              Atribuição
-            </h3>
-
-            {!ticket.assigneeId && (
-              <button
-                onClick={handleAssignToMe}
-                className="w-full py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
-              >
-                Atribuir a mim
-              </button>
-            )}
-
-            {!showAssignSelect ? (
-              <button
-                onClick={() => setShowAssignSelect(true)}
-                className="w-full py-2 px-4 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
-              >
-                {ticket.assigneeId ? 'Reatribuir' : 'Atribuir a outro agente'}
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <select
-                  onChange={(e) => handleAssignTo(e.target.value)}
-                  defaultValue=""
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                >
-                  <option value="">Selecione um agente...</option>
-                  {agents.map(agent => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.name} {agent.role === 'admin-org' ? '(Admin)' : '(Agente)'}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => setShowAssignSelect(false)}
-                  className="w-full py-1 px-4 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                >
-                  Cancelar
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -504,6 +549,19 @@ Você pode usar formatação para destacar informações importantes:
           onSuccess={() => {
             loadTicket();
             loadAttachments();
+          }}
+        />
+      )}
+
+      {/* Assign Modal */}
+      {showAssignModal && (
+        <AssignTicketModal
+          isOpen={showAssignModal}
+          onClose={() => setShowAssignModal(false)}
+          ticket={ticket}
+          onAssigned={() => {
+            loadTicket();
+            setShowAssignModal(false);
           }}
         />
       )}

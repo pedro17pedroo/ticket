@@ -7,6 +7,7 @@ import { pt } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import FileUpload from '../components/FileUpload'
 import RichTextEditor from '../components/RichTextEditor'
+import TimeTrackerReadOnly from '../components/TimeTrackerReadOnly'
 
 const TicketDetail = () => {
   const { id } = useParams()
@@ -390,6 +391,9 @@ Você pode usar formatação para:
               </div>
             </div>
           )}
+
+          {/* Time Tracker */}
+          <TimeTrackerReadOnly ticketId={id} />
 
           {/* Info Card */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 space-y-4">

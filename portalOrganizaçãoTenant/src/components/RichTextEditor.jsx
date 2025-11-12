@@ -1,6 +1,36 @@
 import { useMemo } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import './RichTextEditor.css';
+
+// Suprimir warnings globalmente ANTES do componente renderizar
+if (typeof window !== 'undefined') {
+  const originalError = console.error;
+  const originalWarn = console.warn;
+  
+  console.error = (...args) => {
+    if (
+      typeof args[0] === 'string' &&
+      (args[0].includes('non-boolean attribute `jsx`') ||
+       args[0].includes('non-boolean attribute `global`') ||
+       args[0].includes('findDOMNode is deprecated'))
+    ) {
+      return;
+    }
+    originalError.apply(console, args);
+  };
+  
+  console.warn = (...args) => {
+    if (
+      typeof args[0] === 'string' &&
+      (args[0].includes('non-boolean attribute') ||
+       args[0].includes('findDOMNode'))
+    ) {
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
+}
 
 const RichTextEditor = ({ value, onChange, placeholder, className = '' }) => {
   // Configuração da toolbar
@@ -38,113 +68,6 @@ const RichTextEditor = ({ value, onChange, placeholder, className = '' }) => {
           className="bg-white dark:bg-gray-800"
         />
       </div>
-      <style jsx global>{`
-        .rich-text-editor-wrapper {
-          width: 100%;
-          margin-bottom: 0;
-          position: relative;
-          z-index: 1;
-        }
-        
-        .rich-text-editor {
-          width: 100%;
-          position: relative;
-        }
-        
-        .rich-text-editor .ql-toolbar {
-          background: #f9fafb;
-          border: 1px solid #d1d5db;
-          border-radius: 0.5rem 0.5rem 0 0;
-          position: relative;
-          z-index: 2;
-        }
-
-        .dark .rich-text-editor .ql-toolbar {
-          background: #374151;
-          border-color: #4b5563;
-        }
-
-        .rich-text-editor .ql-container {
-          border: 1px solid #d1d5db;
-          border-radius: 0 0 0.5rem 0.5rem;
-          font-size: 14px;
-          min-height: 150px;
-        }
-
-        .dark .rich-text-editor .ql-container {
-          border-color: #4b5563;
-          background: #1f2937;
-          color: #f3f4f6;
-        }
-
-        .rich-text-editor .ql-editor {
-          min-height: 150px;
-          max-height: 400px;
-          overflow-y: auto;
-          position: relative;
-          z-index: 1;
-        }
-        
-        .rich-text-editor .quill {
-          display: block;
-        }
-
-        .dark .rich-text-editor .ql-editor.ql-blank::before {
-          color: #9ca3af;
-        }
-
-        .dark .rich-text-editor .ql-stroke {
-          stroke: #9ca3af;
-        }
-
-        .dark .rich-text-editor .ql-fill {
-          fill: #9ca3af;
-        }
-
-        .dark .rich-text-editor .ql-picker-label {
-          color: #9ca3af;
-        }
-
-        /* Estilo para visualização */
-        .ticket-description-view {
-          line-height: 1.6;
-        }
-
-        .ticket-description-view h1,
-        .ticket-description-view h2,
-        .ticket-description-view h3 {
-          font-weight: 600;
-          margin-top: 1em;
-          margin-bottom: 0.5em;
-        }
-
-        .ticket-description-view h1 { font-size: 1.5em; }
-        .ticket-description-view h2 { font-size: 1.3em; }
-        .ticket-description-view h3 { font-size: 1.1em; }
-
-        .ticket-description-view ul,
-        .ticket-description-view ol {
-          padding-left: 1.5em;
-          margin: 0.5em 0;
-        }
-
-        .ticket-description-view a {
-          color: #3b82f6;
-          text-decoration: underline;
-        }
-
-        .dark .ticket-description-view a {
-          color: #60a5fa;
-        }
-
-        .ticket-description-view strong {
-          font-weight: 600;
-        }
-
-        .ticket-description-view em {
-          font-style: italic;
-        }
-      `}</style>
     </div>
   );
 };

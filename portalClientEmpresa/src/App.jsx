@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store/authStore'
+import { SocketProvider } from './contexts/SocketContext'
+import { NotificationProvider } from './contexts/NotificationContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -34,7 +36,9 @@ function App() {
         v7_relativeSplatPath: true
       }}
     >
-      <Toaster 
+      <SocketProvider>
+        <NotificationProvider>
+          <Toaster 
         position="top-right"
         toastOptions={{
           duration: 3000,
@@ -89,6 +93,8 @@ function App() {
           }
         />
       </Routes>
+        </NotificationProvider>
+      </SocketProvider>
     </Router>
   )
 }

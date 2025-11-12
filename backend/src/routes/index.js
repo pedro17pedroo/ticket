@@ -5,6 +5,7 @@ import { validate, schemas } from '../middleware/validate.js';
 import { auditLog } from '../middleware/audit.js';
 import { upload } from '../middleware/upload.js';
 import uploadConfig from '../config/multer.js';
+import { validateAssignment, validateUserManagement } from '../middleware/validateHierarchy.js';
 
 import * as authController from '../modules/auth/authController.js';
 import * as userController from '../modules/users/userController.js';
@@ -69,8 +70,8 @@ router.get('/auth/users', authenticate, authController.getUsers);
 // ==================== USERS ====================
 router.get('/users', authenticate, requirePermission('users', 'read'), userController.getUsers);
 router.get('/users/:id', authenticate, requirePermission('users', 'read'), userController.getUserById);
-router.post('/users', authenticate, requirePermission('users', 'create'), validate(schemas.createUser), auditLog('create', 'user'), userController.createUser);
-router.put('/users/:id', authenticate, requirePermission('users', 'update'), validate(schemas.updateUser), auditLog('update', 'user'), userController.updateUser);
+router.post('/users', authenticate, requirePermission('users', 'create'), validate(schemas.createUser), validateUserManagement, auditLog('create', 'user'), userController.createUser);
+router.put('/users/:id', authenticate, requirePermission('users', 'update'), validate(schemas.updateUser), validateUserManagement, auditLog('update', 'user'), userController.updateUser);
 router.put('/users/:id/activate', authenticate, requirePermission('users', 'update'), auditLog('update', 'user'), userController.activateUser);
 router.put('/users/:id/reset-password', authenticate, requirePermission('users', 'reset_password'), validate(schemas.resetPassword), auditLog('update', 'user'), userController.resetPassword);
 router.delete('/users/:id', authenticate, requirePermission('users', 'delete'), auditLog('delete', 'user'), userController.deleteUser);
@@ -80,7 +81,8 @@ router.get('/tickets', authenticate, requirePermission('tickets', 'read'), ticke
 router.get('/tickets/statistics', authenticate, requirePermission('tickets', 'read'), ticketController.getStatistics);
 router.get('/tickets/:id', authenticate, requirePermission('tickets', 'read'), ticketController.getTicketById);
 router.post('/tickets', authenticate, requirePermission('tickets', 'create'), validate(schemas.createTicket), auditLog('create', 'ticket'), ticketController.createTicket);
-router.put('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), auditLog('update', 'ticket'), ticketController.updateTicket);
+router.put('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
+router.patch('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
 router.post('/tickets/:id/comments', authenticate, requirePermission('comments', 'create'), validate(schemas.createComment), auditLog('create', 'comment'), ticketController.addComment);
 
 // Comment routes (endpoints separados)
@@ -252,6 +254,8 @@ router.get('/hours-banks/tickets/completed', authenticate, requirePermission('ho
 
 // ==================== TIME TRACKING (Cronômetro) ====================
 router.post('/tickets/:ticketId/timer/start', authenticate, timeTrackingController.startTimer);
+router.put('/timers/:id/pause', authenticate, timeTrackingController.pauseTimer);
+router.put('/timers/:id/resume', authenticate, timeTrackingController.resumeTimer);
 router.put('/timers/:id/stop', authenticate, timeTrackingController.stopTimer);
 router.get('/tickets/:ticketId/timer/active', authenticate, timeTrackingController.getActiveTimer);
 router.get('/tickets/:ticketId/timers', authenticate, timeTrackingController.getTicketTimers);

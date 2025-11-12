@@ -52,7 +52,7 @@ export const deleteHoursTransaction = async (id) => {
 // ==================== STATISTICS ====================
 
 export const getStatistics = async (params = {}) => {
-  const response = await api.get('/hours-bank/statistics', { params });
+  const response = await api.get('/hours-banks/statistics', { params });
   return response.data;
 };
 

@@ -7,9 +7,23 @@ const Notification = sequelize.define('Notification', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
-  userId: {
+  // Destinatário (pode ser organization_user ou client_user)
+  recipientId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'recipient_id',
+    comment: 'ID do usuário que recebe'
+  },
+  recipientType: {
+    type: DataTypes.ENUM('organization', 'client'),
+    allowNull: false,
+    field: 'recipient_type',
+    comment: 'Tipo: organization ou client'
+  },
+  // Manter userId para compatibilidade
+  userId: {
+    type: DataTypes.UUID,
+    allowNull: true,
     references: {
       model: 'users',
       key: 'id'
@@ -32,11 +46,19 @@ const Notification = sequelize.define('Notification', {
       'ticket_priority_changed',
       'ticket_transferred',
       'ticket_merged',
+      'ticket_approved',
+      'ticket_rejected',
+      'ticket_resolved',
+      'ticket_closed',
+      'ticket_reopened',
       'comment_added',
       'comment_mentioned',
       'sla_warning',
       'sla_breached',
-      'resolution_updated'
+      'resolution_updated',
+      'service_request_created',
+      'service_request_approved',
+      'service_request_rejected'
     ),
     allowNull: false
   },
@@ -75,6 +97,38 @@ const Notification = sequelize.define('Notification', {
   priority: {
     type: DataTypes.ENUM('low', 'normal', 'high', 'urgent'),
     defaultValue: 'normal'
+  },
+  // Campos de e-mail
+  emailSent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'email_sent'
+  },
+  emailSentAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'email_sent_at'
+  },
+  emailError: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'email_error'
+  },
+  // Autor da ação
+  actorId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'actor_id'
+  },
+  actorType: {
+    type: DataTypes.ENUM('organization', 'client', 'system'),
+    allowNull: true,
+    field: 'actor_type'
+  },
+  actorName: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'actor_name'
   }
 }, {
   tableName: 'notifications',
@@ -82,11 +136,14 @@ const Notification = sequelize.define('Notification', {
   underscored: true,
   indexes: [
     { fields: ['user_id'] },
+    { fields: ['recipient_id', 'recipient_type'] },
     { fields: ['organization_id'] },
     { fields: ['is_read'] },
+    { fields: ['email_sent'] },
     { fields: ['created_at'] },
     { fields: ['type'] },
-    { fields: ['ticket_id'] }
+    { fields: ['ticket_id'] },
+    { fields: ['actor_id'] }
   ]
 });
 

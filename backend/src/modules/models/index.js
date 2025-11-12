@@ -442,11 +442,18 @@ const setupAssociations = () => {
 
   // Inventory associations
   Asset.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
-  Asset.belongsTo(User, { foreignKey: 'clientId', as: 'client' });
-  Asset.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+  Asset.belongsTo(User, { foreignKey: 'clientId', as: 'client' }); // Legado
+  Asset.belongsTo(User, { foreignKey: 'userId', as: 'user' }); // Legado
+  Asset.belongsTo(Client, { foreignKey: 'clientId', as: 'clientEntity' }); // Novo
+  Asset.belongsTo(OrganizationUser, { foreignKey: 'userId', as: 'orgUser' }); // Novo
+  Asset.belongsTo(ClientUser, { foreignKey: 'userId', as: 'clientUser' }); // Novo
+  
   Organization.hasMany(Asset, { foreignKey: 'organizationId', as: 'assets' });
-  User.hasMany(Asset, { foreignKey: 'clientId', as: 'clientAssets' });
-  User.hasMany(Asset, { foreignKey: 'userId', as: 'userAssets' });
+  User.hasMany(Asset, { foreignKey: 'clientId', as: 'clientAssets' }); // Legado
+  User.hasMany(Asset, { foreignKey: 'userId', as: 'userAssets' }); // Legado
+  Client.hasMany(Asset, { foreignKey: 'clientId', as: 'clientAssets' }); // Novo
+  OrganizationUser.hasMany(Asset, { foreignKey: 'userId', as: 'userAssets' }); // Novo
+  ClientUser.hasMany(Asset, { foreignKey: 'userId', as: 'userAssets' }); // Novo
 
   Software.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Software.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });

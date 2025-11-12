@@ -476,6 +476,13 @@ export const getClientUsers = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId;
 
+    logger.info(`🔍 [getClientUsers] Buscando usuários:`, {
+      organizationId,
+      clientId,
+      userRole: req.user.role,
+      userId: req.user.id
+    });
+
     const users = await ClientUser.findAll({
       where: {
         organizationId,
@@ -493,11 +500,14 @@ export const getClientUsers = async (req, res, next) => {
       order: [['name', 'ASC']]
     });
 
+    logger.info(`👥 [getClientUsers] Encontrados ${users.length} usuários`);
+
     res.json({
       success: true,
       users
     });
   } catch (error) {
+    logger.error('❌ [getClientUsers] Erro:', error);
     next(error);
   }
 };

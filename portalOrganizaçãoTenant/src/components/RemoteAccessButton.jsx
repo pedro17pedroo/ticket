@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { Monitor, X, Clock, CheckCircle, XCircle } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/authStore';
 
 const RemoteAccessButton = ({ ticket }) => {
+  const { user } = useAuthStore();
   const [showModal, setShowModal] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [activeRequest, setActiveRequest] = useState(null);
@@ -77,9 +79,11 @@ const RemoteAccessButton = ({ ticket }) => {
     }
   };
 
-  // Verificar se o requester é cliente
-  if (!ticket?.requester || ticket.requester.role !== 'cliente-org') {
-    console.log('⚠️ Botão oculto - Role:', ticket?.requester?.role);
+  // O botão só aparece para técnicos/admins atendendo tickets de clientes
+  const isTechnician = user?.role === 'agente' || user?.role === 'admin-org' || user?.role === 'super-admin';
+  const isClientRequester = ticket?.requester?.role === 'cliente-org';
+  
+  if (!isTechnician || !isClientRequester) {
     return null;
   }
 

@@ -19,8 +19,6 @@ const MyRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   useEffect(() => {
     loadRequests();
@@ -44,15 +42,6 @@ const MyRequests = () => {
     }
   };
 
-  const loadRequestDetails = async (requestId) => {
-    try {
-      const response = await api.get(`/catalog/requests/${requestId}`);
-      setSelectedRequest(response.data.data);
-      setShowDetailsModal(true);
-    } catch (error) {
-      toast.error('Erro ao carregar detalhes da solicitação');
-    }
-  };
 
   // Status configs
   const statusConfig = {
@@ -202,7 +191,9 @@ const MyRequests = () => {
                     {/* Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="text-2xl">{request.catalogItem?.icon}</div>
+                        <div className="text-2xl">
+                          {request.catalogItem?.icon || '📋'}
+                        </div>
                         <div>
                           <h3 className="font-semibold text-lg">
                             {request.catalogItem?.name}
@@ -224,6 +215,11 @@ const MyRequests = () => {
                           <div className="flex items-center gap-1">
                             <CheckCircle className="w-4 h-4" />
                             Ticket #{request.ticketId.slice(0, 8)}
+                            {request.ticket?.status && (
+                              <span className="ml-2 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-full">
+                                {request.ticket.status}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -261,19 +257,12 @@ const MyRequests = () => {
 
                   {/* Actions */}
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => loadRequestDetails(request.id)}
-                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg flex items-center gap-2 transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Ver Detalhes
-                    </button>
-
                     {request.ticketId && (
                       <button
                         onClick={() => navigate(`/tickets/${request.ticketId}`)}
-                        className="px-4 py-2 bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/30 rounded-lg flex items-center gap-2 transition-colors"
+                        className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-2 transition-colors"
                       >
+                        <Eye className="w-4 h-4" />
                         Ver Ticket
                       </button>
                     )}
@@ -285,100 +274,6 @@ const MyRequests = () => {
         </div>
       )}
 
-      {/* Modal de Detalhes */}
-      {showDetailsModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="text-3xl">{selectedRequest.catalogItem?.icon}</div>
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedRequest.catalogItem?.name}</h2>
-                    <p className="text-sm text-gray-500">SR #{selectedRequest.id}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className="p-6 space-y-6">
-              {/* Status */}
-              <div>
-                <h3 className="font-semibold mb-2">Status Atual</h3>
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
-                  statusConfig[selectedRequest.status].color
-                }`}>
-                  {React.createElement(statusConfig[selectedRequest.status].icon, {
-                    className: 'w-5 h-5'
-                  })}
-                  <span className="font-medium">
-                    {statusConfig[selectedRequest.status].label}
-                  </span>
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div>
-                <h3 className="font-semibold mb-3">Linha do Tempo</h3>
-                <div className="space-y-3">
-                  <div className="flex gap-3">
-                    <div className="w-2 h-2 mt-2 rounded-full bg-primary-500"></div>
-                    <div>
-                      <div className="font-medium">Solicitação Criada</div>
-                      <div className="text-sm text-gray-500">
-                        {formatDate(selectedRequest.createdAt)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {selectedRequest.approvalDate && (
-                    <div className="flex gap-3">
-                      <div className={`w-2 h-2 mt-2 rounded-full ${
-                        selectedRequest.status === 'approved' ? 'bg-green-500' : 'bg-red-500'
-                      }`}></div>
-                      <div>
-                        <div className="font-medium">
-                          {selectedRequest.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {formatDate(selectedRequest.approvalDate)}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Dados preenchidos */}
-              {selectedRequest.formDataDisplay && (
-                <div>
-                  <h3 className="font-semibold mb-3">Informações Fornecidas</h3>
-                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-3">
-                    {Object.entries(selectedRequest.formDataDisplay).map(([key, value]) => (
-                      <div key={key}>
-                        <div className="text-sm font-medium text-gray-600 dark:text-gray-400 capitalize">
-                          {key.replace(/_/g, ' ')}
-                        </div>
-                        <div className="font-medium">
-                          {Array.isArray(value) ? value.join(', ') : value}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

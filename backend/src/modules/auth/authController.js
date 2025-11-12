@@ -82,7 +82,12 @@ export const login = async (req, res, next) => {
           userType = 'client';
           organization = user.organization;
           client = user.client;
-          console.log('✅ Login como Client User');
+          console.log('✅ Login como Client User', {
+            userId: user.id,
+            clientId: user.clientId,
+            clientFromInclude: client?.id,
+            organizationId: user.organizationId
+          });
         } else {
           user = null;
         }
@@ -98,15 +103,16 @@ export const login = async (req, res, next) => {
     // Atualizar último login
     await user.update({ lastLogin: new Date() });
 
-    // Gerar token com userType
+    // Gerar token com userType (garantir que userType não seja sobrescrito)
+    const userData = user.toJSON();
     const token = generateToken({
-      ...user.toJSON(),
-      userType,
-      clientId: client?.id || null
+      ...userData,
+      userType,  // Força o userType correto
+      clientId: client?.id || user.clientId || null
     });
 
     // Remover senha do retorno
-    const userData = {
+    const userResponse = {
       ...user.toJSON(),
       userType,
       organization,
@@ -118,7 +124,7 @@ export const login = async (req, res, next) => {
     res.json({
       message: 'Login realizado com sucesso',
       token,
-      user: userData
+      user: userResponse
     });
   } catch (error) {
     next(error);

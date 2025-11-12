@@ -1,4 +1,5 @@
-import { Ticket, User, Department, Category, Comment, SLA, Direction, Section } from '../models/index.js';
+import { Ticket, User, Department, Category, Comment, SLA, Direction, Section, Priority } from '../models/index.js';
+import { CatalogItem } from '../catalog/catalogModel.js';
 import Attachment from '../attachments/attachmentModel.js';
 import TicketRelationship from './ticketRelationshipModel.js';
 import TicketHistory from './ticketHistoryModel.js';
@@ -7,7 +8,7 @@ import { Op } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 import logger from '../../config/logger.js';
 import emailService from '../../services/emailService.js';
-import notificationService from '../../services/notificationService.js';
+import * as notificationService from '../notifications/notificationService.js';
 import { emitNotification, emitTicketUpdate } from '../../socket/index.js';
 import path from 'path';
 import fs from 'fs';
@@ -159,6 +160,16 @@ export const getTicketById = async (req, res, next) => {
           attributes: ['id', 'name', 'color', 'icon']
         },
         {
+          model: CatalogItem,
+          as: 'catalogItem',
+          attributes: ['id', 'name', 'shortDescription'],
+          include: [{
+            model: Priority,
+            as: 'priority',
+            attributes: ['id', 'name', 'level']
+          }]
+        },
+        {
           model: Comment,
           as: 'comments',
           include: [
@@ -249,19 +260,14 @@ export const createTicket = async (req, res, next) => {
 
     logger.info(`Ticket criado: ${ticket.ticketNumber} por ${req.user.email}`);
 
-    // Enviar notificação por email (async - não bloqueia a resposta)
-    if (fullTicket.assignee) {
-      emailService.notifyNewTicket(fullTicket, fullTicket.requester, fullTicket.assignee)
-        .catch(err => logger.error('Erro ao enviar notificação de novo ticket:', err));
-      
-      // Notificação in-app e WebSocket
-      notificationService.notifyNewTicket(fullTicket, fullTicket.assignee.id)
-        .then(notification => {
-          if (notification) {
-            emitNotification(fullTicket.assignee.id, notification);
-          }
-        })
-        .catch(err => logger.error('Erro ao criar notificação in-app:', err));
+    // Notificar criação do ticket (async - não bloqueia a resposta)
+    notificationService.notifyTicketCreated(fullTicket, req.user.id, req.user.userType || 'organization')
+      .catch(err => logger.error('Erro ao notificar criação de ticket:', err));
+    
+    // Se houver responsável atribuído, notificar
+    if (fullTicket.assigneeId) {
+      notificationService.notifyTicketAssigned(fullTicket, fullTicket.assigneeId, req.user.id, req.user.name)
+        .catch(err => logger.error('Erro ao notificar atribuição:', err));
     }
 
     res.status(201).json({
@@ -284,7 +290,11 @@ export const updateTicket = async (req, res, next) => {
       include: [
         { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
         { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
-      ]
+      ],
+      // Incluir campos polimórficos para notificações
+      attributes: { 
+        include: ['requesterType', 'requesterClientUserId', 'requesterOrgUserId'] 
+      }
     });
 
     if (!ticket) {
@@ -299,6 +309,16 @@ export const updateTicket = async (req, res, next) => {
 
     // Guardar valores anteriores para histórico
     const oldTicket = { ...ticket.toJSON() };
+
+    // ✅ VALIDAÇÃO: Não pode atribuir ou mesclar tickets concluídos
+    const { isTicketClosed } = await import('../../utils/ticketValidations.js');
+    if (isTicketClosed(ticket) && (updates.assigneeId !== undefined)) {
+      return res.status(403).json({ 
+        error: 'Não é possível atribuir ticket concluído',
+        reason: 'ticket_closed',
+        status: ticket.status
+      });
+    }
 
     // Atualizar campos permitidos
     const allowedFields = [
@@ -332,12 +352,47 @@ export const updateTicket = async (req, res, next) => {
       }
     });
 
+    // ✅ Atribuição: Marcar primeira resposta
+    if (updates.assigneeId && !oldTicket.assigneeId && !ticket.firstResponseAt) {
+      updateData.firstResponseAt = new Date();
+      logger.info(`Primeira resposta registrada para ticket ${ticket.ticketNumber}`);
+    }
+
     // Atualizar datas conforme status
     if (updates.status === 'resolvido' && !ticket.resolvedAt) {
       updateData.resolvedAt = new Date();
     }
     if (updates.status === 'fechado' && !ticket.closedAt) {
       updateData.closedAt = new Date();
+    }
+
+    // ✅ Parar cronômetro automaticamente quando ticket é concluído
+    const isBeingClosed = (updates.status === 'fechado' || updates.status === 'resolvido') && 
+                          oldTicket.status !== updates.status;
+    if (isBeingClosed) {
+      const TimeEntry = (await import('./timeEntryModel.js')).default;
+      const activeTimers = await TimeEntry.findAll({
+        where: {
+          ticketId: id,
+          isActive: true
+        }
+      });
+
+      for (const timer of activeTimers) {
+        const now = new Date();
+        const startTime = new Date(timer.startTime);
+        const totalElapsed = Math.floor((now - startTime) / 1000);
+        const duration = Math.max(1, totalElapsed - (timer.totalPausedTime || 0));
+
+        await timer.update({
+          endTime: now,
+          duration,
+          isActive: false,
+          status: 'stopped'
+        });
+
+        logger.info(`Cronômetro parado automaticamente no ticket ${ticket.ticketNumber} (status: ${updates.status})`);
+      }
     }
 
     const transaction = await sequelize.transaction();
@@ -350,7 +405,6 @@ export const updateTicket = async (req, res, next) => {
         oldTicket,
         { ...oldTicket, ...updateData },
         req.user.id,
-        req.user.organizationId,
         transaction
       );
 
@@ -365,61 +419,38 @@ export const updateTicket = async (req, res, next) => {
       include: [
         { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
         { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
-      ]
+      ],
+      // Incluir campos polimórficos
+      attributes: { 
+        include: ['requesterType', 'requesterClientUserId', 'requesterOrgUserId'] 
+      }
     });
 
     logger.info(`Ticket atualizado: ${ticket.ticketNumber} por ${req.user.email}`);
 
     // Notificações (async - não bloqueia resposta)
-    const currentUser = await User.findByPk(req.user.id, { attributes: ['id', 'name', 'email'] });
     const oldStatus = oldTicket.status;
+    const oldAssigneeId = oldTicket.assigneeId;
 
     // Notificar mudança de status
     if (updates.status && oldStatus !== updates.status) {
-      const recipients = [];
-      const userIds = [];
+      notificationService.notifyStatusChange(ticket, oldStatus, updates.status, req.user.id, req.user.name)
+        .catch(err => logger.error('Erro ao notificar mudança de status:', err));
       
-      if (ticket.requester?.email) recipients.push(ticket.requester.email);
-      if (ticket.requester?.id) userIds.push(ticket.requester.id);
-      
-      if (ticket.assignee?.email && ticket.assignee.email !== req.user.email) {
-        recipients.push(ticket.assignee.email);
-        userIds.push(ticket.assignee.id);
-      }
-      
-      if (recipients.length > 0) {
-        // Email
-        emailService.notifyStatusChange(ticket, oldStatus, updates.status, currentUser, recipients)
-          .catch(err => logger.error('Erro ao enviar notificação de mudança de status:', err));
-        
-        // In-app e WebSocket
-        notificationService.notifyStatusChange(ticket, oldStatus, updates.status, userIds)
-          .then(notifications => {
-            notifications.forEach(notif => {
-              emitNotification(notif.userId, notif);
-            });
-          })
-          .catch(err => logger.error('Erro ao criar notificações in-app:', err));
+      // Notificações específicas
+      if (updates.status === 'resolvido') {
+        notificationService.notifyTicketResolved(ticket, req.user.id, req.user.name)
+          .catch(err => logger.error('Erro ao notificar resolução:', err));
+      } else if (updates.status === 'fechado') {
+        notificationService.notifyTicketClosed(ticket, req.user.id, req.user.name)
+          .catch(err => logger.error('Erro ao notificar fechamento:', err));
       }
     }
 
     // Notificar nova atribuição
     if (updates.assigneeId && oldAssigneeId !== updates.assigneeId) {
-      const newAssignee = await User.findByPk(updates.assigneeId, { attributes: ['id', 'name', 'email'] });
-      if (newAssignee) {
-        // Email
-        emailService.notifyTicketAssignment(ticket, newAssignee, currentUser)
-          .catch(err => logger.error('Erro ao enviar notificação de atribuição:', err));
-        
-        // In-app e WebSocket
-        notificationService.notifyTicketAssigned(ticket, newAssignee.id, currentUser.id)
-          .then(notification => {
-            if (notification) {
-              emitNotification(newAssignee.id, notification);
-            }
-          })
-          .catch(err => logger.error('Erro ao criar notificação in-app:', err));
-      }
+      notificationService.notifyTicketAssigned(ticket, updates.assigneeId, req.user.id, req.user.name)
+        .catch(err => logger.error('Erro ao notificar atribuição:', err));
     }
 
     // Auto-consumir tempo rastreado ao concluir ticket
@@ -460,7 +491,11 @@ export const addComment = async (req, res, next) => {
       include: [
         { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
         { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
-      ]
+      ],
+      // Incluir campos polimórficos para notificações
+      attributes: { 
+        include: ['requesterType', 'requesterClientUserId', 'requesterOrgUserId'] 
+      }
     });
 
     if (!ticket) {
@@ -471,6 +506,24 @@ export const addComment = async (req, res, next) => {
     const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
     if (isClientUser && ticket.requesterId !== req.user.id) {
       return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    // ✅ VALIDAÇÃO: Ticket concluído não pode receber comentários
+    const { isTicketClosed, isTicketAssigned } = await import('../../utils/ticketValidations.js');
+    if (isTicketClosed(ticket)) {
+      return res.status(403).json({ 
+        error: 'Não é possível adicionar comentários em ticket concluído',
+        reason: 'ticket_closed',
+        status: ticket.status
+      });
+    }
+
+    // ✅ VALIDAÇÃO: Ticket deve estar atribuído para receber comentários (exceto clientes)
+    if (!isClientUser && !isTicketAssigned(ticket)) {
+      return res.status(403).json({ 
+        error: 'Ticket deve ser atribuído antes de adicionar comentários',
+        reason: 'ticket_not_assigned'
+      });
     }
 
     // Determinar tipo de autor baseado no role
@@ -504,6 +557,12 @@ export const addComment = async (req, res, next) => {
 
     const comment = await Comment.create(commentData);
 
+    // Se é a primeira resposta de um agente/admin, registrar o timestamp
+    if (!isClientUser && !ticket.firstResponseAt) {
+      await ticket.update({ firstResponseAt: new Date() });
+      logger.info(`Primeira resposta registrada para o ticket ${ticket.ticketNumber} por ${req.user.email}`);
+    }
+
     // Se o cliente respondeu e o ticket estava aguardando, mudar status automaticamente
     if (isClientUser && ticket.status === 'aguardando_cliente') {
       await ticket.update({ status: 'em_progresso' });
@@ -528,48 +587,13 @@ export const addComment = async (req, res, next) => {
     logger.info(`Comentário adicionado ao ticket ${ticket.ticketNumber} por ${req.user.email}`);
 
     // Enviar notificações (async - não bloqueia resposta)
-    const recipients = [];
-    const userIds = [];
-    
-    // Se for comentário interno, notificar apenas agentes
-    if (comment.isInternal) {
-      if (ticket.assignee?.email && ticket.assignee.email !== req.user.email) {
-        recipients.push(ticket.assignee.email);
-        userIds.push(ticket.assignee.id);
-      }
-      // TODO: Adicionar outros agentes/admins se necessário
-    } else {
-      // Comentário público: notificar solicitante e agente
-      if (!isClientUser && ticket.requester?.email) {
-        // Agente comentou - notificar cliente
-        emailService.notifyRequesterResponse(ticket, comment, fullComment.user)
-          .catch(err => logger.error('Erro ao notificar solicitante:', err));
-      }
-      
-      if (ticket.assignee?.email && ticket.assignee.email !== req.user.email) {
-        recipients.push(ticket.assignee.email);
-        userIds.push(ticket.assignee.id);
-      }
-      if (ticket.requester?.email && ticket.requester.email !== req.user.email && isClientUser) {
-        recipients.push(ticket.requester.email);
-        userIds.push(ticket.requester.id);
-      }
-    }
-    
-    if (recipients.length > 0) {
-      // Email
-      emailService.notifyNewComment(ticket, comment, fullComment.user, recipients)
-        .catch(err => logger.error('Erro ao enviar notificação de comentário:', err));
-      
-      // In-app e WebSocket
-      notificationService.notifyNewComment(ticket, comment, req.user.id, userIds)
-        .then(notifications => {
-          notifications.forEach(notif => {
-            emitNotification(notif.userId, notif);
-          });
-        })
-        .catch(err => logger.error('Erro ao criar notificações in-app:', err));
-    }
+    notificationService.notifyNewComment(
+      ticket,
+      comment,
+      req.user.id,
+      authorType,
+      req.user.name
+    ).catch(err => logger.error('Erro ao notificar comentário:', err));
 
     res.status(201).json({
       message: 'Comentário adicionado com sucesso',
@@ -739,9 +763,15 @@ export const getAttachments = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
+    // Separar anexos do ticket e de comentários
+    const ticketAttachments = attachments.filter(a => !a.commentId);
+    const commentAttachments = attachments.filter(a => a.commentId);
+
     res.json({
       success: true,
-      attachments
+      attachments: attachments, // Todos os anexos
+      ticketAttachments,  // Apenas anexos do ticket principal
+      commentAttachments  // Apenas anexos de comentários
     });
   } catch (error) {
     next(error);
@@ -1016,7 +1046,7 @@ export const getHistory = async (req, res, next) => {
       return res.status(404).json({ error: 'Ticket não encontrado' });
     }
 
-    const history = await getTicketHistory(ticketId, req.user.organizationId, {
+    const history = await getTicketHistory(ticketId, {
       limit: parseInt(limit),
       offset: parseInt(offset),
       action
@@ -1086,14 +1116,12 @@ export const transferTicket = async (req, res, next) => {
     await logTicketChange(
       ticketId,
       req.user.id,
-      req.user.organizationId,
       {
-        action: 'transferred',
+        action: 'assigned',
         field: 'transfer',
         oldValue: oldValues,
         newValue: updates,
-        description,
-        metadata: { reason }
+        description
       },
       transaction
     );
@@ -1151,14 +1179,12 @@ export const updateInternalPriority = async (req, res, next) => {
     await logTicketChange(
       ticketId,
       req.user.id,
-      req.user.organizationId,
       {
-        action: 'priority_updated',
+        action: 'priority_changed',
         field: 'internalPriority',
         oldValue: oldPriority,
         newValue: internalPriority,
-        description: priorityDescription,
-        metadata: { reason }
+        description: priorityDescription
       },
       transaction
     );
@@ -1214,14 +1240,12 @@ export const updateResolutionStatus = async (req, res, next) => {
     await logTicketChange(
       ticketId,
       req.user.id,
-      req.user.organizationId,
       {
-        action: 'resolution_updated',
+        action: 'status_changed',
         field: 'resolutionStatus',
         oldValue: oldStatus,
         newValue: resolutionStatus,
-        description: resolutionDescription,
-        metadata: { notes }
+        description: resolutionDescription
       },
       transaction
     );

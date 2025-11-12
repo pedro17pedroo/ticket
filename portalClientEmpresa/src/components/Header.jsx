@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
+import NotificationBell from './NotificationBell'
 
 const Header = ({ toggleSidebar }) => {
   const { user, logout } = useAuthStore()
@@ -54,6 +55,9 @@ const Header = ({ toggleSidebar }) => {
             <Sun className="w-5 h-5" />
           )}
         </button>
+
+        {/* Notifications */}
+        <NotificationBell />
 
         {/* User Menu */}
         <div className="relative" ref={menuRef}>

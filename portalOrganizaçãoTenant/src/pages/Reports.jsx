@@ -112,9 +112,10 @@ const Reports = () => {
   const loadTicketStats = async () => {
     try {
       const { data } = await ticketService.getStatistics();
-      setTicketStats(data.statistics);
+      setTicketStats(data?.statistics || data || {});
     } catch (error) {
       console.error('Erro ao carregar estatísticas de tickets:', error);
+      setTicketStats({});
     }
   };
 
@@ -124,18 +125,20 @@ const Reports = () => {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       });
-      setHoursStats(data);
+      setHoursStats(data || {});
     } catch (error) {
       console.error('Erro ao carregar estatísticas de horas:', error);
+      setHoursStats({});
     }
   };
 
   const loadInventoryStats = async () => {
     try {
       const { data } = await inventoryService.getStatistics();
-      setInventoryStats(data.statistics);
+      setInventoryStats(data?.statistics || data || {});
     } catch (error) {
       console.error('Erro ao carregar estatísticas de inventário:', error);
+      setInventoryStats({});
     }
   };
 
@@ -146,9 +149,10 @@ const Reports = () => {
         endDate: dateRange.endDate,
         limit: 1000
       });
-      setDetailedTickets(data.tickets || []);
+      setDetailedTickets(data?.tickets || data || []);
     } catch (error) {
       console.error('Erro ao carregar tickets detalhados:', error);
+      setDetailedTickets([]);
     }
   };
 

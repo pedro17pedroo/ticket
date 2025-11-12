@@ -87,10 +87,10 @@ const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" 
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Drop Zone */}
       <div
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+        className={`relative border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
           dragActive
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10'
             : 'border-gray-300 dark:border-gray-600 hover:border-primary-400'
@@ -109,9 +109,9 @@ const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" 
           className="hidden"
         />
 
-        <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+        <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
         
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
           Arraste arquivos aqui ou{' '}
           <button
             type="button"

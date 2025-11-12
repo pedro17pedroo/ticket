@@ -1,4 +1,4 @@
-import notificationService from '../../services/notificationService.js';
+import * as notificationService from './notificationService.js';
 import logger from '../../config/logger.js';
 
 /**
@@ -8,12 +8,32 @@ export const getNotifications = async (req, res, next) => {
   try {
     const { limit = 50, offset = 0, unreadOnly = false } = req.query;
     const userId = req.user.id;
+    let userType = req.user.userType; // 'organization' ou 'client'
 
-    const result = await notificationService.getUserNotifications(userId, {
+    // CORREÇÃO: Detectar userType baseado no role se não estiver definido corretamente
+    const isClientRole = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+    const isOrgRole = ['admin-org', 'manager-org', 'technician-org', 'user-org'].includes(req.user.role);
+    
+    if (isClientRole) {
+      userType = 'client';
+      logger.info(`🔧 Forçando userType para 'client' baseado no role: ${req.user.role}`);
+    } else if (isOrgRole) {
+      userType = 'organization';
+      logger.info(`🔧 Forçando userType para 'organization' baseado no role: ${req.user.role}`);
+    } else {
+      // Fallback para roles desconhecidos
+      userType = userType || 'organization';
+    }
+
+    logger.info(`📬 Buscando notificações para userId: ${userId}, userType: ${userType}, role: ${req.user.role}, limit: ${limit}`);
+
+    const result = await notificationService.getUserNotifications(userId, userType, {
       limit: parseInt(limit),
       offset: parseInt(offset),
       unreadOnly: unreadOnly === 'true'
     });
+
+    logger.info(`📬 Encontradas ${result.notifications.length} notificações, ${result.unreadCount} não lidas`);
 
     res.json(result);
   } catch (error) {
@@ -28,7 +48,24 @@ export const getNotifications = async (req, res, next) => {
 export const getUnreadCount = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const result = await notificationService.getUserNotifications(userId, { limit: 1 });
+    let userType = req.user.userType;
+
+    // CORREÇÃO: Detectar userType baseado no role
+    const isClientRole = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+    const isOrgRole = ['admin-org', 'manager-org', 'technician-org', 'user-org'].includes(req.user.role);
+    
+    if (isClientRole) {
+      userType = 'client';
+      logger.info(`🔧 Forçando userType para 'client' no unreadCount baseado no role: ${req.user.role}`);
+    } else if (isOrgRole) {
+      userType = 'organization';
+      logger.info(`🔧 Forçando userType para 'organization' no unreadCount baseado no role: ${req.user.role}`);
+    } else {
+      // Fallback para roles desconhecidos
+      userType = userType || 'organization';
+    }
+
+    const result = await notificationService.getUserNotifications(userId, userType, { limit: 1 });
 
     res.json({
       unreadCount: result.unreadCount
@@ -46,8 +83,9 @@ export const markAsRead = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const userType = req.user.userType;
 
-    const notification = await notificationService.markAsRead(id, userId);
+    const notification = await notificationService.markAsRead(id, userId, userType);
 
     res.json({
       success: true,
@@ -65,7 +103,8 @@ export const markAsRead = async (req, res, next) => {
 export const markAllAsRead = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const count = await notificationService.markAllAsRead(userId);
+    const userType = req.user.userType;
+    const count = await notificationService.markAllAsRead(userId, userType);
 
     res.json({
       success: true,
@@ -84,8 +123,9 @@ export const deleteNotification = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const userType = req.user.userType;
 
-    const deleted = await notificationService.deleteNotification(id, userId);
+    const deleted = await notificationService.deleteNotification(id, userId, userType);
 
     if (!deleted) {
       return res.status(404).json({ error: 'Notificação não encontrada' });
