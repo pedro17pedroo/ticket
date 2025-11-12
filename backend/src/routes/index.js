@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { requirePermission, requireAnyPermission, requireLevel } from '../middleware/permission.js';
+import { requireSmartPermission } from '../middleware/smartPermission.js';
 import { validate, schemas } from '../middleware/validate.js';
 import { auditLog } from '../middleware/audit.js';
 import { upload } from '../middleware/upload.js';
@@ -79,9 +80,9 @@ router.put('/users/:id/reset-password', authenticate, requirePermission('users',
 router.delete('/users/:id', authenticate, requirePermission('users', 'delete'), auditLog('delete', 'user'), userController.deleteUser);
 
 // ==================== TICKETS ====================
-router.get('/tickets', authenticate, requirePermission('tickets', 'read'), ticketController.getTickets);
-router.get('/tickets/statistics', authenticate, requirePermission('tickets', 'read'), ticketController.getStatistics);
-router.get('/tickets/:id', authenticate, requirePermission('tickets', 'read'), ticketController.getTicketById);
+router.get('/tickets', authenticate, requireSmartPermission('tickets', 'read'), ticketController.getTickets);
+router.get('/tickets/statistics', authenticate, requireSmartPermission('tickets', 'read'), ticketController.getStatistics);
+router.get('/tickets/:id', authenticate, requireSmartPermission('tickets', 'read'), ticketController.getTicketById);
 router.post('/tickets', authenticate, requirePermission('tickets', 'create'), validate(schemas.createTicket), auditLog('create', 'ticket'), ticketController.createTicket);
 router.put('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
 router.patch('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
