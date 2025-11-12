@@ -610,7 +610,8 @@ export const createServiceRequest = async (req, res, next) => {
       additionalDetails,
       userPriority,
       expectedResolutionTime,
-      attachments
+      attachments,
+      clientWatchers // Novos watchers do cliente
     } = req.body;
     
     console.log('📥 Request body recebido:', req.body);
@@ -621,6 +622,7 @@ export const createServiceRequest = async (req, res, next) => {
     console.log('⚠️  userPriority:', userPriority);
     console.log('📅 expectedResolutionTime:', expectedResolutionTime);
     console.log('📎 attachments:', attachments?.length || 0);
+    console.log('👥 clientWatchers:', clientWatchers);
 
     if (!catalogItemId) {
       console.log('❌ Validação falhou - catalogItemId ausente');
@@ -648,7 +650,8 @@ export const createServiceRequest = async (req, res, next) => {
         additionalDetails,
         userPriority,
         expectedResolutionTime,
-        attachments
+        attachments,
+        clientWatchers // Incluir watchers
       }
     );
 
