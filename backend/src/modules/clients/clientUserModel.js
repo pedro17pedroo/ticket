@@ -144,6 +144,11 @@ const ClientUser = sequelize.define('ClientUser', {
         clientUser.password = await bcrypt.hash(clientUser.password, salt);
       }
     }
+  },
+  scopes: {
+    withPassword: {
+      attributes: { include: ['password'] }
+    }
   }
 });
 
