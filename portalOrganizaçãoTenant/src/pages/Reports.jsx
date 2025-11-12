@@ -111,14 +111,38 @@ const Reports = () => {
 
   const loadTicketStats = async () => {
     try {
-      const { data } = await ticketService.getStatistics({
+      console.log('🔍 Carregando estatísticas com parâmetros:', {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       });
-      setTicketStats(data?.statistics || data || {});
+      
+      const response = await ticketService.getStatistics({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      });
+      
+      console.log('📊 Resposta completa da API:', response);
+      console.log('📊 Data da resposta:', response?.data);
+      console.log('📊 Statistics da resposta:', response?.statistics);
+      
+      // Tentar múltiplas formas de acessar os dados
+      const stats = response?.statistics || response?.data?.statistics || response?.data || response || {};
+      console.log('📊 Stats finais:', stats);
+      
+      setTicketStats(stats);
     } catch (error) {
-      console.error('Erro ao carregar estatísticas de tickets:', error);
-      setTicketStats({});
+      console.error('❌ Erro ao carregar estatísticas de tickets:', error);
+      console.error('❌ Stack trace:', error.stack);
+      setTicketStats({
+        total: 0,
+        byStatus: {
+          novo: 0,
+          emProgresso: 0,
+          aguardandoCliente: 0,
+          resolvido: 0,
+          fechado: 0
+        }
+      });
     }
   };
 

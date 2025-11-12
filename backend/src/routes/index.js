@@ -34,6 +34,7 @@ import * as notificationController from '../modules/notifications/notificationCo
 import * as inventoryController from '../modules/inventory/inventoryController.js';
 import remoteAccessRoutes from '../modules/remoteAccess/remoteAccessRoutes.js';
 import emailTestRoutes from './emailTest.js';
+import debugRoutes from './debugRoutes.js';
 import * as setupController from '../modules/setup/setupController.js';
 import commentRoutes from './commentRoutes.js';
 
@@ -397,5 +398,8 @@ router.use('/rbac', rbacRoutes);
 
 // ==================== EMAIL TEST ====================
 router.use('/', emailTestRoutes);
+
+// ==================== DEBUG ROUTES ====================
+router.use('/', debugRoutes);
 
 export default router;

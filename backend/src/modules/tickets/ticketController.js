@@ -670,11 +670,22 @@ export const getStatistics = async (req, res, next) => {
 
     // Aplicar filtros de data se fornecidos
     const { startDate, endDate } = req.query;
+    logger.info(`📊 getStatistics chamada - startDate: ${startDate}, endDate: ${endDate}`, { 
+      userId: req.user.id, 
+      organizationId: req.user.organizationId,
+      query: req.query 
+    });
+    
     if (startDate && endDate) {
       where.createdAt = {
         [Op.gte]: new Date(startDate),
         [Op.lte]: new Date(endDate + 'T23:59:59.999Z')
       };
+      logger.info(`📅 Aplicando filtro de data:`, {
+        startDate: new Date(startDate),
+        endDate: new Date(endDate + 'T23:59:59.999Z'),
+        where
+      });
     }
 
     const [total, novo, emProgresso, aguardandoCliente, resolvido, fechado] = await Promise.all([
@@ -686,7 +697,7 @@ export const getStatistics = async (req, res, next) => {
       Ticket.count({ where: { ...where, status: 'fechado' } })
     ]);
 
-    res.json({
+    const result = {
       statistics: {
         total,
         byStatus: {
@@ -697,7 +708,10 @@ export const getStatistics = async (req, res, next) => {
           fechado
         }
       }
-    });
+    };
+
+    logger.info(`📊 Resultado getStatistics:`, result);
+    res.json(result);
   } catch (error) {
     next(error);
   }
