@@ -38,6 +38,7 @@ import emailTestRoutes from './emailTest.js';
 import debugRoutes from './debugRoutes.js';
 import * as setupController from '../modules/setup/setupController.js';
 import commentRoutes from './commentRoutes.js';
+import saasRoutes from './saasRoutes.js';
 
 const router = express.Router();
 
@@ -193,6 +194,9 @@ router.delete('/types/:id', authenticate, authorize('admin-org'), auditLog('dele
 import providerRoutes from './providerRoutes.js';
 router.use('/provider', providerRoutes);
 
+// ==================== SAAS (Onboarding & Plan Management) ====================
+router.use('/saas', saasRoutes);
+
 // ==================== CLIENTS B2B (Nova Arquitetura) ====================
 import clientRoutes from './clientRoutes.js';
 import clientUserRoutes from './clientUserRoutes.js';
@@ -308,12 +312,12 @@ router.patch('/notifications/mark-all-read', authenticate, notificationControlle
 router.delete('/notifications/:id', authenticate, notificationController.deleteNotification);
 
 // ==================== INVENTORY ====================
-// Assets (comentado temporariamente - controller não existe)
-// router.get('/inventory/assets', authenticate, requirePermission('assets', 'read'), inventoryController.getAssets);
-// router.get('/inventory/assets/:id', authenticate, requirePermission('assets', 'read'), inventoryController.getAssetById);
-// router.post('/inventory/assets', authenticate, requirePermission('assets', 'create'), auditLog('create', 'asset'), inventoryController.createAsset);
-// router.put('/inventory/assets/:id', authenticate, requirePermission('assets', 'update'), auditLog('update', 'asset'), inventoryController.updateAsset);
-// router.delete('/inventory/assets/:id', authenticate, requirePermission('assets', 'delete'), auditLog('delete', 'asset'), inventoryController.deleteAsset);
+router.get('/inventory/assets', authenticate, requireSmartPermission('inventory', 'read'), inventoryController.getAssets);
+router.get('/inventory/assets/:id', authenticate, requireSmartPermission('inventory', 'read'), inventoryController.getAssetById);
+router.post('/inventory/assets', authenticate, requireSmartPermission('inventory', 'create'), auditLog('create', 'asset'), inventoryController.createAsset);
+router.put('/inventory/assets/:id', authenticate, requireSmartPermission('inventory', 'update'), auditLog('update', 'asset'), inventoryController.updateAsset);
+router.delete('/inventory/assets/:id', authenticate, requireSmartPermission('inventory', 'delete'), auditLog('delete', 'asset'), inventoryController.deleteAsset);
+router.get('/inventory/statistics', authenticate, requireSmartPermission('inventory', 'read'), inventoryController.getStatistics);
 
 // Software (comentado temporariamente - controller não existe)
 // router.get('/inventory/software', authenticate, requirePermission('assets', 'read'), inventoryController.getSoftware);

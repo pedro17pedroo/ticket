@@ -4,6 +4,13 @@ import { Op } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 import logger from '../../config/logger.js';
 
+const isMissingRelationError = (error, relationName) => {
+  if (!error) return false;
+  const message = error.message || error.original?.message || error.parent?.message || '';
+  const code = error.original?.code || error.parent?.code;
+  return code === '42P01' && message.includes(`"${relationName}"`);
+};
+
 // ==================== HELPERS ====================
 
 /**
@@ -70,8 +77,7 @@ export const getAssets = async (req, res, next) => {
     }
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
-
-    const { count, rows: assets } = await Asset.findAndCountAll({
+    const buildQueryOptions = (includeLicenses = true) => ({
       where,
       include: [
         {
@@ -80,18 +86,34 @@ export const getAssets = async (req, res, next) => {
           attributes: ['id', 'name', 'vendor', 'version'],
           required: false
         },
-        {
-          model: SoftwareLicense,
-          as: 'licenses',
-          attributes: ['id', 'softwareName', 'vendor', 'licenseType'],
-          through: { attributes: [] },
-          required: false
-        }
+        ...(includeLicenses
+          ? [{
+              model: SoftwareLicense,
+              as: 'licenses',
+              attributes: ['id', 'softwareName', 'vendor', 'licenseType'],
+              through: { attributes: [] },
+              required: false
+            }]
+          : [])
       ],
       limit: parseInt(limit),
       offset,
       order: [['createdAt', 'DESC']]
     });
+
+    let count;
+    let assets;
+
+    try {
+      ({ count, rows: assets } = await Asset.findAndCountAll(buildQueryOptions()));
+    } catch (queryError) {
+      if (isMissingRelationError(queryError, 'licenses')) {
+        logger.warn('Tabela licenses não encontrada - retornando assets sem licenças', { organizationId });
+        ({ count, rows: assets } = await Asset.findAndCountAll(buildQueryOptions(false)));
+      } else {
+        throw queryError;
+      }
+    }
 
     res.json({
       success: true,
@@ -709,24 +731,34 @@ export const getStatistics = async (req, res, next) => {
       where.userId = userId;
     }
 
-    const [
-      totalAssets,
-      activeAssets,
-      totalSoftware,
-      totalLicenses
-    ] = await Promise.all([
-      Asset.count({ where }),
-      Asset.count({ where: { ...where, status: 'active' } }),
-      Software.count({ 
-        include: [{
-          model: Asset,
-          as: 'asset',
-          where,
-          attributes: []
-        }]
-      }),
-      SoftwareLicense.count({ where: { organizationId } })
+    const totalAssetsPromise = Asset.count({ where });
+    const activeAssetsPromise = Asset.count({ where: { ...where, status: 'active' } });
+    const totalSoftwarePromise = Software.count({ 
+      include: [{
+        model: Asset,
+        as: 'asset',
+        where,
+        attributes: []
+      }]
+    });
+
+    const [totalAssets, activeAssets, totalSoftware] = await Promise.all([
+      totalAssetsPromise,
+      activeAssetsPromise,
+      totalSoftwarePromise
     ]);
+
+    let totalLicenses = 0;
+    try {
+      totalLicenses = await SoftwareLicense.count({ where: { organizationId } });
+    } catch (countError) {
+      if (isMissingRelationError(countError, 'licenses')) {
+        logger.warn('Tabela licenses não encontrada - retornando estatísticas de licenças zeradas', { organizationId });
+        totalLicenses = 0;
+      } else {
+        throw countError;
+      }
+    }
 
     // Assets por tipo
     const assetsByType = await Asset.findAll({
