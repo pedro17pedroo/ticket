@@ -6,25 +6,7 @@ import {
 
 export default function Features() {
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg"></div>
-              <span className="text-xl font-bold">TatuTicket</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-8">
-              <Link to="/features" className="text-blue-600 font-medium">Funcionalidades</Link>
-              <Link to="/pricing" className="text-gray-600 hover:text-gray-900">Preços</Link>
-              <Link to="/trial" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Trial Gratuito
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen">{/* Header está no Layout global */}
 
       {/* Hero */}
       <section className="bg-gradient-to-br from-blue-600 to-indigo-700 py-20">

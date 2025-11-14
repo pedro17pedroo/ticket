@@ -1,5 +1,9 @@
 import { Client, ClientUser, Ticket, Organization } from '../models/index.js';
 import { Op } from 'sequelize';
+import logger from '../../config/logger.js';
+import { sendClientAdminWelcomeEmail } from '../../services/emailService.js';
+
+const organizationAdminRoles = ['org-admin', 'admin-org', 'tenant-admin', 'super-admin', 'provider-admin'];
 
 // GET /api/clients - Listar empresas clientes
 export const getClients = async (req, res, next) => {
@@ -171,19 +175,20 @@ export const createClient = async (req, res, next) => {
       contract,
       billing,
       primaryContact,
-      settings
+      settings,
+      password
     } = req.body;
 
     // Validações
-    if (!name || !email) {
+    if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Nome e email são obrigatórios'
+        error: 'Nome, email e password são obrigatórios'
       });
     }
 
     // Verificar permissões
-    if (!['super-admin', 'provider-admin', 'tenant-admin'].includes(req.user.role)) {
+    if (!organizationAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Sem permissão para criar clientes'
@@ -219,6 +224,18 @@ export const createClient = async (req, res, next) => {
       }
     }
 
+    // Verificar se já existe utilizador de cliente com este email na organização
+    const existingClientUser = await ClientUser.findOne({
+      where: { email, organizationId }
+    });
+
+    if (existingClientUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email já está em uso por um utilizador de cliente'
+      });
+    }
+
     const client = await Client.create({
       organizationId,
       name,
@@ -250,6 +267,42 @@ export const createClient = async (req, res, next) => {
         openTickets: 0
       }
     });
+
+    // Criar utilizador admin da empresa cliente para o Portal do Cliente
+    await ClientUser.create({
+      organizationId,
+      clientId: client.id,
+      name: primaryContact?.name || name,
+      email,
+      password, // Será hasheado pelo hook do modelo
+      phone,
+      position: primaryContact?.position,
+      departmentName: primaryContact?.departmentName,
+      role: 'client-admin',
+      permissions: {
+        canCreateTickets: true,
+        canViewAllClientTickets: true,
+        canApproveRequests: true,
+        canAccessKnowledgeBase: true,
+        canRequestServices: true
+      },
+      isActive: true,
+      emailVerified: false
+    });
+
+    // Enviar email de boas-vindas para o admin do portal do cliente
+    try {
+      const tenant = await Organization.findByPk(organizationId, { attributes: ['name'] });
+      await sendClientAdminWelcomeEmail({
+        email,
+        name: primaryContact?.name || name,
+        clientName: name,
+        tenantName: tenant?.name,
+        portalUrl: process.env.CLIENT_PORTAL_URL
+      });
+    } catch (emailError) {
+      logger.warn('Falha ao enviar email de boas-vindas para client-admin:', emailError);
+    }
 
     res.status(201).json({
       success: true,
@@ -283,7 +336,7 @@ export const updateClient = async (req, res, next) => {
     } = req.body;
 
     // Verificar permissões
-    if (!['super-admin', 'provider-admin', 'tenant-admin'].includes(req.user.role)) {
+    if (!organizationAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Sem permissão para atualizar clientes'
@@ -370,7 +423,7 @@ export const deleteClient = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     // Verificar permissões
-    if (!['super-admin', 'provider-admin', 'tenant-admin'].includes(req.user.role)) {
+    if (!organizationAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Sem permissão para desativar clientes'
@@ -431,7 +484,7 @@ export const activateClient = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     // Verificar permissões
-    if (!['super-admin', 'provider-admin', 'tenant-admin'].includes(req.user.role)) {
+    if (!organizationAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Sem permissão para reativar clientes'

@@ -3,25 +3,7 @@ import { ArrowRight, Sparkles, Check, Zap, Shield, Globe } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg"></div>
-              <span className="text-xl font-bold">TatuTicket</span>
-            </div>
-            <nav className="hidden md:flex items-center gap-8">
-              <Link to="/features" className="text-gray-600 hover:text-gray-900">Funcionalidades</Link>
-              <Link to="/pricing" className="text-gray-600 hover:text-gray-900">Preços</Link>
-              <Link to="/trial" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Trial Gratuito
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen">{/* O Header está no Layout */}
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">

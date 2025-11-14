@@ -42,6 +42,13 @@ const PERMISSIONS = [
   { resource: 'client_users', action: 'read', displayName: 'Ver Utilizadores do Cliente', description: 'Ver utilizadores da empresa cliente', category: 'Clientes', scope: 'client' },
   { resource: 'client_users', action: 'update', displayName: 'Editar Utilizadores do Cliente', description: 'Editar utilizadores da empresa cliente', category: 'Clientes', scope: 'client' },
   { resource: 'client_users', action: 'delete', displayName: 'Eliminar Utilizadores do Cliente', description: 'Eliminar utilizadores da empresa cliente', category: 'Clientes', scope: 'client' },
+
+  // ==================== CLIENTES B2B ====================
+  { resource: 'clients', action: 'read', displayName: 'Ver Clientes B2B', description: 'Visualizar empresas clientes da organização', category: 'Clientes', scope: 'organization' },
+  { resource: 'clients', action: 'create', displayName: 'Criar Clientes B2B', description: 'Registar novas empresas clientes', category: 'Clientes', scope: 'organization' },
+  { resource: 'clients', action: 'update', displayName: 'Editar Clientes B2B', description: 'Atualizar dados das empresas clientes', category: 'Clientes', scope: 'organization' },
+  { resource: 'clients', action: 'delete', displayName: 'Desativar Clientes B2B', description: 'Desativar ou remover empresas clientes', category: 'Clientes', scope: 'organization' },
+  { resource: 'clients', action: 'activate', displayName: 'Reativar Clientes B2B', description: 'Reativar empresas clientes suspensas', category: 'Clientes', scope: 'organization' },
   
   // ==================== ORGANIZATION STRUCTURE ====================
   { resource: 'directions', action: 'create', displayName: 'Criar Direções', description: 'Criar direções organizacionais', category: 'Estrutura', scope: 'client' },

@@ -1,6 +1,8 @@
 import Organization from '../organizations/organizationModel.js';
 import User from '../users/userModel.js';
 import OrganizationUser from '../../models/OrganizationUser.js';
+import Plan from '../../models/Plan.js';
+import Subscription from '../../models/Subscription.js';
 import Client from '../clients/clientModel.js';
 import ClientUser from '../clients/clientUserModel.js';
 import Direction from '../directions/directionModel.js';
@@ -76,6 +78,12 @@ const setupAssociations = () => {
   Organization.hasMany(Priority, { foreignKey: 'organizationId', as: 'priorities' });
   Organization.hasMany(KnowledgeArticle, { foreignKey: 'organizationId', as: 'articles' });
   Organization.hasMany(HoursBank, { foreignKey: 'organizationId', as: 'hoursBanks' });
+
+  // Plan and Subscription associations
+  Organization.hasOne(Subscription, { foreignKey: 'organizationId', as: 'subscriptionDetails' });
+  Subscription.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Subscription.belongsTo(Plan, { foreignKey: 'planId', as: 'plan' });
+  Plan.hasMany(Subscription, { foreignKey: 'planId', as: 'subscriptions' });
 
   // Client associations (Empresas clientes B2B)
   Client.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
@@ -485,6 +493,8 @@ export {
   Organization,
   User,
   OrganizationUser,
+  Plan,
+  Subscription,
   Client,
   ClientUser,
   Direction,

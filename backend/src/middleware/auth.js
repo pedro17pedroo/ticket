@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import passport from 'passport';
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
-import { User } from '../modules/models/index.js';
+import { User, OrganizationUser, ClientUser } from '../modules/models/index.js';
 import logger from '../config/logger.js';
 
 // Configurar estratégia JWT
@@ -13,21 +13,39 @@ const jwtOptions = {
 passport.use(
   new JwtStrategy(jwtOptions, async (payload, done) => {
     try {
-      const user = await User.findByPk(payload.id, {
-        attributes: { exclude: ['password'] }
-      });
-      
-      if (!user || !user.isActive) {
+      const { id, userType } = payload;
+
+      let user = null;
+
+      // Escolher a tabela correta com base no userType gravado no token
+      if (userType === 'provider') {
+        user = await User.findByPk(id, { attributes: { exclude: ['password'] } });
+      } else if (userType === 'organization') {
+        user = await OrganizationUser.findByPk(id, { attributes: { exclude: ['password'] } });
+      } else if (userType === 'client') {
+        user = await ClientUser.findByPk(id, { attributes: { exclude: ['password'] } });
+      } else {
+        // Fallback de segurança: tentar em todas as tabelas
+        user = await User.findByPk(id, { attributes: { exclude: ['password'] } });
+        if (!user) {
+          user = await OrganizationUser.findByPk(id, { attributes: { exclude: ['password'] } });
+        }
+        if (!user) {
+          user = await ClientUser.findByPk(id, { attributes: { exclude: ['password'] } });
+        }
+      }
+
+      if (!user || user.isActive === false) {
         return done(null, false);
       }
-      
-      // Adicionar userType e clientId do payload ao user
+
+      // Adicionar userType e clientId do payload ao objeto user que vai para req.user
       const userData = {
         ...user.toJSON(),
-        userType: payload.userType || 'organization', // Fallback para organization
-        clientId: payload.clientId || null
+        userType: userType || payload.userType || 'organization',
+        clientId: payload.clientId || user.clientId || null
       };
-      
+
       return done(null, userData);
     } catch (error) {
       logger.error('Erro na autenticação JWT:', error);

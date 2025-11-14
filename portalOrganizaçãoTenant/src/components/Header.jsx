@@ -68,11 +68,19 @@ const Header = ({ toggleSidebar }) => {
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {user?.role === 'admin-org' 
-                  ? 'Administrador' 
-                  : user?.role === 'agente' 
-                    ? 'Agente' 
-                    : 'Cliente'}
+                {(() => {
+                  if (!user?.role) return 'Utilizador'
+
+                  const roleLabels = {
+                    'super-admin': 'Super Admin',
+                    'org-admin': 'Administrador da Organização',
+                    'client-admin': 'Administrador do Cliente',
+                    'admin-org': 'Administrador',
+                    'agente': 'Agente'
+                  }
+
+                  return roleLabels[user.role] || 'Utilizador'
+                })()}
               </p>
             </div>
           </button>
