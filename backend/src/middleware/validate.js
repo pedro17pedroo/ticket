@@ -30,7 +30,8 @@ export const schemas = {
   // Autenticação
   login: Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required()
+    password: Joi.string().min(6).required(),
+    portalType: Joi.string().valid('provider', 'organization', 'client').optional()
   }),
 
   register: Joi.object({
@@ -50,6 +51,24 @@ export const schemas = {
   changePassword: Joi.object({
     currentPassword: Joi.string().required(),
     newPassword: Joi.string().min(6).required()
+  }),
+
+  requestPasswordReset: Joi.object({
+    email: Joi.string().email().required(),
+    portalType: Joi.string().valid('provider', 'organization', 'client').optional()
+  }),
+
+  validatePasswordResetToken: Joi.object({
+    email: Joi.string().email().required(),
+    token: Joi.string().length(6).alphanum().required(),
+    portalType: Joi.string().valid('provider', 'organization', 'client').optional()
+  }),
+
+  resetPasswordWithToken: Joi.object({
+    email: Joi.string().email().required(),
+    token: Joi.string().length(6).alphanum().required(),
+    newPassword: Joi.string().min(6).required(),
+    portalType: Joi.string().valid('provider', 'organization', 'client').optional()
   }),
 
   // Tickets
@@ -111,7 +130,7 @@ export const schemas = {
     title: Joi.string().min(5).max(255).required(),
     content: Joi.string().min(10).required(),
     excerpt: Joi.string().optional(),
-    categoryId: Joi.string().uuid().optional(),
+    categoryId: Joi.string().uuid().allow('', null).optional(),
     tags: Joi.array().items(Joi.string()).default([]),
     isPublished: Joi.boolean().default(false)
   }),
@@ -171,7 +190,7 @@ export const schemas = {
     name: Joi.string().min(2).max(100).required(),
     description: Joi.string().allow('').optional(),
     code: Joi.string().max(20).optional(),
-    managerId: Joi.string().uuid().optional(),
+    managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 
@@ -195,12 +214,13 @@ export const schemas = {
   }),
 
   // Secções
+  // Secções
   createSection: Joi.object({
     name: Joi.string().min(2).max(100).required(),
     description: Joi.string().allow('').optional(),
     code: Joi.string().max(20).optional(),
     departmentId: Joi.string().uuid().required(),
-    managerId: Joi.string().uuid().optional(),
+    managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 
@@ -209,7 +229,7 @@ export const schemas = {
     description: Joi.string().allow('').optional(),
     code: Joi.string().max(20).optional(),
     departmentId: Joi.string().uuid().optional(),
-    managerId: Joi.string().uuid().allow(null).optional(),
+    managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 

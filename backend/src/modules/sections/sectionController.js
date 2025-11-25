@@ -6,7 +6,7 @@ export const getSections = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const { departmentId } = req.query;
 
-    const where = { 
+    const where = {
       organizationId,
       clientId: null // Apenas secções internas, não de clientes
     };
@@ -17,10 +17,10 @@ export const getSections = async (req, res, next) => {
     const sections = await Section.findAll({
       where,
       include: [
-        { 
-          model: User, 
-          as: 'manager', 
-          attributes: ['id', 'name', 'email'] 
+        {
+          model: User,
+          as: 'manager',
+          attributes: ['id', 'name', 'email']
         },
         {
           model: Department,
@@ -48,16 +48,16 @@ export const getSectionById = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     const section = await Section.findOne({
-      where: { 
-        id, 
+      where: {
+        id,
         organizationId,
         clientId: null // Apenas secções internas
       },
       include: [
-        { 
-          model: User, 
-          as: 'manager', 
-          attributes: ['id', 'name', 'email'] 
+        {
+          model: User,
+          as: 'manager',
+          attributes: ['id', 'name', 'email']
         },
         {
           model: Department,
@@ -90,7 +90,7 @@ export const createSection = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     // Apenas admin pode criar secções
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem criar secções'
@@ -99,8 +99,8 @@ export const createSection = async (req, res, next) => {
 
     // Verificar se departamento existe e pertence à organização - apenas internos
     const department = await Department.findOne({
-      where: { 
-        id: departmentId, 
+      where: {
+        id: departmentId,
         organizationId,
         clientId: null // Apenas departamentos internos
       }
@@ -118,7 +118,7 @@ export const createSection = async (req, res, next) => {
       description,
       code,
       departmentId,
-      managerId,
+      managerId: managerId && managerId.trim() !== '' ? managerId : null,
       organizationId,
       clientId: null, // Secção interna do tenant
       isActive: isActive !== undefined ? isActive : true
@@ -141,7 +141,7 @@ export const updateSection = async (req, res, next) => {
     const { name, description, code, departmentId, managerId, isActive } = req.body;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem atualizar secções'
@@ -149,8 +149,8 @@ export const updateSection = async (req, res, next) => {
     }
 
     const section = await Section.findOne({
-      where: { 
-        id, 
+      where: {
+        id,
         organizationId,
         clientId: null // Apenas secções internas
       }
@@ -166,8 +166,8 @@ export const updateSection = async (req, res, next) => {
     // Se mudou departamento, verificar se existe - apenas internos
     if (departmentId && departmentId !== section.departmentId) {
       const department = await Department.findOne({
-        where: { 
-          id: departmentId, 
+        where: {
+          id: departmentId,
           organizationId,
           clientId: null // Apenas departamentos internos
         }
@@ -186,7 +186,7 @@ export const updateSection = async (req, res, next) => {
       description,
       code,
       departmentId,
-      managerId,
+      managerId: managerId !== undefined ? (managerId && managerId.trim() !== '' ? managerId : null) : undefined,
       isActive
     });
 
@@ -206,7 +206,7 @@ export const deleteSection = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem eliminar secções'
@@ -214,8 +214,8 @@ export const deleteSection = async (req, res, next) => {
     }
 
     const section = await Section.findOne({
-      where: { 
-        id, 
+      where: {
+        id,
         organizationId,
         clientId: null // Apenas secções internas
       }

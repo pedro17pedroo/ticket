@@ -18,7 +18,7 @@ export const getRoles = async (req, res, next) => {
     let where = {};
 
     // admin-org vê TODOS os roles (sistema + todos os customizados)
-    if (userRole === 'admin-org') {
+    if (userRole === 'org-admin') {
       // Sem filtro - vê tudo
     } 
     // Roles de ORGANIZAÇÃO (gerente, supervisor, agente)
@@ -65,7 +65,7 @@ export const getRoles = async (req, res, next) => {
     // Determinar permissões de edição/eliminação
     const canEditRole = (role) => {
       if (role.isSystem) return false;
-      if (userRole === 'admin-org') return true;
+      if (userRole === 'org-admin') return true;
       if (['gerente', 'supervisor'].includes(userRole) && role.organizationId === organizationId) return true;
       if (userRole === 'client-admin' && role.clientId === clientId) return true;
       return false;
@@ -73,7 +73,7 @@ export const getRoles = async (req, res, next) => {
 
     const canDeleteRole = (role) => {
       if (role.isSystem) return false;
-      if (userRole === 'admin-org') return true;
+      if (userRole === 'org-admin') return true;
       if (userRole === 'gerente' && role.organizationId === organizationId) return true;
       if (userRole === 'client-admin' && role.clientId === clientId) return true;
       return false;
@@ -89,8 +89,8 @@ export const getRoles = async (req, res, next) => {
         scope: role.clientId ? 'client' : (role.organizationId ? 'organization' : 'system')
       })),
       userRole,
-      canCreateCustomRole: ['admin-org', 'gerente', 'client-admin'].includes(userRole),
-      canCreateForClients: ['admin-org', 'gerente'].includes(userRole)
+      canCreateCustomRole: ['org-admin', 'gerente', 'client-admin'].includes(userRole),
+      canCreateForClients: ['org-admin', 'gerente'].includes(userRole)
     });
   } catch (error) {
     logger.error('Erro ao listar roles:', error);
@@ -377,7 +377,7 @@ export const getUserPermissions = async (req, res, next) => {
     const { userId } = req.params;
 
     // Verificar se pode acessar este utilizador
-    if (userId !== req.user.id && req.user.role !== 'admin-org') {
+    if (userId !== req.user.id && req.user.role !== 'org-admin') {
       const canAccess = await permissionService.canAccessUserResource(
         req.user,
         userId,

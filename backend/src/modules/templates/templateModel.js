@@ -52,7 +52,7 @@ export const ResponseTemplate = sequelize.define('ResponseTemplate', {
     defaultValue: 0
   }
 }, {
-  tableName: 'response_templates',
+  tableName: 'templates',
   timestamps: true
 });
 

@@ -226,8 +226,8 @@ class TicketRoutingService {
   async getNextAgentRoundRobin(unitId, unitType) {
     try {
       const where = unitType === 'section' 
-        ? { sectionId: unitId, isActive: true, role: ['tecnico', 'agente', 'admin-org'] }
-        : { departmentId: unitId, isActive: true, role: ['tecnico', 'agente', 'admin-org'] };
+        ? { sectionId: unitId, isActive: true, role: ['technician', 'agent', 'admin-org'] }
+        : { departmentId: unitId, isActive: true, role: ['technician', 'agent', 'admin-org'] };
 
       const agents = await User.findAll({
         where,
@@ -255,8 +255,8 @@ class TicketRoutingService {
   async getAgentWithLeastTickets(unitId, unitType) {
     try {
       const where = unitType === 'section'
-        ? { sectionId: unitId, isActive: true, role: ['tecnico', 'agente', 'admin-org'] }
-        : { departmentId: unitId, isActive: true, role: ['tecnico', 'agente', 'admin-org'] };
+        ? { sectionId: unitId, isActive: true, role: ['technician', 'agent', 'admin-org'] }
+        : { departmentId: unitId, isActive: true, role: ['technician', 'agent', 'admin-org'] };
 
       // Buscar agentes e contar tickets abertos
       const agents = await User.findAll({

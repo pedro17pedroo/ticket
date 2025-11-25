@@ -8,15 +8,13 @@ import routes from './routes/index.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import swaggerSpec from './config/swagger.js';
 import logger from './config/logger.js';
+import { corsOptions } from './config/cors.js';
 
 const app = express();
 
 // Segurança
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
-}));
+app.use(cors(corsOptions));
 
 // Rate limiting (mais permissivo em desenvolvimento)
 const limiter = rateLimit({

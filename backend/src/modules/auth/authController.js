@@ -1,95 +1,108 @@
+import crypto from 'crypto';
 import { User, Organization, Department, OrganizationUser, ClientUser, Client } from '../models/index.js';
 import { generateToken } from '../../middleware/auth.js';
 import logger from '../../config/logger.js';
+import { sendPasswordResetEmail } from '../../services/emailService.js';
 
 // Login Multi-Tabela (Provider, Org Staff, Client Users)
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, portalType } = req.body;
 
-    console.log('🔐 Login attempt:', email);
+    console.log('🔐 Login attempt:', email, 'Portal:', portalType || 'agent-desktop');
 
     let user = null;
     let userType = null;
     let organization = null;
     let client = null;
 
-    // 1. Tentar login como Provider SaaS User (tabela users)
-    user = await User.scope('withPassword').findOne({ 
-      where: { email },
-      include: [{
-        model: Organization,
-        as: 'organization',
-        attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
-      }]
-    });
+    // Determinar qual tabela buscar baseado no portalType
+    // portalType: 'provider' = users, 'organization' = organization_users, 'client' = client_users
+    // Se não especificar portalType, assume Agent Desktop (pode logar qualquer tipo)
 
-    if (user && user.isActive) {
-      const isPasswordValid = await user.comparePassword(password);
-      if (isPasswordValid) {
-        userType = 'provider';
-        organization = user.organization;
-        console.log('✅ Login como Provider SaaS User');
-      } else {
-        user = null;
-      }
-    }
+    const searchOrder = portalType
+      ? (portalType === 'provider' ? ['provider']
+        : portalType === 'organization' ? ['organization']
+          : portalType === 'client' ? ['client']
+            : ['provider', 'organization', 'client']) // fallback
+      : ['provider', 'organization', 'client']; // Agent Desktop - busca em todas
 
-    // 2. Se não encontrou, tentar como Organization User (tenant staff)
-    if (!user) {
-      user = await OrganizationUser.scope('withPassword').findOne({ 
-        where: { email },
-        include: [{
-          model: Organization,
-          as: 'organization',
-          attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
-        }]
-      });
+    for (const type of searchOrder) {
+      if (user) break; // Já encontrou usuário válido
 
-      if (user && user.isActive) {
-        const isPasswordValid = await user.comparePassword(password);
-        if (isPasswordValid) {
-          userType = 'organization';
-          organization = user.organization;
-          console.log('✅ Login como Organization User (Tenant Staff)');
-        } else {
-          user = null;
-        }
-      }
-    }
-
-    // 3. Se não encontrou, tentar como Client User (empresa cliente)
-    if (!user) {
-      user = await ClientUser.scope('withPassword').findOne({ 
-        where: { email },
-        include: [
-          {
+      if (type === 'provider') {
+        const foundUser = await User.scope('withPassword').findOne({
+          where: { email },
+          include: [{
             model: Organization,
             as: 'organization',
             attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
-          },
-          {
-            model: Client,
-            as: 'client',
-            attributes: ['id', 'name', 'tradeName']
-          }
-        ]
-      });
+          }]
+        });
 
-      if (user && user.isActive) {
-        const isPasswordValid = await user.comparePassword(password);
-        if (isPasswordValid) {
-          userType = 'client';
-          organization = user.organization;
-          client = user.client;
-          console.log('✅ Login como Client User', {
-            userId: user.id,
-            clientId: user.clientId,
-            clientFromInclude: client?.id,
-            organizationId: user.organizationId
-          });
-        } else {
-          user = null;
+        if (foundUser && foundUser.isActive) {
+          const isPasswordValid = await foundUser.comparePassword(password);
+          if (isPasswordValid) {
+            user = foundUser;
+            userType = 'provider';
+            organization = foundUser.organization;
+            console.log('✅ Login como Provider SaaS User');
+          }
+        }
+      }
+
+      if (type === 'organization') {
+        const foundUser = await OrganizationUser.scope('withPassword').findOne({
+          where: { email },
+          include: [{
+            model: Organization,
+            as: 'organization',
+            attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
+          }]
+        });
+
+        if (foundUser && foundUser.isActive) {
+          const isPasswordValid = await foundUser.comparePassword(password);
+          if (isPasswordValid) {
+            user = foundUser;
+            userType = 'organization';
+            organization = foundUser.organization;
+            console.log('✅ Login como Organization User (Tenant Staff)');
+          }
+        }
+      }
+
+      if (type === 'client') {
+        const foundUser = await ClientUser.scope('withPassword').findOne({
+          where: { email },
+          include: [
+            {
+              model: Organization,
+              as: 'organization',
+              attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
+            },
+            {
+              model: Client,
+              as: 'client',
+              attributes: ['id', 'name', 'tradeName']
+            }
+          ]
+        });
+
+        if (foundUser && foundUser.isActive) {
+          const isPasswordValid = await foundUser.comparePassword(password);
+          if (isPasswordValid) {
+            user = foundUser;
+            userType = 'client';
+            organization = foundUser.organization;
+            client = foundUser.client;
+            console.log('✅ Login como Client User', {
+              userId: foundUser.id,
+              clientId: foundUser.clientId,
+              clientFromInclude: client?.id,
+              organizationId: foundUser.organizationId
+            });
+          }
         }
       }
     }
@@ -98,6 +111,25 @@ export const login = async (req, res, next) => {
     if (!user) {
       console.log('❌ User not found or invalid password');
       return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    // VALIDAÇÃO CRÍTICA: Verificar se o usuário pode acessar este portal
+    if (portalType) {
+      const portalTypeToUserType = {
+        'provider': 'provider',
+        'organization': 'organization',
+        'client': 'client'
+      };
+
+      const expectedUserType = portalTypeToUserType[portalType];
+
+      if (expectedUserType && userType !== expectedUserType) {
+        console.log(`❌ Acesso negado: Usuário tipo '${userType}' tentando acessar portal '${portalType}'`);
+        return res.status(403).json({
+          error: 'Você não tem permissão para acessar este portal',
+          details: 'Por favor, utilize o portal apropriado para seu tipo de conta'
+        });
+      }
     }
 
     // Atualizar último login
@@ -119,13 +151,141 @@ export const login = async (req, res, next) => {
       client
     };
 
-    logger.info(`Login bem-sucedido: ${user.email} (${userType})`);
+    logger.info(`Login bem-sucedido: ${user.email} (${userType}) no portal ${portalType || 'agent-desktop'}`);
 
     res.json({
       message: 'Login realizado com sucesso',
       token,
       user: userResponse
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const findUserForPasswordReset = async (email, portalType) => {
+  const normalizedType = portalType?.toLowerCase();
+
+  const searchOrder = normalizedType === 'client'
+    ? ['client']
+    : normalizedType === 'provider'
+      ? ['provider']
+      : normalizedType === 'organization'
+        ? ['organization']
+        : ['provider', 'organization', 'client'];
+
+  for (const type of searchOrder) {
+    if (type === 'provider') {
+      const user = await User.findOne({ where: { email } });
+      if (user) return { user, userType: 'provider' };
+    }
+
+    if (type === 'organization') {
+      const user = await OrganizationUser.findOne({ where: { email } });
+      if (user) return { user, userType: 'organization' };
+    }
+
+    if (type === 'client') {
+      const user = await ClientUser.findOne({ where: { email } });
+      if (user) return { user, userType: 'client' };
+    }
+  }
+
+  return { user: null, userType: null };
+};
+
+const maskResponse = () => ({
+  message: 'Se o email existir, enviamos instruções para redefinir a senha.'
+});
+
+export const requestPasswordReset = async (req, res, next) => {
+  try {
+    const { email, portalType } = req.body;
+
+    const { user, userType } = await findUserForPasswordReset(email, portalType);
+
+    if (!user) {
+      logger.warn(`Pedido de recuperação para email inexistente: ${email}`);
+      return res.json(maskResponse());
+    }
+
+    if (user.isActive === false) {
+      logger.warn(`Pedido de recuperação para usuário inativo: ${email}`);
+      return res.json(maskResponse());
+    }
+
+    const token = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 60 minutos
+
+    await user.update({
+      passwordResetToken: token,
+      passwordResetExpires: expiresAt
+    });
+
+    await sendPasswordResetEmail({
+      email: user.email,
+      name: user.name,
+      token,
+      portalType: userType
+    });
+
+    logger.info(`Token de recuperação gerado para ${email} (${userType})`);
+    res.json(maskResponse());
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const validatePasswordResetToken = async (req, res, next) => {
+  try {
+    const { email, token, portalType } = req.body;
+
+    const { user, userType } = await findUserForPasswordReset(email, portalType);
+
+    if (!user || !user.passwordResetToken || !user.passwordResetExpires) {
+      return res.status(400).json({ error: 'Token inválido ou expirado' });
+    }
+
+    if (user.passwordResetToken !== token.toUpperCase()) {
+      return res.status(400).json({ error: 'Token inválido ou expirado' });
+    }
+
+    if (new Date(user.passwordResetExpires) < new Date()) {
+      return res.status(400).json({ error: 'Token expirado' });
+    }
+
+    res.json({ success: true, userType });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPasswordWithToken = async (req, res, next) => {
+  try {
+    const { email, token, newPassword, portalType } = req.body;
+
+    const { user } = await findUserForPasswordReset(email, portalType);
+
+    if (!user || !user.passwordResetToken || !user.passwordResetExpires) {
+      return res.status(400).json({ error: 'Token inválido ou expirado' });
+    }
+
+    if (user.passwordResetToken !== token.toUpperCase()) {
+      return res.status(400).json({ error: 'Token inválido ou expirado' });
+    }
+
+    if (new Date(user.passwordResetExpires) < new Date()) {
+      return res.status(400).json({ error: 'Token expirado' });
+    }
+
+    await user.update({
+      password: newPassword,
+      passwordResetToken: null,
+      passwordResetExpires: null
+    });
+
+    logger.info(`Senha redefinida via token para ${email}`);
+    res.json({ success: true, message: 'Senha redefinida com sucesso' });
   } catch (error) {
     next(error);
   }
@@ -139,7 +299,7 @@ export const register = async (req, res, next) => {
     // Buscar organização (ou usar padrão)
     let orgId = organizationId;
     if (!orgId) {
-      const defaultOrg = await Organization.findOne({ 
+      const defaultOrg = await Organization.findOne({
         where: { slug: process.env.DEFAULT_ORG_SLUG || 'empresa-demo' }
       });
       if (!defaultOrg) {
@@ -149,11 +309,11 @@ export const register = async (req, res, next) => {
     }
 
     // Verificar se email já existe NESTA organização
-    const existingUser = await User.findOne({ 
-      where: { 
+    const existingUser = await User.findOne({
+      where: {
         email,
-        organizationId: orgId 
-      } 
+        organizationId: orgId
+      }
     });
     if (existingUser) {
       return res.status(409).json({ error: 'Email já cadastrado nesta organização' });
@@ -214,7 +374,7 @@ export const getProfile = async (req, res, next) => {
       }
     }
 
-    res.json({ 
+    res.json({
       user: {
         ...user.toJSON(),
         permissions
@@ -278,11 +438,11 @@ export const getUsers = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
 
-    const users = await User.findAll({
-      where: { 
+    const users = await OrganizationUser.findAll({
+      where: {
         organizationId,
         isActive: true,
-        role: ['admin-org', 'agente'] // Não incluir clientes
+        role: ['org-admin', 'agent', 'org-manager', 'technician'] // Roles corretos de OrganizationUser
       },
       attributes: ['id', 'name', 'email', 'role'],
       include: [{

@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { simpleParser } from 'mailparser';
 import Imap from 'imap-simple';
+import { Op } from 'sequelize';
 import { Ticket } from '../modules/models/index.js';
 import { User } from '../modules/models/index.js';
 import { Comment } from '../modules/models/index.js';

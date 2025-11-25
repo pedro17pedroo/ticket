@@ -1,5 +1,4 @@
-import Template from './templateModelV2.js';
-import { User, Category } from '../models/index.js';
+import { ResponseTemplate as Template, User, Category, OrganizationUser } from '../models/index.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
 
@@ -21,6 +20,24 @@ export const getTemplates = async (req, res, next) => {
 
     const templates = await Template.findAll({
       where,
+      where,
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name']
+        },
+        {
+          model: OrganizationUser,
+          as: 'creatorOrgUser',
+          attributes: ['id', 'name']
+        },
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name', 'color']
+        }
+      ],
       order: [['name', 'ASC']]
     });
 
@@ -75,7 +92,24 @@ export const getTemplateById = async (req, res, next) => {
       where: {
         id,
         organizationId: req.user.organizationId
-      }
+      },
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name']
+        },
+        {
+          model: OrganizationUser,
+          as: 'creatorOrgUser',
+          attributes: ['id', 'name']
+        },
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name', 'color']
+        }
+      ]
     });
 
     if (!template) {
@@ -109,7 +143,7 @@ export const updateTemplate = async (req, res, next) => {
     }
 
     // Apenas criador ou admin pode atualizar
-    if (template.createdBy !== req.user.id && req.user.role !== 'admin-org') {
+    if (template.createdBy !== req.user.id && req.user.role !== 'org-admin') {
       return res.status(403).json({ error: 'Sem permissão para atualizar este template' });
     }
 
@@ -151,7 +185,7 @@ export const deleteTemplate = async (req, res, next) => {
     }
 
     // Apenas criador ou admin pode deletar
-    if (template.createdBy !== req.user.id && req.user.role !== 'admin-org') {
+    if (template.createdBy !== req.user.id && req.user.role !== 'org-admin') {
       return res.status(403).json({ error: 'Sem permissão para deletar este template' });
     }
 

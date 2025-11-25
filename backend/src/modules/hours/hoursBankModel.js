@@ -19,7 +19,7 @@ const HoursBank = sequelize.define('HoursBank', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'users',
+      model: 'clients',
       key: 'id'
     }
   },

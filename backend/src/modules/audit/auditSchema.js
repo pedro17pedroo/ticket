@@ -19,8 +19,8 @@ const auditLogSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      'create', 'update', 'delete', 
-      'login', 'logout', 
+      'create', 'update', 'delete',
+      'login', 'logout',
       'ticket_created', 'ticket_updated', 'ticket_closed',
       'user_created', 'user_updated', 'user_deleted',
       'settings_changed',
@@ -31,7 +31,7 @@ const auditLogSchema = new mongoose.Schema({
   entityType: {
     type: String,
     required: true,
-    enum: ['ticket', 'user', 'organization', 'department', 'category', 'sla', 'priority', 'type', 'knowledge', 'hours', 'settings']
+    enum: ['ticket', 'user', 'organization', 'department', 'category', 'sla', 'priority', 'type', 'knowledge', 'hours', 'settings', 'template']
   },
   entityId: {
     type: String,

@@ -116,6 +116,16 @@ const ClientUser = sequelize.define('ClientUser', {
   lastLogin: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  passwordResetToken: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'password_reset_token'
+  },
+  passwordResetExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'password_reset_expires'
   }
 }, {
   tableName: 'client_users',

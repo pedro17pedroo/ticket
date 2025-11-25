@@ -6,8 +6,8 @@ export const getDepartments = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const { directionId } = req.query;
 
-    const where = { 
-      organizationId, 
+    const where = {
+      organizationId,
       isActive: true,
       clientId: null // Apenas departamentos internos, não de clientes
     };
@@ -18,15 +18,15 @@ export const getDepartments = async (req, res, next) => {
     const departments = await Department.findAll({
       where,
       include: [
-        { 
-          model: Direction, 
-          as: 'direction', 
-          attributes: ['id', 'name', 'code'] 
+        {
+          model: Direction,
+          as: 'direction',
+          attributes: ['id', 'name', 'code']
         },
-        { 
-          model: User, 
-          as: 'manager', 
-          attributes: ['id', 'name', 'email'] 
+        {
+          model: User,
+          as: 'manager',
+          attributes: ['id', 'name', 'email']
         },
         {
           model: Section,
@@ -51,7 +51,7 @@ export const getDepartments = async (req, res, next) => {
 export const createDepartment = async (req, res, next) => {
   try {
     console.log('📥 POST /api/departments - Body:', JSON.stringify(req.body, null, 2));
-    
+
     const { name, description, code, email, directionId, managerId, isActive } = req.body;
     const organizationId = req.user.organizationId;
 
@@ -65,8 +65,8 @@ export const createDepartment = async (req, res, next) => {
 
     // Verificar se direção existe - apenas internas
     const direction = await Direction.findOne({
-      where: { 
-        id: directionId, 
+      where: {
+        id: directionId,
         organizationId,
         clientId: null // Apenas direções internas
       }
@@ -86,7 +86,7 @@ export const createDepartment = async (req, res, next) => {
       description,
       code,
       email,
-      managerId,
+      managerId: managerId && managerId.trim() !== '' ? managerId : null,
       clientId: null, // Departamento interno do tenant
       isActive: isActive !== undefined ? isActive : true
     });
@@ -119,14 +119,14 @@ export const updateDepartment = async (req, res, next) => {
   try {
     console.log('📥 PUT /api/departments/:id - ID:', req.params.id);
     console.log('📥 Body:', JSON.stringify(req.body, null, 2));
-    
+
     const { id } = req.params;
     const { name, description, code, email, directionId, managerId, isActive } = req.body;
     const organizationId = req.user.organizationId;
 
     const department = await Department.findOne({
-      where: { 
-        id, 
+      where: {
+        id,
         organizationId,
         clientId: null // Apenas departamentos internos
       }
@@ -150,8 +150,8 @@ export const updateDepartment = async (req, res, next) => {
     // Verificar se direção existe (se mudou) - apenas internas
     if (directionId !== department.directionId) {
       const direction = await Direction.findOne({
-        where: { 
-          id: directionId, 
+        where: {
+          id: directionId,
           organizationId,
           clientId: null
         }
@@ -171,7 +171,7 @@ export const updateDepartment = async (req, res, next) => {
       code,
       email,
       directionId,
-      managerId,
+      managerId: managerId !== undefined ? (managerId && managerId.trim() !== '' ? managerId : null) : undefined,
       isActive
     });
 
@@ -205,8 +205,8 @@ export const deleteDepartment = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     const department = await Department.findOne({
-      where: { 
-        id, 
+      where: {
+        id,
         organizationId,
         clientId: null // Apenas departamentos internos
       },
@@ -248,15 +248,15 @@ export const getDepartmentById = async (req, res, next) => {
     const department = await Department.findOne({
       where: { id, organizationId },
       include: [
-        { 
-          model: Direction, 
-          as: 'direction', 
-          attributes: ['id', 'name', 'code'] 
+        {
+          model: Direction,
+          as: 'direction',
+          attributes: ['id', 'name', 'code']
         },
-        { 
-          model: User, 
-          as: 'manager', 
-          attributes: ['id', 'name', 'email'] 
+        {
+          model: User,
+          as: 'manager',
+          attributes: ['id', 'name', 'email']
         },
         {
           model: Section,

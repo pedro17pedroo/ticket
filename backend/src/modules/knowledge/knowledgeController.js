@@ -1,5 +1,7 @@
 import KnowledgeArticle from './knowledgeModel.js';
+
 import User from '../users/userModel.js';
+import OrganizationUser from '../../models/OrganizationUser.js';
 import Category from '../categories/categoryModel.js';
 import { Op } from 'sequelize';
 
@@ -46,6 +48,7 @@ export const getArticles = async (req, res, next) => {
       where,
       include: [
         { model: User, as: 'author', attributes: ['id', 'name', 'email'] },
+        { model: OrganizationUser, as: 'authorOrgUser', attributes: ['id', 'name', 'email'] },
         { model: Category, as: 'category', attributes: ['id', 'name', 'icon', 'color'] },
       ],
       order: [['createdAt', 'DESC']],
@@ -77,6 +80,7 @@ export const getArticleById = async (req, res, next) => {
       where,
       include: [
         { model: User, as: 'author', attributes: ['id', 'name', 'email'] },
+        { model: OrganizationUser, as: 'authorOrgUser', attributes: ['id', 'name', 'email'] },
         { model: Category, as: 'category', attributes: ['id', 'name', 'icon', 'color'] },
       ],
     });
@@ -117,7 +121,7 @@ export const createArticle = async (req, res, next) => {
 
     // Gerar slug a partir do título
     let slug = generateSlug(title);
-    
+
     // Verificar se slug já existe e adicionar sufixo se necessário
     let slugExists = await KnowledgeArticle.findOne({ where: { slug, organizationId } });
     let counter = 1;
@@ -131,7 +135,7 @@ export const createArticle = async (req, res, next) => {
       title,
       slug,
       content,
-      categoryId,
+      categoryId: categoryId && categoryId.trim() !== '' ? categoryId : null,
       isPublished: isPublished || false,
       publishedAt: isPublished ? new Date() : null,
       authorId,
@@ -180,24 +184,24 @@ export const updateArticle = async (req, res, next) => {
     let slug = article.slug;
     if (title && title !== article.title) {
       slug = generateSlug(title);
-      
+
       // Verificar se slug já existe
-      let slugExists = await KnowledgeArticle.findOne({ 
-        where: { 
-          slug, 
+      let slugExists = await KnowledgeArticle.findOne({
+        where: {
+          slug,
           organizationId,
           id: { [Op.ne]: id } // Excluir o próprio artigo
-        } 
+        }
       });
       let counter = 1;
       while (slugExists) {
         slug = `${generateSlug(title)}-${counter}`;
-        slugExists = await KnowledgeArticle.findOne({ 
-          where: { 
-            slug, 
+        slugExists = await KnowledgeArticle.findOne({
+          where: {
+            slug,
             organizationId,
             id: { [Op.ne]: id }
-          } 
+          }
         });
         counter++;
       }
@@ -207,7 +211,7 @@ export const updateArticle = async (req, res, next) => {
       title,
       slug,
       content,
-      categoryId,
+      categoryId: categoryId !== undefined ? (categoryId && categoryId.trim() !== '' ? categoryId : null) : undefined,
       isPublished,
       publishedAt: isPublished && !oldData.isPublished ? new Date() : article.publishedAt,
     });

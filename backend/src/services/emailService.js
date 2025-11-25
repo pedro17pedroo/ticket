@@ -429,6 +429,51 @@ export const sendClientAdminWelcomeEmail = async ({ email, name, clientName, ten
   }
 };
 
+export const sendPasswordResetEmail = async ({ email, name, token, portalType = 'organization', portalUrl }) => {
+  try {
+    const normalizedPortalType = ['client', 'organization', 'provider'].includes(portalType)
+      ? portalType
+      : 'organization';
+
+    const fallbackPortalUrl = normalizedPortalType === 'client'
+      ? (process.env.CLIENT_PORTAL_URL || 'http://localhost:5174')
+      : (process.env.ORGANIZATION_PORTAL_URL || 'http://localhost:5173');
+
+    const baseUrl = (portalUrl || fallbackPortalUrl).replace(/\/$/, '');
+    const resetUrl = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(email)}&type=${normalizedPortalType}`;
+
+    const content = `
+      <p>Olá <strong>${name || 'utilizador'}</strong>,</p>
+      <p>Recebemos um pedido para redefinir a sua senha no portal ${normalizedPortalType === 'client' ? 'do cliente' : 'da organização'}.</p>
+      <p>Utilize o código abaixo ou clique no botão para continuar:</p>
+
+      <div class="verification-code" style="background: #f5f5f5; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; text-align: center; margin: 24px 0;">
+        <h2 style="margin: 0; color: #111827; font-size: 24px; letter-spacing: 3px; font-family: 'Courier New', monospace;">${token}</h2>
+        <p style="margin: 8px 0 0 0; color: #6b7280; font-size: 14px;">Token de recuperação (válido por 60 minutos)</p>
+      </div>
+
+      <a href="${resetUrl}" class="button" style="background: #2563eb;">Redefinir senha</a>
+
+      <p style="font-size: 14px; color: #6b7280; margin-top: 24px;">
+        Se não solicitou esta alteração, pode ignorar este email. O seu acesso continuará seguro.
+      </p>
+    `;
+
+    await sendEmail({
+      to: email,
+      subject: 'Recuperação de senha | TatuTicket',
+      html: baseTemplate('Recuperar senha', content),
+      text: `Utilize este token para redefinir a sua senha: ${token}. Link rápido: ${resetUrl}`
+    });
+
+    logger.info(`Email de recuperação enviado para: ${email}`);
+    return { success: true };
+  } catch (error) {
+    logger.error('Erro ao enviar email de recuperação de senha:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 export default {
   notifyNewTicket,
   notifyNewComment,
@@ -437,5 +482,6 @@ export default {
   notifyRequesterResponse,
   sendEmailVerification,
   sendWelcomeEmail,
-  sendClientAdminWelcomeEmail
+  sendClientAdminWelcomeEmail,
+  sendPasswordResetEmail
 };

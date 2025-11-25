@@ -107,6 +107,16 @@ const OrganizationUser = sequelize.define('OrganizationUser', {
     type: DataTypes.DATE,
     allowNull: true,
     field: 'last_login'
+  },
+  passwordResetToken: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'password_reset_token'
+  },
+  passwordResetExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'password_reset_expires'
   }
 }, {
   tableName: 'organization_users',

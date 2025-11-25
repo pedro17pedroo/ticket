@@ -116,6 +116,16 @@ const User = sequelize.define('User', {
       key: 'id'
     },
     comment: 'Para utilizadores cliente-org, indica a empresa cliente à qual pertencem'
+  },
+  passwordResetToken: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'password_reset_token'
+  },
+  passwordResetExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'password_reset_expires'
   }
 }, {
   tableName: 'users',

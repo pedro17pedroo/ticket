@@ -139,7 +139,7 @@ export const createUser = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     // Apenas admin pode criar usuários (org-admin é o admin principal da organização)
-    const allowedAdminRoles = ['org-admin', 'super-admin', 'admin-org', 'provider-admin'];
+    const allowedAdminRoles = ['org-admin', 'super-admin', 'org-admin', 'provider-admin'];
     if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
@@ -207,7 +207,7 @@ export const updateUser = async (req, res, next) => {
     const { name, email, phone, role, directionId, departmentId, sectionId, isActive } = req.body;
     const organizationId = req.user.organizationId;
 
-    const allowedAdminRoles = ['org-admin', 'super-admin', 'admin-org', 'provider-admin'];
+    const allowedAdminRoles = ['org-admin', 'super-admin', 'org-admin', 'provider-admin'];
     if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
@@ -288,7 +288,7 @@ export const deleteUser = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    const allowedAdminRoles = ['org-admin', 'super-admin', 'admin-org', 'provider-admin'];
+    const allowedAdminRoles = ['org-admin', 'super-admin', 'org-admin', 'provider-admin'];
     if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
@@ -337,7 +337,7 @@ export const activateUser = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    const allowedAdminRoles = ['org-admin', 'super-admin', 'admin-org', 'provider-admin'];
+    const allowedAdminRoles = ['org-admin', 'super-admin', 'org-admin', 'provider-admin'];
     if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
@@ -379,7 +379,7 @@ export const resetPassword = async (req, res, next) => {
     const { newPassword } = req.body;
     const organizationId = req.user.organizationId;
 
-    const allowedAdminRoles = ['org-admin', 'super-admin', 'admin-org', 'provider-admin'];
+    const allowedAdminRoles = ['org-admin', 'super-admin', 'org-admin', 'provider-admin'];
     if (!allowedAdminRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,

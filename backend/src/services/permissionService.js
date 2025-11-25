@@ -17,7 +17,7 @@ class PermissionService {
   async hasPermission(user, resource, action, options = {}) {
     try {
       // 1. Roles de admin têm todas as permissões (admins base + aliases legados)
-      const adminRoles = ['super-admin', 'org-admin', 'client-admin', 'admin-org', 'provider-admin'];
+      const adminRoles = ['super-admin', 'org-admin', 'client-admin', 'org-admin', 'provider-admin'];
       if (adminRoles.includes(user.role)) {
         return true;
       }
@@ -227,7 +227,7 @@ class PermissionService {
    */
   async canAccessUserResource(currentUser, targetUserId, resource, action) {
     // Admin pode acessar tudo
-    const adminRoles = ['super-admin', 'org-admin', 'client-admin', 'admin-org', 'provider-admin'];
+    const adminRoles = ['super-admin', 'org-admin', 'client-admin', 'org-admin', 'provider-admin'];
     if (adminRoles.includes(currentUser.role)) {
       return true;
     }

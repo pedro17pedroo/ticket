@@ -61,6 +61,9 @@ router.get('/auth/profile', authenticate, authController.getProfile);
 router.put('/auth/profile', authenticate, validate(schemas.updateProfile), authController.updateProfile);
 router.put('/auth/change-password', authenticate, validate(schemas.changePassword), authController.changePassword);
 router.get('/auth/users', authenticate, authController.getUsers);
+router.post('/auth/password-reset/request', validate(schemas.requestPasswordReset), authController.requestPasswordReset);
+router.post('/auth/password-reset/validate', validate(schemas.validatePasswordResetToken), authController.validatePasswordResetToken);
+router.post('/auth/password-reset/reset', validate(schemas.resetPasswordWithToken), authController.resetPasswordWithToken);
 
 // ==================== CLIENT PORTAL USERS (Legacy - DESATIVADO) ====================
 // ❌ DEPRECATED - Usar /client-users-b2b para nova arquitetura
@@ -116,50 +119,50 @@ router.patch('/tickets/:ticketId/resolution-status', authenticate, auditLog('upd
 // ==================== DIRECTIONS ====================
 router.get('/directions', authenticate, directionController.getDirections);
 router.get('/directions/:id', authenticate, directionController.getDirectionById);
-router.post('/directions', authenticate, authorize('admin-org'), validate(schemas.createDirection), auditLog('create', 'direction'), directionController.createDirection);
-router.put('/directions/:id', authenticate, authorize('admin-org'), validate(schemas.updateDirection), auditLog('update', 'direction'), directionController.updateDirection);
-router.delete('/directions/:id', authenticate, authorize('admin-org'), auditLog('delete', 'direction'), directionController.deleteDirection);
+router.post('/directions', authenticate, authorize('org-admin'), validate(schemas.createDirection), auditLog('create', 'direction'), directionController.createDirection);
+router.put('/directions/:id', authenticate, authorize('org-admin'), validate(schemas.updateDirection), auditLog('update', 'direction'), directionController.updateDirection);
+router.delete('/directions/:id', authenticate, authorize('org-admin'), auditLog('delete', 'direction'), directionController.deleteDirection);
 
 // ==================== DEPARTMENTS ====================
 router.get('/departments', authenticate, departmentController.getDepartments);
 router.get('/departments/:id', authenticate, departmentController.getDepartmentById);
-router.post('/departments', authenticate, authorize('admin-org'), validate(schemas.createDepartment), auditLog('create', 'department'), departmentController.createDepartment);
-router.put('/departments/:id', authenticate, authorize('admin-org'), validate(schemas.updateDepartment), auditLog('update', 'department'), departmentController.updateDepartment);
-router.delete('/departments/:id', authenticate, authorize('admin-org'), auditLog('delete', 'department'), departmentController.deleteDepartment);
+router.post('/departments', authenticate, authorize('org-admin'), validate(schemas.createDepartment), auditLog('create', 'department'), departmentController.createDepartment);
+router.put('/departments/:id', authenticate, authorize('org-admin'), validate(schemas.updateDepartment), auditLog('update', 'department'), departmentController.updateDepartment);
+router.delete('/departments/:id', authenticate, authorize('org-admin'), auditLog('delete', 'department'), departmentController.deleteDepartment);
 
 // ==================== SECTIONS ====================
 router.get('/sections', authenticate, sectionController.getSections);
 router.get('/sections/:id', authenticate, sectionController.getSectionById);
-router.post('/sections', authenticate, authorize('admin-org'), validate(schemas.createSection), auditLog('create', 'section'), sectionController.createSection);
-router.put('/sections/:id', authenticate, authorize('admin-org'), validate(schemas.updateSection), auditLog('update', 'section'), sectionController.updateSection);
-router.delete('/sections/:id', authenticate, authorize('admin-org'), auditLog('delete', 'section'), sectionController.deleteSection);
+router.post('/sections', authenticate, authorize('org-admin'), validate(schemas.createSection), auditLog('create', 'section'), sectionController.createSection);
+router.put('/sections/:id', authenticate, authorize('org-admin'), validate(schemas.updateSection), auditLog('update', 'section'), sectionController.updateSection);
+router.delete('/sections/:id', authenticate, authorize('org-admin'), auditLog('delete', 'section'), sectionController.deleteSection);
 
 // ==================== ORGANIZATIONAL STRUCTURE (Aliases) ====================
 // Rotas alternativas para compatibilidade com frontend
 router.get('/organizational-structure/directions', authenticate, directionController.getDirections);
 router.get('/organizational-structure/directions/:id', authenticate, directionController.getDirectionById);
-router.post('/organizational-structure/directions', authenticate, authorize('admin-org'), validate(schemas.createDirection), auditLog('create', 'direction'), directionController.createDirection);
-router.put('/organizational-structure/directions/:id', authenticate, authorize('admin-org'), validate(schemas.updateDirection), auditLog('update', 'direction'), directionController.updateDirection);
-router.delete('/organizational-structure/directions/:id', authenticate, authorize('admin-org'), auditLog('delete', 'direction'), directionController.deleteDirection);
+router.post('/organizational-structure/directions', authenticate, authorize('org-admin'), validate(schemas.createDirection), auditLog('create', 'direction'), directionController.createDirection);
+router.put('/organizational-structure/directions/:id', authenticate, authorize('org-admin'), validate(schemas.updateDirection), auditLog('update', 'direction'), directionController.updateDirection);
+router.delete('/organizational-structure/directions/:id', authenticate, authorize('org-admin'), auditLog('delete', 'direction'), directionController.deleteDirection);
 
 router.get('/organizational-structure/departments', authenticate, departmentController.getDepartments);
 router.get('/organizational-structure/departments/:id', authenticate, departmentController.getDepartmentById);
-router.post('/organizational-structure/departments', authenticate, authorize('admin-org'), validate(schemas.createDepartment), auditLog('create', 'department'), departmentController.createDepartment);
-router.put('/organizational-structure/departments/:id', authenticate, authorize('admin-org'), validate(schemas.updateDepartment), auditLog('update', 'department'), departmentController.updateDepartment);
-router.delete('/organizational-structure/departments/:id', authenticate, authorize('admin-org'), auditLog('delete', 'department'), departmentController.deleteDepartment);
+router.post('/organizational-structure/departments', authenticate, authorize('org-admin'), validate(schemas.createDepartment), auditLog('create', 'department'), departmentController.createDepartment);
+router.put('/organizational-structure/departments/:id', authenticate, authorize('org-admin'), validate(schemas.updateDepartment), auditLog('update', 'department'), departmentController.updateDepartment);
+router.delete('/organizational-structure/departments/:id', authenticate, authorize('org-admin'), auditLog('delete', 'department'), departmentController.deleteDepartment);
 
 router.get('/organizational-structure/sections', authenticate, sectionController.getSections);
 router.get('/organizational-structure/sections/:id', authenticate, sectionController.getSectionById);
-router.post('/organizational-structure/sections', authenticate, authorize('admin-org'), validate(schemas.createSection), auditLog('create', 'section'), sectionController.createSection);
-router.put('/organizational-structure/sections/:id', authenticate, authorize('admin-org'), validate(schemas.updateSection), auditLog('update', 'section'), sectionController.updateSection);
-router.delete('/organizational-structure/sections/:id', authenticate, authorize('admin-org'), auditLog('delete', 'section'), sectionController.deleteSection);
+router.post('/organizational-structure/sections', authenticate, authorize('org-admin'), validate(schemas.createSection), auditLog('create', 'section'), sectionController.createSection);
+router.put('/organizational-structure/sections/:id', authenticate, authorize('org-admin'), validate(schemas.updateSection), auditLog('update', 'section'), sectionController.updateSection);
+router.delete('/organizational-structure/sections/:id', authenticate, authorize('org-admin'), auditLog('delete', 'section'), sectionController.deleteSection);
 
 // ==================== CATEGORIES ====================
 router.get('/categories', authenticate, categoryController.getCategories);
 router.get('/categories/:id', authenticate, categoryController.getCategoryById);
-router.post('/categories', authenticate, authorize('admin-org', 'agente'), auditLog('create', 'category'), categoryController.createCategory);
-router.put('/categories/:id', authenticate, authorize('admin-org', 'agente'), auditLog('update', 'category'), categoryController.updateCategory);
-router.delete('/categories/:id', authenticate, authorize('admin-org'), auditLog('delete', 'category'), categoryController.deleteCategory);
+router.post('/categories', authenticate, authorize('org-admin', 'agent'), auditLog('create', 'category'), categoryController.createCategory);
+router.put('/categories/:id', authenticate, authorize('org-admin', 'agent'), auditLog('update', 'category'), categoryController.updateCategory);
+router.delete('/categories/:id', authenticate, authorize('org-admin'), auditLog('delete', 'category'), categoryController.deleteCategory);
 
 // ==================== KNOWLEDGE BASE ====================
 router.get('/knowledge', authenticate, requirePermission('knowledge', 'read'), knowledgeController.getArticles);
@@ -179,16 +182,16 @@ router.delete('/slas/:id', authenticate, requirePermission('settings', 'manage_s
 // ==================== PRIORITIES ====================
 router.get('/priorities', authenticate, priorityController.getPriorities);
 router.get('/priorities/:id', authenticate, priorityController.getPriorityById);
-router.post('/priorities', authenticate, authorize('admin-org'), validate(schemas.createPriority), auditLog('create', 'priority'), priorityController.createPriority);
-router.put('/priorities/:id', authenticate, authorize('admin-org'), validate(schemas.updatePriority), auditLog('update', 'priority'), priorityController.updatePriority);
-router.delete('/priorities/:id', authenticate, authorize('admin-org'), auditLog('delete', 'priority'), priorityController.deletePriority);
+router.post('/priorities', authenticate, authorize('org-admin'), validate(schemas.createPriority), auditLog('create', 'priority'), priorityController.createPriority);
+router.put('/priorities/:id', authenticate, authorize('org-admin'), validate(schemas.updatePriority), auditLog('update', 'priority'), priorityController.updatePriority);
+router.delete('/priorities/:id', authenticate, authorize('org-admin'), auditLog('delete', 'priority'), priorityController.deletePriority);
 
 // ==================== TYPES ====================
 router.get('/types', authenticate, typeController.getTypes);
 router.get('/types/:id', authenticate, typeController.getTypeById);
-router.post('/types', authenticate, authorize('admin-org'), validate(schemas.createType), auditLog('create', 'type'), typeController.createType);
-router.put('/types/:id', authenticate, authorize('admin-org'), validate(schemas.updateType), auditLog('update', 'type'), typeController.updateType);
-router.delete('/types/:id', authenticate, authorize('admin-org'), auditLog('delete', 'type'), typeController.deleteType);
+router.post('/types', authenticate, authorize('org-admin'), validate(schemas.createType), auditLog('create', 'type'), typeController.createType);
+router.put('/types/:id', authenticate, authorize('org-admin'), validate(schemas.updateType), auditLog('update', 'type'), typeController.updateType);
+router.delete('/types/:id', authenticate, authorize('org-admin'), auditLog('delete', 'type'), typeController.deleteType);
 
 // ==================== PROVIDER (Multi-Tenant Management) ====================
 import providerRoutes from './providerRoutes.js';
@@ -209,12 +212,12 @@ router.use('/clients', clientRoutes); // Mesmas rotas que /clients-b2b
 
 // ==================== CLIENT USERS (Legacy - Deprecated - DESATIVADO) ====================
 // ❌ DEPRECATED - Usar /client-users-b2b para nova arquitetura multi-tenant
-// router.get('/clients/:clientId/users', authenticate, authorize('admin-org', 'agente'), clientUsersController.getClientUsers);
-// router.post('/clients/:clientId/users', authenticate, authorize('admin-org'), validate(schemas.createClientUserByOrg), auditLog('create', 'client_user'), clientUsersController.createClientUser);
-// router.put('/clients/:clientId/users/:userId', authenticate, authorize('admin-org'), validate(schemas.updateClientUserByOrg), auditLog('update', 'client_user'), clientUsersController.updateClientUser);
-// router.put('/clients/:clientId/users/:userId/activate', authenticate, authorize('admin-org'), auditLog('update', 'client_user'), clientUsersController.activateClientUser);
-// router.put('/clients/:clientId/users/:userId/reset-password', authenticate, authorize('admin-org'), validate(schemas.resetPassword), auditLog('update', 'client_user'), clientUsersController.resetClientUserPassword);
-// router.delete('/clients/:clientId/users/:userId', authenticate, authorize('admin-org'), auditLog('delete', 'client_user'), clientUsersController.deleteClientUser);
+// router.get('/clients/:clientId/users', authenticate, authorize('org-admin', 'agent'), clientUsersController.getClientUsers);
+// router.post('/clients/:clientId/users', authenticate, authorize('org-admin'), validate(schemas.createClientUserByOrg), auditLog('create', 'client_user'), clientUsersController.createClientUser);
+// router.put('/clients/:clientId/users/:userId', authenticate, authorize('org-admin'), validate(schemas.updateClientUserByOrg), auditLog('update', 'client_user'), clientUsersController.updateClientUser);
+// router.put('/clients/:clientId/users/:userId/activate', authenticate, authorize('org-admin'), auditLog('update', 'client_user'), clientUsersController.activateClientUser);
+// router.put('/clients/:clientId/users/:userId/reset-password', authenticate, authorize('org-admin'), validate(schemas.resetPassword), auditLog('update', 'client_user'), clientUsersController.resetClientUserPassword);
+// router.delete('/clients/:clientId/users/:userId', authenticate, authorize('org-admin'), auditLog('delete', 'client_user'), clientUsersController.deleteClientUser);
 
 // ==================== CLIENT STRUCTURE (Estrutura organizacional) ====================
 // Directions
@@ -270,9 +273,9 @@ router.get('/tickets/:ticketId/timers', authenticate, timeTrackingController.get
 
 // ==================== TAGS ====================
 router.get('/tags', authenticate, tagController.getTags);
-router.post('/tags', authenticate, authorize('admin-org'), auditLog('create', 'tag'), tagController.createTag);
-router.put('/tags/:id', authenticate, authorize('admin-org'), auditLog('update', 'tag'), tagController.updateTag);
-router.delete('/tags/:id', authenticate, authorize('admin-org'), auditLog('delete', 'tag'), tagController.deleteTag);
+router.post('/tags', authenticate, authorize('org-admin'), auditLog('create', 'tag'), tagController.createTag);
+router.put('/tags/:id', authenticate, authorize('org-admin'), auditLog('update', 'tag'), tagController.updateTag);
+router.delete('/tags/:id', authenticate, authorize('org-admin'), auditLog('delete', 'tag'), tagController.deleteTag);
 router.post('/tickets/:ticketId/tags', authenticate, tagController.addTagToTicket);
 router.delete('/tickets/:ticketId/tags/:tagId', authenticate, tagController.removeTagFromTicket);
 router.get('/tickets/:ticketId/tags', authenticate, tagController.getTicketTags);
@@ -285,7 +288,7 @@ router.put('/templates/:id', authenticate, auditLog('update', 'template'), templ
 router.delete('/templates/:id', authenticate, auditLog('delete', 'template'), templateController.deleteTemplate);
 
 // ==================== TICKET MERGE ====================
-router.post('/tickets/merge', authenticate, authorize('admin-org', 'agente'), auditLog('update', 'ticket'), ticketMergeController.mergeTickets);
+router.post('/tickets/merge', authenticate, authorize('org-admin', 'agent'), auditLog('update', 'ticket'), ticketMergeController.mergeTickets);
 router.get('/tickets/:ticketId/duplicates', authenticate, ticketMergeController.findDuplicates);
 
 // ==================== SERVICE CATALOG (V1 - LEGACY) ====================

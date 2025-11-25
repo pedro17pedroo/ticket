@@ -222,7 +222,7 @@ export const updateComment = async (req, res, next) => {
                      comment.authorOrgUserId === req.user.id ||
                      comment.authorClientUserId === req.user.id;
 
-    if (!isAuthor && !['admin-org', 'gerente'].includes(req.user.role)) {
+    if (!isAuthor && !['org-admin', 'gerente'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas o autor ou administrador pode editar este comentário'
@@ -272,7 +272,7 @@ export const deleteComment = async (req, res, next) => {
                      comment.authorOrgUserId === req.user.id ||
                      comment.authorClientUserId === req.user.id;
 
-    if (!isAuthor && !['admin-org', 'gerente'].includes(req.user.role)) {
+    if (!isAuthor && !['org-admin', 'gerente'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas o autor ou administrador pode eliminar este comentário'

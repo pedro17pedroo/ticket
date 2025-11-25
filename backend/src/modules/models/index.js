@@ -134,31 +134,31 @@ const setupAssociations = () => {
   });
 
   // User-Role association
-  User.belongsTo(Role, { 
-    foreignKey: 'role', 
-    targetKey: 'name', 
-    as: 'roleObject' 
+  User.belongsTo(Role, {
+    foreignKey: 'role',
+    targetKey: 'name',
+    as: 'roleObject'
   });
 
   // User-Permission (custom permissions)
-  User.hasMany(UserPermission, { 
-    foreignKey: 'userId', 
-    as: 'customPermissions' 
+  User.hasMany(UserPermission, {
+    foreignKey: 'userId',
+    as: 'customPermissions'
   });
-  
-  UserPermission.belongsTo(User, { 
-    foreignKey: 'userId', 
-    as: 'user' 
+
+  UserPermission.belongsTo(User, {
+    foreignKey: 'userId',
+    as: 'user'
   });
-  
-  UserPermission.belongsTo(Permission, { 
-    foreignKey: 'permissionId', 
-    as: 'permission' 
+
+  UserPermission.belongsTo(Permission, {
+    foreignKey: 'permissionId',
+    as: 'permission'
   });
-  
-  UserPermission.belongsTo(User, { 
-    foreignKey: 'grantedBy', 
-    as: 'granter' 
+
+  UserPermission.belongsTo(User, {
+    foreignKey: 'grantedBy',
+    as: 'granter'
   });
 
   // Direction associations
@@ -219,7 +219,7 @@ const setupAssociations = () => {
   Comment.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   Comment.belongsTo(User, { foreignKey: 'userId', as: 'user' }); // Legado
   Comment.hasMany(Attachment, { foreignKey: 'commentId', as: 'attachments' });
-  
+
   // Comment - Author polimórfico
   Comment.belongsTo(User, { foreignKey: 'authorUserId', as: 'authorUser' });
   Comment.belongsTo(OrganizationUser, { foreignKey: 'authorOrgUserId', as: 'authorOrgUser' });
@@ -228,7 +228,7 @@ const setupAssociations = () => {
   // Attachment associations
   Attachment.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   Attachment.belongsTo(Comment, { foreignKey: 'commentId', as: 'comment' });
-  
+
   // Attachment - Uploader polimórfico
   Attachment.belongsTo(User, { foreignKey: 'uploadedByUserId', as: 'uploaderUser' });
   Attachment.belongsTo(OrganizationUser, { foreignKey: 'uploadedByOrgUserId', as: 'uploaderOrgUser' });
@@ -237,7 +237,7 @@ const setupAssociations = () => {
   // SLA associations
   SLA.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   SLA.hasMany(Ticket, { foreignKey: 'slaId', as: 'tickets' });
-  
+
   // EmailTemplate associations
   EmailTemplate.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Organization.hasMany(EmailTemplate, { foreignKey: 'organizationId', as: 'emailTemplates' });
@@ -245,122 +245,122 @@ const setupAssociations = () => {
   // Status Page associations
   Service.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Organization.hasMany(Service, { foreignKey: 'organizationId', as: 'services' });
-  
+
   Incident.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Incident.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Incident.belongsTo(User, { foreignKey: 'resolvedById', as: 'resolvedBy' });
   Organization.hasMany(Incident, { foreignKey: 'organizationId', as: 'incidents' });
-  
+
   Maintenance.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Maintenance.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Maintenance.belongsTo(User, { foreignKey: 'completedById', as: 'completedBy' });
   Organization.hasMany(Maintenance, { foreignKey: 'organizationId', as: 'maintenances' });
-  
+
   StatusSubscription.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Organization.hasMany(StatusSubscription, { foreignKey: 'organizationId', as: 'statusSubscriptions' });
-  
+
   // Template System associations
   TicketTemplate.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   TicketTemplate.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   TicketTemplate.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
   TicketTemplate.belongsTo(Category, { foreignKey: 'categoryId', as: 'ticketCategory' });
   Organization.hasMany(TicketTemplate, { foreignKey: 'organizationId', as: 'ticketTemplates' });
-  
+
   Macro.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Macro.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(Macro, { foreignKey: 'organizationId', as: 'macros' });
-  
+
   // Workflow associations
   Workflow.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Workflow.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(Workflow, { foreignKey: 'organizationId', as: 'workflows' });
-  
+
   WorkflowExecution.belongsTo(Workflow, { foreignKey: 'workflowId', as: 'workflow' });
   WorkflowExecution.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   WorkflowExecution.belongsTo(User, { foreignKey: 'executedById', as: 'executedBy' });
   Workflow.hasMany(WorkflowExecution, { foreignKey: 'workflowId', as: 'executions' });
-  
+
   // Business Intelligence associations
   Dashboard.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Dashboard.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(Dashboard, { foreignKey: 'organizationId', as: 'dashboards' });
-  
+
   Report.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Report.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(Report, { foreignKey: 'organizationId', as: 'reports' });
-  
+
   KPI.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   KPI.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(KPI, { foreignKey: 'organizationId', as: 'kpis' });
-  
+
   // Search associations
   SearchIndex.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Organization.hasMany(SearchIndex, { foreignKey: 'organizationId', as: 'searchIndexes' });
-  
+
   SavedSearch.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   SavedSearch.belongsTo(User, { foreignKey: 'userId', as: 'user' });
   Organization.hasMany(SavedSearch, { foreignKey: 'organizationId', as: 'savedSearches' });
   User.hasMany(SavedSearch, { foreignKey: 'userId', as: 'savedSearches' });
-  
+
   // Collaboration associations
   TicketRelationship.belongsTo(Ticket, { foreignKey: 'sourceTicketId', as: 'sourceTicket' });
   TicketRelationship.belongsTo(Ticket, { foreignKey: 'targetTicketId', as: 'targetTicket' });
   TicketRelationship.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Ticket.hasMany(TicketRelationship, { foreignKey: 'sourceTicketId', as: 'outgoingRelationships' });
   Ticket.hasMany(TicketRelationship, { foreignKey: 'targetTicketId', as: 'incomingRelationships' });
-  
+
   TeamWorkspace.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   TeamWorkspace.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
   TeamWorkspace.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(TeamWorkspace, { foreignKey: 'organizationId', as: 'teamWorkspaces' });
-  
+
   SharedView.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   SharedView.belongsTo(TeamWorkspace, { foreignKey: 'teamWorkspaceId', as: 'teamWorkspace' });
   SharedView.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(SharedView, { foreignKey: 'organizationId', as: 'sharedViews' });
   TeamWorkspace.hasMany(SharedView, { foreignKey: 'teamWorkspaceId', as: 'views' });
-  
+
   TicketMention.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   TicketMention.belongsTo(Comment, { foreignKey: 'commentId', as: 'comment' });
   TicketMention.belongsTo(User, { foreignKey: 'mentionedUserId', as: 'mentionedUser' });
   TicketMention.belongsTo(User, { foreignKey: 'mentionedById', as: 'mentionedBy' });
   Ticket.hasMany(TicketMention, { foreignKey: 'ticketId', as: 'mentions' });
   User.hasMany(TicketMention, { foreignKey: 'mentionedUserId', as: 'mentions' });
-  
+
   // Gamification associations
   Badge.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Organization.hasMany(Badge, { foreignKey: 'organizationId', as: 'badges' });
-  
+
   UserBadge.belongsTo(User, { foreignKey: 'userId', as: 'user' });
   UserBadge.belongsTo(Badge, { foreignKey: 'badgeId', as: 'badge' });
   UserBadge.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   User.hasMany(UserBadge, { foreignKey: 'userId', as: 'badges' });
   Badge.hasMany(UserBadge, { foreignKey: 'badgeId', as: 'userBadges' });
-  
+
   GamePoints.belongsTo(User, { foreignKey: 'userId', as: 'user' });
   GamePoints.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   User.hasOne(GamePoints, { foreignKey: 'userId', as: 'gamePoints' });
   Organization.hasMany(GamePoints, { foreignKey: 'organizationId', as: 'gamePoints' });
-  
+
   // Security associations
   AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
   AuditLog.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   User.hasMany(AuditLog, { foreignKey: 'userId', as: 'auditLogs' });
   Organization.hasMany(AuditLog, { foreignKey: 'organizationId', as: 'auditLogs' });
-  
+
   IPWhitelist.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   IPWhitelist.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(IPWhitelist, { foreignKey: 'organizationId', as: 'ipWhitelists' });
-  
+
   // Integration associations
   Webhook.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Webhook.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(Webhook, { foreignKey: 'organizationId', as: 'webhooks' });
-  
+
   WebhookLog.belongsTo(Webhook, { foreignKey: 'webhookId', as: 'webhook' });
   WebhookLog.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Webhook.hasMany(WebhookLog, { foreignKey: 'webhookId', as: 'logs' });
-  
+
   Integration.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Integration.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   Organization.hasMany(Integration, { foreignKey: 'organizationId', as: 'integrations' });
@@ -372,16 +372,18 @@ const setupAssociations = () => {
   KnowledgeArticle.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   KnowledgeArticle.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
   KnowledgeArticle.belongsTo(User, { foreignKey: 'authorId', as: 'author' });
+  KnowledgeArticle.belongsTo(OrganizationUser, { foreignKey: 'authorId', as: 'authorOrgUser' });
 
   // HoursBank associations
   HoursBank.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
-  HoursBank.belongsTo(User, { foreignKey: 'clientId', as: 'client' });
+  HoursBank.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
   HoursBank.hasMany(HoursTransaction, { foreignKey: 'hoursBankId', as: 'transactions' });
 
   // HoursTransaction associations
   HoursTransaction.belongsTo(HoursBank, { foreignKey: 'hoursBankId', as: 'hoursBank' });
   HoursTransaction.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   HoursTransaction.belongsTo(User, { foreignKey: 'performedById', as: 'performedBy' });
+  HoursTransaction.belongsTo(OrganizationUser, { foreignKey: 'performedById', as: 'performedByOrgUser' });
 
   // TimeTracking associations
   TimeTracking.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
@@ -394,7 +396,7 @@ const setupAssociations = () => {
   // Tag associations
   Tag.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Organization.hasMany(Tag, { foreignKey: 'organizationId', as: 'tags' });
-  
+
   // Ticket-Tag associations (many-to-many)
   TicketTag.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   TicketTag.belongsTo(Tag, { foreignKey: 'tagId', as: 'tag' });
@@ -404,6 +406,7 @@ const setupAssociations = () => {
   // ResponseTemplate associations
   ResponseTemplate.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   ResponseTemplate.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+  ResponseTemplate.belongsTo(OrganizationUser, { foreignKey: 'createdBy', as: 'creatorOrgUser' });
   ResponseTemplate.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
   Organization.hasMany(ResponseTemplate, { foreignKey: 'organizationId', as: 'templates' });
   User.hasMany(ResponseTemplate, { foreignKey: 'createdBy', as: 'templates' });
@@ -412,15 +415,15 @@ const setupAssociations = () => {
   // Catalog associations
   CatalogCategory.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Organization.hasMany(CatalogCategory, { foreignKey: 'organizationId', as: 'catalogCategories' });
-  
+
   // Hierarquia de categorias (parent/child)
   CatalogCategory.belongsTo(CatalogCategory, { foreignKey: 'parentCategoryId', as: 'parent' });
   CatalogCategory.hasMany(CatalogCategory, { foreignKey: 'parentCategoryId', as: 'children' });
-  
+
   // Associação CatalogCategory <-> CatalogItem
   CatalogCategory.hasMany(CatalogItem, { foreignKey: 'categoryId', as: 'items' });
   CatalogItem.belongsTo(CatalogCategory, { foreignKey: 'categoryId', as: 'category' });
-  
+
   // Outras associações do CatalogItem
   CatalogItem.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   CatalogItem.belongsTo(SLA, { foreignKey: 'slaId', as: 'sla' });
@@ -429,7 +432,7 @@ const setupAssociations = () => {
   CatalogItem.belongsTo(Category, { foreignKey: 'defaultTicketCategoryId', as: 'ticketCategory' });
   CatalogItem.belongsTo(User, { foreignKey: 'defaultApproverId', as: 'approver' });
   CatalogItem.belongsTo(Department, { foreignKey: 'assignedDepartmentId', as: 'department' });
-  
+
   ServiceRequest.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   ServiceRequest.belongsTo(CatalogItem, { foreignKey: 'catalogItemId', as: 'catalogItem' });
   ServiceRequest.belongsTo(User, { foreignKey: 'userId', as: 'user' });
@@ -455,7 +458,7 @@ const setupAssociations = () => {
   Asset.belongsTo(Client, { foreignKey: 'clientId', as: 'clientEntity' }); // Novo
   Asset.belongsTo(OrganizationUser, { foreignKey: 'userId', as: 'orgUser' }); // Novo
   Asset.belongsTo(ClientUser, { foreignKey: 'userId', as: 'clientUser' }); // Novo
-  
+
   Organization.hasMany(Asset, { foreignKey: 'organizationId', as: 'assets' });
   User.hasMany(Asset, { foreignKey: 'clientId', as: 'clientAssets' }); // Legado
   User.hasMany(Asset, { foreignKey: 'userId', as: 'userAssets' }); // Legado
@@ -484,7 +487,7 @@ const setupAssociations = () => {
   RemoteAccess.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
   RemoteAccess.belongsTo(User, { foreignKey: 'clientId', as: 'client' });
   RemoteAccess.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
-  
+
   Ticket.hasMany(RemoteAccess, { foreignKey: 'ticketId', as: 'remoteAccesses' });
   User.hasMany(RemoteAccess, { foreignKey: 'clientId', as: 'remoteAccessRequests' });
 };

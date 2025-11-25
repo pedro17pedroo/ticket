@@ -6,15 +6,15 @@ export const getDirections = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     const directions = await Direction.findAll({
-      where: { 
+      where: {
         organizationId,
         clientId: null // Apenas direções internas, não das empresas clientes
       },
       include: [
-        { 
-          model: User, 
-          as: 'manager', 
-          attributes: ['id', 'name', 'email'] 
+        {
+          model: User,
+          as: 'manager',
+          attributes: ['id', 'name', 'email']
         },
         {
           model: Department,
@@ -42,16 +42,16 @@ export const getDirectionById = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     const direction = await Direction.findOne({
-      where: { 
-        id, 
+      where: {
+        id,
         organizationId,
         clientId: null // Apenas direções internas
       },
       include: [
-        { 
-          model: User, 
-          as: 'manager', 
-          attributes: ['id', 'name', 'email'] 
+        {
+          model: User,
+          as: 'manager',
+          attributes: ['id', 'name', 'email']
         },
         {
           model: Department,
@@ -84,7 +84,7 @@ export const createDirection = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     // Apenas admin pode criar direções
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem criar direções'
@@ -95,7 +95,7 @@ export const createDirection = async (req, res, next) => {
       name,
       description,
       code,
-      managerId,
+      managerId: managerId && managerId.trim() !== '' ? managerId : null, // Converter string vazia para null
       organizationId,
       clientId: null, // Direção interna do tenant, não de cliente
       isActive: isActive !== undefined ? isActive : true
@@ -118,7 +118,7 @@ export const updateDirection = async (req, res, next) => {
     const { name, description, code, managerId, isActive } = req.body;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem atualizar direções'
@@ -126,8 +126,8 @@ export const updateDirection = async (req, res, next) => {
     }
 
     const direction = await Direction.findOne({
-      where: { 
-        id, 
+      where: {
+        id,
         organizationId,
         clientId: null // Apenas direções internas
       }
@@ -144,7 +144,7 @@ export const updateDirection = async (req, res, next) => {
       name,
       description,
       code,
-      managerId,
+      managerId: managerId !== undefined ? (managerId && managerId.trim() !== '' ? managerId : null) : undefined,
       isActive
     });
 
@@ -164,7 +164,7 @@ export const deleteDirection = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem eliminar direções'
@@ -172,8 +172,8 @@ export const deleteDirection = async (req, res, next) => {
     }
 
     const direction = await Direction.findOne({
-      where: { 
-        id, 
+      where: {
+        id,
         organizationId,
         clientId: null // Apenas direções internas
       },

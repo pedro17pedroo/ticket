@@ -1,5 +1,6 @@
 import { HoursBank, HoursTransaction } from './hoursBankModel.js';
-import { User, Ticket } from '../models/index.js';
+
+import { User, Ticket, Client, OrganizationUser } from '../models/index.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 import logger from '../../config/logger.js';
@@ -13,7 +14,7 @@ export const getHoursBanks = async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     const where = { organizationId: req.user.organizationId };
-    
+
     if (clientId) where.clientId = clientId;
     if (isActive !== undefined) where.isActive = isActive === 'true';
 
@@ -21,7 +22,7 @@ export const getHoursBanks = async (req, res, next) => {
       where,
       include: [
         {
-          model: User,
+          model: Client,
           as: 'client',
           attributes: ['id', 'name', 'email', 'phone']
         }
@@ -50,13 +51,13 @@ export const getHoursBankById = async (req, res, next) => {
     const { id } = req.params;
 
     const hoursBank = await HoursBank.findOne({
-      where: { 
-        id, 
-        organizationId: req.user.organizationId 
+      where: {
+        id,
+        organizationId: req.user.organizationId
       },
       include: [
         {
-          model: User,
+          model: Client,
           as: 'client',
           attributes: ['id', 'name', 'email', 'phone']
         }
@@ -74,6 +75,11 @@ export const getHoursBankById = async (req, res, next) => {
         {
           model: User,
           as: 'performedBy',
+          attributes: ['id', 'name']
+        },
+        {
+          model: OrganizationUser,
+          as: 'performedByOrgUser',
           attributes: ['id', 'name']
         },
         {
@@ -101,12 +107,10 @@ export const createHoursBank = async (req, res, next) => {
     const { clientId, totalHours, packageType, startDate, endDate, allowNegativeBalance, minBalance, notes } = req.body;
 
     // Verificar se cliente existe e pertence à organização
-    const client = await User.findOne({
-      where: { 
+    const client = await Client.findOne({
+      where: {
         id: clientId,
-        organizationId: req.user.organizationId,
-        role: 'cliente-org',
-        clientId: null // Deve ser empresa cliente, não utilizador
+        organizationId: req.user.organizationId
       }
     });
 
@@ -116,8 +120,8 @@ export const createHoursBank = async (req, res, next) => {
 
     // Validar minBalance se saldo negativo permitido
     if (allowNegativeBalance && minBalance !== undefined && minBalance > 0) {
-      return res.status(400).json({ 
-        error: 'Saldo mínimo deve ser negativo ou zero quando saldo negativo é permitido' 
+      return res.status(400).json({
+        error: 'Saldo mínimo deve ser negativo ou zero quando saldo negativo é permitido'
       });
     }
 
@@ -148,7 +152,7 @@ export const createHoursBank = async (req, res, next) => {
     await hoursBank.reload({
       include: [
         {
-          model: User,
+          model: Client,
           as: 'client',
           attributes: ['id', 'name', 'email']
         }
@@ -173,9 +177,9 @@ export const updateHoursBank = async (req, res, next) => {
     const updates = req.body;
 
     const hoursBank = await HoursBank.findOne({
-      where: { 
-        id, 
-        organizationId: req.user.organizationId 
+      where: {
+        id,
+        organizationId: req.user.organizationId
       }
     });
 
@@ -186,7 +190,7 @@ export const updateHoursBank = async (req, res, next) => {
     // Campos permitidos para atualização
     const allowedFields = ['packageType', 'endDate', 'notes', 'isActive'];
     const updateData = {};
-    
+
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) {
         updateData[field] = updates[field];
@@ -217,9 +221,9 @@ export const addHours = async (req, res, next) => {
     }
 
     const hoursBank = await HoursBank.findOne({
-      where: { 
-        id, 
-        organizationId: req.user.organizationId 
+      where: {
+        id,
+        organizationId: req.user.organizationId
       }
     });
 
@@ -266,8 +270,8 @@ export const consumeHours = async (req, res, next) => {
 
     // Validar ticket obrigatório
     if (!ticketId) {
-      return res.status(400).json({ 
-        error: 'Ticket é obrigatório para registrar consumo de horas' 
+      return res.status(400).json({
+        error: 'Ticket é obrigatório para registrar consumo de horas'
       });
     }
 
@@ -284,16 +288,16 @@ export const consumeHours = async (req, res, next) => {
     }
 
     if (ticket.status !== 'concluido') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Apenas tickets com status "Concluído" podem ter horas registradas',
         currentStatus: ticket.status
       });
     }
 
     const hoursBank = await HoursBank.findOne({
-      where: { 
-        id, 
-        organizationId: req.user.organizationId 
+      where: {
+        id,
+        organizationId: req.user.organizationId
       }
     });
 
@@ -308,7 +312,7 @@ export const consumeHours = async (req, res, next) => {
 
     // Validar saldo negativo
     if (newBalance < 0 && !hoursBank.allowNegativeBalance) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Saldo insuficiente. Esta bolsa não permite saldo negativo.',
         available,
         requested: parseFloat(hours)
@@ -318,7 +322,7 @@ export const consumeHours = async (req, res, next) => {
     // Se permite saldo negativo, verificar limite mínimo
     if (hoursBank.allowNegativeBalance && hoursBank.minBalance !== null) {
       if (newBalance < parseFloat(hoursBank.minBalance)) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: `Saldo mínimo atingido. Limite: ${hoursBank.minBalance}h`,
           available,
           requested: parseFloat(hours),
@@ -367,9 +371,9 @@ export const adjustHours = async (req, res, next) => {
     }
 
     const hoursBank = await HoursBank.findOne({
-      where: { 
-        id, 
-        organizationId: req.user.organizationId 
+      where: {
+        id,
+        organizationId: req.user.organizationId
       }
     });
 
@@ -379,7 +383,7 @@ export const adjustHours = async (req, res, next) => {
 
     // Ajustar (pode ser positivo ou negativo)
     const adjustValue = parseFloat(hours);
-    
+
     if (adjustValue > 0) {
       await hoursBank.update({
         totalHours: parseFloat(hoursBank.totalHours) + adjustValue
@@ -421,10 +425,10 @@ export const getTransactions = async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     const where = {};
-    
+
     if (hoursBankId) where.hoursBankId = hoursBankId;
     if (type) where.type = type;
-    
+
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) where.createdAt[Op.gte] = new Date(startDate);
@@ -439,7 +443,7 @@ export const getTransactions = async (req, res, next) => {
           as: 'hoursBank',
           where: { organizationId: req.user.organizationId },
           include: [{
-            model: User,
+            model: Client,
             as: 'client',
             attributes: ['id', 'name']
           }]
@@ -447,6 +451,11 @@ export const getTransactions = async (req, res, next) => {
         {
           model: User,
           as: 'performedBy',
+          attributes: ['id', 'name']
+        },
+        {
+          model: OrganizationUser,
+          as: 'performedByOrgUser',
           attributes: ['id', 'name']
         },
         {
@@ -490,7 +499,7 @@ export const getStatistics = async (req, res, next) => {
         [sequelize.fn('SUM', sequelize.col('used_hours')), 'usedHours']
       ],
       include: [{
-        model: User,
+        model: Client,
         as: 'client',
         attributes: ['id', 'name']
       }],
@@ -536,7 +545,7 @@ export const getStatistics = async (req, res, next) => {
 export const getCompletedTickets = async (req, res, next) => {
   try {
     const { clientId } = req.query;
-    
+
     const where = {
       organizationId: req.user.organizationId,
       status: 'concluido'

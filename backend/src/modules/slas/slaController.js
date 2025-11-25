@@ -83,7 +83,7 @@ export const createSLA = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     // Apenas admin-org pode criar SLAs
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem criar SLAs',
@@ -128,7 +128,7 @@ export const updateSLA = async (req, res, next) => {
     const { name, priority, responseTimeMinutes, resolutionTimeMinutes } = req.body;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem atualizar SLAs',
@@ -186,7 +186,7 @@ export const deleteSLA = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem eliminar SLAs',

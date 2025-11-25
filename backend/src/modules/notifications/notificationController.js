@@ -12,7 +12,7 @@ export const getNotifications = async (req, res, next) => {
 
     // CORREÇÃO: Detectar userType baseado no role se não estiver definido corretamente
     const isClientRole = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
-    const isOrgRole = ['admin-org', 'manager-org', 'technician-org', 'user-org'].includes(req.user.role);
+    const isOrgRole = ['org-admin', 'manager-org', 'technician-org', 'user-org'].includes(req.user.role);
     
     if (isClientRole) {
       userType = 'client';
@@ -52,7 +52,7 @@ export const getUnreadCount = async (req, res, next) => {
 
     // CORREÇÃO: Detectar userType baseado no role
     const isClientRole = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
-    const isOrgRole = ['admin-org', 'manager-org', 'technician-org', 'user-org'].includes(req.user.role);
+    const isOrgRole = ['org-admin', 'manager-org', 'technician-org', 'user-org'].includes(req.user.role);
     
     if (isClientRole) {
       userType = 'client';

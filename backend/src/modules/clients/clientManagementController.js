@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import logger from '../../config/logger.js';
 import { sendClientAdminWelcomeEmail } from '../../services/emailService.js';
 
-const organizationAdminRoles = ['org-admin', 'admin-org', 'tenant-admin', 'super-admin', 'provider-admin'];
+const organizationAdminRoles = ['org-admin', 'org-admin', 'tenant-admin', 'super-admin', 'provider-admin'];
 
 // GET /api/clients - Listar empresas clientes
 export const getClients = async (req, res, next) => {
