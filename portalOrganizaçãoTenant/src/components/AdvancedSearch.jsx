@@ -225,7 +225,7 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
               >
                 <option value="">Todos</option>
                 <option value="unassigned">Não atribuído</option>
-                {users.filter(u => u.role === 'agente' || u.role === 'admin-org').map(user => (
+                {users.filter(u => u.role === 'agent' || u.role === 'org-admin').map(user => (
                   <option key={user.id} value={user.id}>{user.name}</option>
                 ))}
               </select>

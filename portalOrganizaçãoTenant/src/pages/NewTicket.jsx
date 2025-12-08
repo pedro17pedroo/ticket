@@ -34,10 +34,10 @@ const NewTicket = () => {
       setPriorities(prioritiesRes.data.priorities || [])
       setTypes(typesRes.data.types || [])
       setCategories(categoriesRes.data.categories || [])
-      
+
       // Filtrar apenas agentes e admins
       const agentsList = usersRes.data.users?.filter(
-        u => u.role === 'agente' || u.role === 'admin-org'
+        u => u.role === 'agent' || u.role === 'org-admin'
       ) || []
       setAgents(agentsList)
     } catch (error) {
@@ -119,7 +119,7 @@ const NewTicket = () => {
             </label>
             <input
               type="text"
-              {...register('subject', { 
+              {...register('subject', {
                 required: 'Assunto é obrigatório',
                 minLength: { value: 5, message: 'Mínimo 5 caracteres' }
               })}
@@ -158,9 +158,11 @@ Você pode usar:
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Priority */}
             <div>
-              <label className="block text-sm font-medium mb-2">Prioridade</label>
+              <label className="block text-sm font-medium mb-2">
+                Prioridade <span className="text-red-500">*</span>
+              </label>
               <select
-                {...register('priority')}
+                {...register('priority', { required: 'Prioridade é obrigatória' })}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
               >
                 {priorities.length === 0 ? (
@@ -173,13 +175,18 @@ Você pode usar:
                   ))
                 )}
               </select>
+              {errors.priority && (
+                <p className="text-red-500 text-sm mt-1">{errors.priority.message}</p>
+              )}
             </div>
 
             {/* Type */}
             <div>
-              <label className="block text-sm font-medium mb-2">Tipo</label>
+              <label className="block text-sm font-medium mb-2">
+                Tipo <span className="text-red-500">*</span>
+              </label>
               <select
-                {...register('type')}
+                {...register('type', { required: 'Tipo é obrigatório' })}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
               >
                 {types.length === 0 ? (
@@ -192,6 +199,9 @@ Você pode usar:
                   ))
                 )}
               </select>
+              {errors.type && (
+                <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>
+              )}
             </div>
           </div>
 
@@ -221,7 +231,7 @@ Você pode usar:
               <option value="">Não atribuído (opcional)</option>
               {agents.map(agent => (
                 <option key={agent.id} value={agent.id}>
-                  {agent.name} {agent.role === 'admin-org' ? '(Admin)' : '(Agente)'}
+                  {agent.name} {agent.role === 'org-admin' ? '(Admin)' : '(Agente)'}
                 </option>
               ))}
             </select>

@@ -75,8 +75,7 @@ const Header = ({ toggleSidebar }) => {
                     'super-admin': 'Super Admin',
                     'org-admin': 'Administrador da Organização',
                     'client-admin': 'Administrador do Cliente',
-                    'admin-org': 'Administrador',
-                    'agente': 'Agente'
+                    'agent': 'Agente'
                   }
 
                   return roleLabels[user.role] || 'Utilizador'
@@ -92,7 +91,7 @@ const Header = ({ toggleSidebar }) => {
                 <p className="text-sm font-medium">{user?.name}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
               </div>
-              
+
               <button
                 onClick={() => {
                   navigate('/profile')
@@ -103,7 +102,7 @@ const Header = ({ toggleSidebar }) => {
                 <User className="w-4 h-4" />
                 Perfil
               </button>
-              
+
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"

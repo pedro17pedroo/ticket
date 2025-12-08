@@ -45,7 +45,7 @@ const TransferTicketModal = ({ ticketId, currentData, onClose, onSuccess }) => {
       ]);
 
       setCategories(catsRes.data.categories || []);
-      setUsers(usersRes.data.users?.filter(u => u.role === 'agente' || u.role === 'admin-org') || []);
+      setUsers(usersRes.data.users?.filter(u => u.role === 'org-admin' || u.role === 'agent') || []);
     } catch (error) {
       console.error('Erro ao carregar opções:', error);
       toast.error('Erro ao carregar opções');
@@ -115,7 +115,7 @@ const TransferTicketModal = ({ ticketId, currentData, onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div 
+      <div
         className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
@@ -144,8 +144,8 @@ const TransferTicketModal = ({ ticketId, currentData, onClose, onSuccess }) => {
           {/* Info Alert */}
           <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              💡 <strong>Filtros Cascata:</strong> Ao selecionar uma direção, apenas os departamentos dessa direção 
-              serão exibidos. Da mesma forma, ao selecionar um departamento, apenas as secções desse departamento 
+              💡 <strong>Filtros Cascata:</strong> Ao selecionar uma direção, apenas os departamentos dessa direção
+              serão exibidos. Da mesma forma, ao selecionar um departamento, apenas as secções desse departamento
               aparecerão.
             </p>
           </div>

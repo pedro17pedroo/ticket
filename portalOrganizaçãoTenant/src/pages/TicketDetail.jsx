@@ -25,6 +25,7 @@ import StatusManager from '../components/StatusManager'
 import RichTextEditor from '../components/RichTextEditor'
 import RemoteAccessButton from '../components/RemoteAccessButton'
 import TicketWatchers from '../components/TicketWatchers'
+import { confirmDelete } from '../utils/alerts'
 
 const TicketDetail = () => {
   const { id } = useParams()
@@ -72,7 +73,7 @@ const TicketDetail = () => {
 
   const handleAddComment = async (e) => {
     e.preventDefault();
-    
+
     // Validar se há comentário ou anexos (verificar HTML vazio)
     const isCommentEmpty = !comment || comment.trim() === '' || comment === '<p><br></p>'
     if (isCommentEmpty && commentAttachments.length === 0) {
@@ -97,23 +98,23 @@ const TicketDetail = () => {
 
     try {
       let commentId = null
-      
+
       // Se há comentário, adicionar e obter ID
       if (!isCommentEmpty) {
         const response = await ticketService.addComment(id, { content: comment, isInternal })
         commentId = response.comment?.id
       }
-      
+
       // Upload anexos se houver, associando ao comentário se existir
       if (commentAttachments.length > 0) {
         await ticketService.uploadAttachments(id, commentAttachments, commentId)
         loadAttachments()
       }
-      
+
       setComment('')
       setIsInternal(false)
       setCommentAttachments([])
-      
+
       if (!isCommentEmpty && commentAttachments.length > 0) {
         toast.success('Comentário e anexos adicionados')
       } else if (!isCommentEmpty) {
@@ -121,7 +122,7 @@ const TicketDetail = () => {
       } else {
         toast.success('Anexos adicionados')
       }
-      
+
       loadTicket()
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error)
@@ -145,8 +146,12 @@ const TicketDetail = () => {
   }
 
   const handleDeleteAttachment = async (attachmentId) => {
-    if (!confirm('Tem certeza que deseja eliminar este anexo?')) return
-    
+    const confirmed = await confirmDelete(
+      'Eliminar anexo?',
+      'Tem certeza que deseja eliminar este anexo?'
+    )
+    if (!confirmed) return
+
     try {
       await ticketService.deleteAttachment(id, attachmentId)
       toast.success('Anexo eliminado')
@@ -195,7 +200,7 @@ const TicketDetail = () => {
             <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>
           </div>
         </div>
-{(user.role === 'admin-org' || user.role === 'agente') && (() => {
+        {(user.role === 'org-admin' || user.role === 'agent') && (() => {
           const isTicketClosed = ['fechado', 'resolvido'].includes(ticket.status);
           return (
             <div className="flex gap-2">
@@ -238,7 +243,7 @@ const TicketDetail = () => {
           {/* Description */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="font-semibold mb-4">Descrição</h2>
-            <div 
+            <div
               className="ticket-description-view text-gray-700 dark:text-gray-300"
               dangerouslySetInnerHTML={{ __html: ticket.description }}
             />
@@ -341,7 +346,7 @@ const TicketDetail = () => {
                 const isAgent = ['admin-org', 'agente'].includes(user.role);
                 const isTicketAssigned = ticket.assigneeId !== null && ticket.assigneeId !== undefined;
                 const isTicketClosed = ['fechado', 'resolvido'].includes(ticket.status);
-                
+
                 if (isTicketClosed) {
                   return (
                     <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-4">
@@ -351,7 +356,7 @@ const TicketDetail = () => {
                     </div>
                   );
                 }
-                
+
                 if (isAgent && !isTicketAssigned) {
                   return (
                     <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-4">
@@ -361,15 +366,15 @@ const TicketDetail = () => {
                     </div>
                   );
                 }
-                
+
                 return null;
               })()}
 
               {/* Template Selector */}
-              {(user.role === 'admin-org' || user.role === 'agente') && (
+              {(user.role === 'org-admin' || user.role === 'agent') && (
                 <TemplateSelector onSelect={(content) => setComment(comment + content)} />
               )}
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">Comentário</label>
                 <RichTextEditor
@@ -384,7 +389,7 @@ Você pode usar formatação para destacar informações importantes:
 • Links para referências"
                 />
               </div>
-              
+
               {/* File Upload */}
               <div>
                 <label className="block text-sm font-medium mb-1">Anexos (opcional)</label>
@@ -485,12 +490,12 @@ Você pode usar formatação para destacar informações importantes:
           </div>
 
           {/* Time Tracker */}
-          {(user.role === 'admin-org' || user.role === 'agente') && (
+          {(user.role === 'org-admin' || user.role === 'agent') && (
             <TimeTracker ticketId={id} ticket={ticket} />
           )}
 
           {/* Tags */}
-          {(user.role === 'admin-org' || user.role === 'agente') && (
+          {(user.role === 'org-admin' || user.role === 'agent') && (
             <TagManager ticketId={id} />
           )}
 
@@ -508,7 +513,7 @@ Você pode usar formatação para destacar informações importantes:
           <RelatedTickets ticketId={id} />
 
           {/* Status Manager */}
-          {(user.role === 'admin-org' || user.role === 'agente') && (
+          {(user.role === 'org-admin' || user.role === 'agent') && (
             <StatusManager
               ticketId={id}
               currentStatus={ticket.status}
@@ -517,7 +522,7 @@ Você pode usar formatação para destacar informações importantes:
           )}
 
           {/* Internal Priority Manager */}
-          {(user.role === 'admin-org' || user.role === 'agente') && (
+          {(user.role === 'org-admin' || user.role === 'agent') && (
             <InternalPriorityManager
               ticketId={id}
               clientPriority={ticket.priority}
@@ -528,7 +533,7 @@ Você pode usar formatação para destacar informações importantes:
           )}
 
           {/* Resolution Status Manager */}
-          {(user.role === 'admin-org' || user.role === 'agente') && (
+          {(user.role === 'org-admin' || user.role === 'agent') && (
             <ResolutionStatusManager
               ticketId={id}
               currentStatus={ticket.resolutionStatus}

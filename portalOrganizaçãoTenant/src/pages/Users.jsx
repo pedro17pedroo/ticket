@@ -28,7 +28,7 @@ const Users = () => {
   })
 
   const roles = [
-    { value: 'admin-org', label: 'Administrador', color: 'red' },
+    { value: 'org-admin', label: 'Administrador', color: 'red' },
     { value: 'tenant-admin', label: 'Admin Tenant', color: 'red' },
     { value: 'tenant-manager', label: 'Gestor', color: 'orange' },
     { value: 'agent', label: 'Agente', color: 'blue' }
@@ -106,9 +106,9 @@ const Users = () => {
       'Desativar utilizador?',
       'O utilizador não poderá mais fazer login.'
     )
-    
+
     if (!confirmed) return
-    
+
     try {
       await api.delete(`/users/${id}`)
       showSuccess('Desativado!', 'Utilizador desativado com sucesso')
@@ -186,7 +186,7 @@ const Users = () => {
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(search.toLowerCase()) ||
-                          user.email.toLowerCase().includes(search.toLowerCase())
+      user.email.toLowerCase().includes(search.toLowerCase())
     const matchesRole = !filterRole || user.role === filterRole
     return matchesSearch && matchesRole
   })
@@ -256,7 +256,7 @@ const Users = () => {
                   <div>
                     <div className="font-medium flex items-center gap-2">
                       {user.name}
-                      {user.role === 'admin-org' && (
+                      {user.role === 'org-admin' && (
                         <Shield className="w-4 h-4 text-red-500" />
                       )}
                     </div>
@@ -350,7 +350,7 @@ const Users = () => {
       {/* Modal */}
       <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }}>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
-          
+
           {/* Header com gradiente */}
           <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
             <div className="flex items-center justify-between">
@@ -360,7 +360,7 @@ const Users = () => {
                   {editingUser ? 'Editar Utilizador' : 'Novo Utilizador'}
                 </h2>
                 <p className="text-primary-100 text-sm mt-1">
-                  {editingUser 
+                  {editingUser
                     ? 'Atualize as informações do utilizador do sistema'
                     : 'Adicione um novo utilizador à organização'
                   }
@@ -375,7 +375,7 @@ const Users = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Scrollable Content */}
           <div className="overflow-y-auto max-h-[calc(90vh-220px)]">
             <div className="bg-gray-50 dark:bg-gray-900 p-6">
@@ -386,7 +386,7 @@ const Users = () => {
                     <User className="w-5 h-5 text-primary-500" />
                     Informações Básicas
                   </h3>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome Completo *</label>
@@ -436,7 +436,7 @@ const Users = () => {
                     <Shield className="w-5 h-5 text-primary-500" />
                     Credenciais e Função
                   </h3>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Função no Sistema *</label>
                     <select
@@ -477,13 +477,13 @@ const Users = () => {
                     <Building2 className="w-5 h-5 text-primary-500" />
                     Estrutura Organizacional (Opcional)
                   </h3>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Direção</label>
                     <select
                       value={formData.directionId}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
+                      onChange={(e) => setFormData({
+                        ...formData,
                         directionId: e.target.value,
                         departmentId: '',
                         sectionId: ''
@@ -502,8 +502,8 @@ const Users = () => {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Departamento</label>
                       <select
                         value={formData.departmentId}
-                        onChange={(e) => setFormData({ 
-                          ...formData, 
+                        onChange={(e) => setFormData({
+                          ...formData,
                           departmentId: e.target.value,
                           sectionId: ''
                         })}
@@ -536,7 +536,7 @@ const Users = () => {
                       </select>
                     </div>
                   </div>
-                  
+
                   <p className="text-xs text-gray-500 dark:text-gray-400">Defina a hierarquia organizacional do utilizador: Direção → Departamento → Secção</p>
                 </div>
 
@@ -547,7 +547,7 @@ const Users = () => {
                       <Settings className="w-5 h-5 text-primary-500" />
                       Configurações
                     </h3>
-                    
+
                     <label className="flex items-center gap-3 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <input
                         type="checkbox"
@@ -568,7 +568,7 @@ const Users = () => {
               </form>
             </div>
           </div>
-          
+
           {/* Footer fixo com botões */}
           <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
             <div className="flex gap-3">

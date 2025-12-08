@@ -24,10 +24,10 @@ const AssignTicketModal = ({ isOpen, onClose, ticket, onAssigned }) => {
     try {
       const response = await api.get('/users');
       const allUsers = response.data.users || [];
-      
+
       // Filtrar usuários baseado na hierarquia
       const filtered = filterUsersByHierarchy(allUsers);
-      
+
       setAvailableUsers(filtered);
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
@@ -39,12 +39,12 @@ const AssignTicketModal = ({ isOpen, onClose, ticket, onAssigned }) => {
 
   const filterUsersByHierarchy = (users) => {
     // Apenas agentes e admins podem ser atribuídos
-    let agentsAndAdmins = users.filter(u => 
-      u.role === 'agente' || u.role === 'admin-org' || u.role === 'super-admin'
+    let agentsAndAdmins = users.filter(u =>
+      u.role === 'agent' || u.role === 'org-admin' || u.role === 'super-admin'
     );
 
     // Admin pode atribuir para qualquer um
-    if (user.role === 'super-admin' || user.role === 'admin-org') {
+    if (user.role === 'super-admin' || user.role === 'org-admin') {
       return agentsAndAdmins;
     }
 
@@ -91,7 +91,7 @@ const AssignTicketModal = ({ isOpen, onClose, ticket, onAssigned }) => {
       await api.put(`/tickets/${ticket.id}`, {
         assigneeId: user.id
       });
-      
+
       toast.success('Ticket atribuído a você com sucesso');
       onAssigned();
       onClose();
@@ -114,7 +114,7 @@ const AssignTicketModal = ({ isOpen, onClose, ticket, onAssigned }) => {
       await api.put(`/tickets/${ticket.id}`, {
         assigneeId: selectedUser.id
       });
-      
+
       toast.success(`Ticket atribuído a ${selectedUser.name} com sucesso`);
       onAssigned();
       onClose();
@@ -228,11 +228,10 @@ const AssignTicketModal = ({ isOpen, onClose, ticket, onAssigned }) => {
                       <button
                         key={u.id}
                         onClick={() => setSelectedUser(u)}
-                        className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
-                          selectedUser?.id === u.id
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
-                        }`}
+                        className={`w-full text-left p-3 rounded-lg border-2 transition-all ${selectedUser?.id === u.id
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
+                          }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">

@@ -18,7 +18,7 @@ const RemoteAccessButton = ({ ticket }) => {
 
   const checkActiveRequest = async () => {
     if (!ticket?.id) return;
-    
+
     try {
       const response = await api.get(`/remote-access/ticket/${ticket.id}`);
       const activeReq = response.data.remoteAccesses?.find(
@@ -41,18 +41,18 @@ const RemoteAccessButton = ({ ticket }) => {
 
       toast.success('Solicitação enviada! Aguardando aprovação do cliente...');
       setShowModal(false);
-      
+
       // Atualizar estado com a nova solicitação
       setActiveRequest(response.data.remoteAccess);
-      
+
       // Escutar resposta via WebSocket
       // (já configurado no SocketContext)
     } catch (error) {
       console.error('❌ Erro ao solicitar acesso remoto:', error);
       console.error('📋 Detalhes do erro:', error.response?.data);
-      
+
       const errorMessage = error.response?.data?.error || 'Erro ao solicitar acesso remoto';
-      
+
       // Se já existe solicitação ativa, mostrar mensagem específica
       if (errorMessage.includes('Já existe uma solicitação')) {
         toast.error('Já existe uma solicitação pendente para este ticket. Aguarde a resposta do cliente ou cancele a anterior.', {
@@ -68,7 +68,7 @@ const RemoteAccessButton = ({ ticket }) => {
 
   const handleCancelRequest = async () => {
     if (!activeRequest) return;
-    
+
     try {
       await api.post(`/remote-access/${activeRequest.id}/end`);
       toast.success('Solicitação cancelada');
@@ -80,9 +80,9 @@ const RemoteAccessButton = ({ ticket }) => {
   };
 
   // O botão só aparece para técnicos/admins atendendo tickets de clientes
-  const isTechnician = user?.role === 'agente' || user?.role === 'admin-org' || user?.role === 'super-admin';
+  const isTechnician = user?.role === 'agent' || user?.role === 'org-admin' || user?.role === 'super-admin';
   const isClientRequester = ticket?.requester?.role === 'cliente-org';
-  
+
   if (!isTechnician || !isClientRequester) {
     return null;
   }

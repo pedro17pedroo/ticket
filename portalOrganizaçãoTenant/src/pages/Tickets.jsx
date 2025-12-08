@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { ticketService } from '../services/api'
 import { Plus, Search, Filter, Eye, User, X, LayoutGrid, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
@@ -11,6 +11,7 @@ import { exportTicketsToCSV, exportTicketsToPDF } from '../utils/exportUtils'
 
 const Tickets = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuthStore()
   const [tickets, setTickets] = useState([])
   const [slas, setSlas] = useState([])
@@ -21,6 +22,15 @@ const Tickets = () => {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [activeFilters, setActiveFilters] = useState({})
   const [savedSearches, setSavedSearches] = useState([])
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const unassigned = searchParams.get('unassigned')
+
+    if (unassigned === 'true') {
+      setActiveFilters(prev => ({ ...prev, assigneeId: 'null' }))
+    }
+  }, [location.search])
 
   useEffect(() => {
     loadData()
@@ -129,10 +139,10 @@ const Tickets = () => {
 
   const getPriorityBadge = (priorityName) => {
     // Buscar prioridade dinâmica
-    const priority = priorities.find(p => 
+    const priority = priorities.find(p =>
       p.name.toLowerCase() === priorityName.toLowerCase()
     )
-    
+
     // Cores padrão para compatibilidade
     const defaultColors = {
       'baixa': '#10B981',
@@ -141,14 +151,14 @@ const Tickets = () => {
       'alta': '#F59E0B',
       'urgente': '#EF4444'
     }
-    
+
     const color = priority?.color || defaultColors[priorityName.toLowerCase()] || '#6B7280'
     const displayName = priority?.name || priorityName
-    
+
     return (
-      <span 
+      <span
         className="px-2 py-1 text-xs font-semibold rounded-full"
-        style={{ 
+        style={{
           backgroundColor: `${color}20`,
           color: color
         }}
@@ -158,9 +168,11 @@ const Tickets = () => {
     )
   }
 
-  const getSLAForPriority = (priority) => {
-    const sla = slas.find(s => s.priority.toLowerCase() === priority.toLowerCase())
-    
+  const renderSLA = (ticket) => {
+    // Tenta usar o SLA que já vem com o ticket (backend association)
+    // Se não, tenta encontrar na lista de SLAs pela prioridade (fallback)
+    const sla = ticket.sla || slas.find(s => s.priority.toLowerCase() === ticket.priority?.toLowerCase())
+
     if (!sla) {
       return <span className="text-gray-400">-</span>
     }
@@ -209,16 +221,15 @@ const Tickets = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowMyTickets(!showMyTickets)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              showMyTickets
-                ? 'bg-primary-600 text-white hover:bg-primary-700'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${showMyTickets
+              ? 'bg-primary-600 text-white hover:bg-primary-700'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
           >
             <User className="w-5 h-5" />
             Meus Tickets
           </button>
-          
+
           {/* Export Menu */}
           <div className="relative">
             <button
@@ -248,7 +259,7 @@ const Tickets = () => {
               </div>
             )}
           </div>
-          
+
           <button
             onClick={() => navigate('/tickets/kanban')}
             className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
@@ -268,8 +279,8 @@ const Tickets = () => {
       </div>
 
       {/* Advanced Search */}
-      <AdvancedSearch 
-        onSearch={handleSearch} 
+      <AdvancedSearch
+        onSearch={handleSearch}
         onSaveSearch={handleSaveSearch}
       />
 
@@ -324,6 +335,9 @@ const Tickets = () => {
                     Solicitante
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Responsável
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -354,7 +368,10 @@ const Tickets = () => {
                       {ticket.subject}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {ticket.requester?.name}
+                      {ticket.requester?.name || <span className="text-gray-400">-</span>}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {ticket.assignee?.name || <span className="text-gray-400 italic">Não atribuído</span>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(ticket.status)}
@@ -363,7 +380,7 @@ const Tickets = () => {
                       {getPriorityBadge(ticket.priority)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {getSLAForPriority(ticket.priority)}
+                      {renderSLA(ticket)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {format(new Date(ticket.createdAt), 'dd/MM/yyyy', { locale: pt })}
