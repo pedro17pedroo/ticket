@@ -1,10 +1,77 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles, Check, Zap, Shield, Globe } from 'lucide-react';
+import { ArrowRight, Sparkles, Check, Zap, Shield, Globe, Star, Heart, Clock, Users, Lock, Rocket } from 'lucide-react';
+import { getLandingPageConfig } from '../services/api';
+
+// Mapeamento de ícones
+const iconMap = {
+  Zap, Shield, Globe, Star, Heart, Check, Clock, Users, Lock, Rocket
+};
 
 export default function Home() {
-  return (
-    <div className="min-h-screen">{/* O Header está no Layout */}
+  const [config, setConfig] = useState(null);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  const loadConfig = async () => {
+    const data = await getLandingPageConfig();
+    if (data) {
+      setConfig(data);
+    }
+    setLoading(false);
+  };
+
+  // Valores padrão enquanto carrega
+  const defaultConfig = {
+    heroBadge: '#1 em Funcionalidades do Mercado',
+    heroTitle: 'Gestão de Tickets',
+    heroSubtitle: 'Multi-Tenant B2B2C',
+    heroDescription: 'Plataforma completa de Help Desk com arquitetura multi-tenant, gestão de clientes B2B e funcionalidades enterprise.',
+    heroCta1Text: 'Começar Agora',
+    heroCta1Link: '/trial',
+    heroCta2Text: 'Ver Funcionalidades',
+    heroCta2Link: '/features',
+    stats: [
+      { value: '32+', label: 'Funcionalidades' },
+      { value: '99.9%', label: 'Uptime' },
+      { value: '24/7', label: 'Suporte' }
+    ],
+    featuresTitle: 'Por que escolher TatuTicket?',
+    featuresSubtitle: 'A solução mais completa do mercado para gestão de tickets',
+    features: [
+      { icon: 'Zap', title: 'Ultra Rápido', description: 'Performance otimizada para milhões de usuários simultâneos' },
+      { icon: 'Shield', title: 'Seguro', description: 'Criptografia end-to-end e conformidade com GDPR' },
+      { icon: 'Globe', title: 'Multi-Tenant', description: 'Arquitetura B2B2C com segregação completa de dados' }
+    ],
+    pricingTitle: 'Planos Flexíveis',
+    pricingSubtitle: 'Escolha o melhor plano para sua empresa',
+    pricingPlans: [
+      { name: 'Starter', price: '€49', features: ['Até 10 usuários', '1000 tickets/mês', 'Suporte por email'], highlighted: false },
+      { name: 'Professional', price: '€149', features: ['Até 50 usuários', '10000 tickets/mês', 'Suporte 24/7', 'API access'], highlighted: true },
+      { name: 'Enterprise', price: 'Contacte-nos', features: ['Usuários ilimitados', 'Tickets ilimitados', 'Suporte dedicado', 'White-label'], highlighted: false }
+    ],
+    ctaTitle: 'Pronto para começar?',
+    ctaDescription: 'Experimente gratuitamente por 14 dias. Sem cartão de crédito.',
+    ctaButtonText: 'Iniciar Trial Gratuito',
+    ctaButtonLink: '/trial',
+    footerText: '© 2025 TatuTicket. Todos os direitos reservados.'
+  };
+
+  const c = config || defaultConfig;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen">
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
@@ -13,56 +80,49 @@ export default function Home() {
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-8">
               <Sparkles className="w-4 h-4 text-yellow-300" />
               <span className="text-white text-sm font-medium">
-                #1 em Funcionalidades do Mercado
+                {c.heroBadge}
               </span>
             </div>
 
             {/* Título */}
             <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-6 leading-tight">
-              Gestão de Tickets
+              {c.heroTitle}
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">
-                Multi-Tenant B2B2C
+                {c.heroSubtitle}
               </span>
             </h1>
 
             {/* Subtítulo */}
             <p className="text-xl md:text-2xl text-blue-100 mb-10 max-w-3xl mx-auto">
-              Plataforma completa de Help Desk com arquitetura multi-tenant,
-              gestão de clientes B2B e funcionalidades enterprise.
+              {c.heroDescription}
             </p>
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                to="/trial"
+                to={c.heroCta1Link}
                 className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold text-lg hover:bg-blue-50 transition-colors shadow-lg"
               >
-                Começar Agora
+                {c.heroCta1Text}
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
               <Link
-                to="/features"
+                to={c.heroCta2Link}
                 className="inline-flex items-center justify-center px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-lg font-semibold text-lg hover:bg-white/20 transition-colors border border-white/20"
               >
-                Ver Funcionalidades
+                {c.heroCta2Text}
               </Link>
             </div>
 
             {/* Stats */}
             <div className="mt-16 grid grid-cols-3 gap-8 max-w-2xl mx-auto">
-              <div>
-                <p className="text-4xl font-bold text-white">32+</p>
-                <p className="text-blue-200 mt-2">Funcionalidades</p>
-              </div>
-              <div>
-                <p className="text-4xl font-bold text-white">99.9%</p>
-                <p className="text-blue-200 mt-2">Uptime</p>
-              </div>
-              <div>
-                <p className="text-4xl font-bold text-white">24/7</p>
-                <p className="text-blue-200 mt-2">Suporte</p>
-              </div>
+              {c.stats.map((stat, index) => (
+                <div key={index}>
+                  <p className="text-4xl font-bold text-white">{stat.value}</p>
+                  <p className="text-blue-200 mt-2">{stat.label}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -79,29 +139,25 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Por que escolher TatuTicket?
+              {c.featuresTitle}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              A solução mais completa do mercado para gestão de tickets
+              {c.featuresSubtitle}
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard
-              icon={<Zap className="w-8 h-8" />}
-              title="Ultra Rápido"
-              description="Performance otimizada para milhões de usuários simultâneos"
-            />
-            <FeatureCard
-              icon={<Shield className="w-8 h-8" />}
-              title="Seguro"
-              description="Criptografia end-to-end e conformidade com GDPR"
-            />
-            <FeatureCard
-              icon={<Globe className="w-8 h-8" />}
-              title="Multi-Tenant"
-              description="Arquitetura B2B2C com segregação completa de dados"
-            />
+            {c.features.map((feature, index) => {
+              const IconComponent = iconMap[feature.icon] || Zap;
+              return (
+                <FeatureCard
+                  key={index}
+                  icon={<IconComponent className="w-8 h-8" />}
+                  title={feature.title}
+                  description={feature.description}
+                />
+              );
+            })}
           </div>
         </div>
       </section>
@@ -111,30 +167,23 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Planos Flexíveis
+              {c.pricingTitle}
             </h2>
             <p className="text-xl text-gray-600">
-              Escolha o melhor plano para sua empresa
+              {c.pricingSubtitle}
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <PricingCard
-              name="Starter"
-              price="€49"
-              features={['Até 10 usuários', '1000 tickets/mês', 'Suporte por email']}
-            />
-            <PricingCard
-              name="Professional"
-              price="€149"
-              features={['Até 50 usuários', '10000 tickets/mês', 'Suporte 24/7', 'API access']}
-              highlighted
-            />
-            <PricingCard
-              name="Enterprise"
-              price="Contacte-nos"
-              features={['Usuários ilimitados', 'Tickets ilimitados', 'Suporte dedicado', 'White-label']}
-            />
+            {c.pricingPlans.map((plan, index) => (
+              <PricingCard
+                key={index}
+                name={plan.name}
+                price={plan.price}
+                features={plan.features}
+                highlighted={plan.highlighted}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -143,16 +192,16 @@ export default function Home() {
       <section className="py-24 bg-blue-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Pronto para começar?
+            {c.ctaTitle}
           </h2>
           <p className="text-xl text-blue-100 mb-10">
-            Experimente gratuitamente por 14 dias. Sem cartão de crédito.
+            {c.ctaDescription}
           </p>
           <Link
-            to="/trial"
+            to={c.ctaButtonLink}
             className="inline-flex items-center px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold text-lg hover:bg-blue-50 transition-colors shadow-lg"
           >
-            Iniciar Trial Gratuito
+            {c.ctaButtonText}
             <ArrowRight className="ml-2 w-5 h-5" />
           </Link>
         </div>
@@ -161,7 +210,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p>© 2025 TatuTicket. Todos os direitos reservados.</p>
+          <p>{c.footerText}</p>
         </div>
       </footer>
     </div>

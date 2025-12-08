@@ -48,6 +48,7 @@ import TeamWorkspace from '../../models/TeamWorkspace.js';
 import SharedView from '../../models/SharedView.js';
 import TicketMention from '../../models/TicketMention.js';
 import Badge from '../../models/Badge.js';
+import LandingPageConfig from '../landingPage/landingPageModel.js';
 import UserBadge from '../../models/UserBadge.js';
 import GamePoints from '../../models/GamePoints.js';
 import Role from '../../models/Role.js';
@@ -562,5 +563,6 @@ export {
   Permission,
   RolePermission,
   UserPermission,
+  LandingPageConfig,
   setupAssociations
 };

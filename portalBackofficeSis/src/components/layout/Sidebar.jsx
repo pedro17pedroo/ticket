@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { 
   LayoutDashboard, 
   Building2, 
@@ -8,13 +9,20 @@ import {
   FileText,
   Settings,
   Shield,
-  LogOut
+  LogOut,
+  ChevronDown,
+  Globe,
+  Mail,
+  Lock,
+  Plug
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import useAuthStore from '../../store/authStore';
 
 const Sidebar = () => {
   const { user, logout } = useAuthStore();
+  const location = useLocation();
+  const [settingsOpen, setSettingsOpen] = useState(location.pathname.startsWith('/settings'));
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -24,7 +32,14 @@ const Sidebar = () => {
     { name: 'Monitoramento', href: '/monitoring', icon: Activity },
     { name: 'Relatórios', href: '/reports', icon: FileText },
     { name: 'Auditoria', href: '/audit', icon: Shield },
-    { name: 'Configurações', href: '/settings', icon: Settings },
+  ];
+
+  const settingsSubmenu = [
+    { name: 'Geral', href: '/settings', icon: Settings },
+    { name: 'Landing Page', href: '/settings/landing-page', icon: Globe },
+    { name: 'Email', href: '/settings/email', icon: Mail },
+    { name: 'Segurança', href: '/settings/security', icon: Lock },
+    { name: 'Integrações', href: '/settings/integrations', icon: Plug },
   ];
 
   return (
@@ -55,6 +70,48 @@ const Sidebar = () => {
             {item.name}
           </NavLink>
         ))}
+
+        {/* Settings with submenu */}
+        <div>
+          <button
+            onClick={() => setSettingsOpen(!settingsOpen)}
+            className={clsx(
+              'flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+              location.pathname.startsWith('/settings')
+                ? 'bg-indigo-600 text-white'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            )}
+          >
+            <div className="flex items-center">
+              <Settings className="w-5 h-5 mr-3" />
+              Configurações
+            </div>
+            <ChevronDown className={clsx('w-4 h-4 transition-transform', settingsOpen && 'rotate-180')} />
+          </button>
+          
+          {settingsOpen && (
+            <div className="mt-1 ml-4 space-y-1">
+              {settingsSubmenu.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  end={item.href === '/settings'}
+                  className={({ isActive }) =>
+                    clsx(
+                      'flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                      isActive
+                        ? 'bg-gray-800 text-indigo-400'
+                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    )
+                  }
+                >
+                  <item.icon className="w-4 h-4 mr-3" />
+                  {item.name}
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
       </nav>
 
       {/* User Info */}

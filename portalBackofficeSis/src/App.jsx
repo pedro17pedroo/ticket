@@ -24,6 +24,7 @@ import GeneralSettings from './pages/Settings/GeneralSettings';
 import EmailSettings from './pages/Settings/EmailSettings';
 import SecuritySettings from './pages/Settings/SecuritySettings';
 import IntegrationSettings from './pages/Settings/IntegrationSettings';
+import LandingPage from './pages/Settings/LandingPage';
 import AuditLogs from './pages/Audit/AuditLogs';
 import ChangeHistory from './pages/Audit/ChangeHistory';
 
@@ -89,6 +90,7 @@ function App() {
             <Route path="email" element={<EmailSettings />} />
             <Route path="security" element={<SecuritySettings />} />
             <Route path="integrations" element={<IntegrationSettings />} />
+            <Route path="landing-page" element={<LandingPage />} />
           </Route>
 
           {/* Audit */}

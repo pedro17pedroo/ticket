@@ -39,6 +39,7 @@ import debugRoutes from './debugRoutes.js';
 import * as setupController from '../modules/setup/setupController.js';
 import commentRoutes from './commentRoutes.js';
 import saasRoutes from './saasRoutes.js';
+import * as landingPageController from '../modules/landingPage/landingPageController.js';
 
 const router = express.Router();
 
@@ -200,6 +201,14 @@ router.use('/provider', providerRoutes);
 
 // ==================== SAAS (Onboarding & Plan Management) ====================
 router.use('/saas', saasRoutes);
+
+// ==================== LANDING PAGE (CMS) ====================
+// Rota pública - não requer autenticação
+router.get('/landing-page/config', landingPageController.getConfig);
+// Rotas admin - requer autenticação e role super-admin/provider-admin
+router.put('/landing-page/config', authenticate, authorize('super-admin', 'provider-admin'), landingPageController.updateConfig);
+router.post('/landing-page/config/reset', authenticate, authorize('super-admin', 'provider-admin'), landingPageController.resetConfig);
+router.get('/landing-page/config/history', authenticate, authorize('super-admin', 'provider-admin'), landingPageController.getConfigHistory);
 
 // ==================== CLIENTS B2B (Nova Arquitetura) ====================
 import clientRoutes from './clientRoutes.js';
