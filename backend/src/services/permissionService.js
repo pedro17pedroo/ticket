@@ -22,6 +22,11 @@ class PermissionService {
         return true;
       }
 
+      // 1.1 Permissões implícitas para clients (Knowledge Base é público para eles)
+      if (['client-user', 'client-manager'].includes(user.role) && resource === 'knowledge' && action === 'read') {
+        return true;
+      }
+
       // 2. Buscar a permissão
       const permission = await Permission.findOne({
         where: { resource, action }
@@ -79,7 +84,7 @@ class PermissionService {
       if (error.message?.includes('relation') && error.message?.includes('does not exist')) {
         throw error;
       }
-      
+
       logger.error('Erro ao verificar permissão:', error);
       return false;
     }
@@ -239,8 +244,8 @@ class PermissionService {
 
     // Recurso de outro utilizador - precisa de permissão _all ou organization scope
     const hasAllPermission = await this.hasPermission(
-      currentUser, 
-      resource, 
+      currentUser,
+      resource,
       `${action}_all`
     );
 

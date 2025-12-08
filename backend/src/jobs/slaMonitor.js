@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { Op } from 'sequelize';
-import { Ticket, SLA, User, Organization } from '../modules/models/index.js';
+import { Ticket, SLA, User, Organization, ClientUser, OrganizationUser } from '../modules/models/index.js';
 import logger from '../config/logger.js';
 import emailProcessor from '../services/emailProcessor.js';
 import { getIO } from '../socket/index.js';
@@ -28,7 +28,7 @@ class SLAMonitor {
       await this.loadEscalationRules();
 
       logger.info('⏰ Monitor de SLA iniciado (executa a cada 5 minutos)');
-      
+
       // Executar verificação inicial
       await this.checkSLAViolations();
     } catch (error) {
@@ -57,12 +57,24 @@ class SLAMonitor {
             as: 'sla'
           },
           {
-            model: User,
+            model: OrganizationUser, // Assignee is always OrganizationUser
             as: 'assignee'
           },
+          // Polymorphic Requester
           {
             model: User,
-            as: 'requester'
+            as: 'requesterUser',
+            required: false
+          },
+          {
+            model: OrganizationUser,
+            as: 'requesterOrgUser',
+            required: false
+          },
+          {
+            model: ClientUser,
+            as: 'requesterClientUser',
+            required: false
           }
         ]
       });
@@ -70,6 +82,16 @@ class SLAMonitor {
       logger.info(`🔍 Verificando SLA de ${tickets.length} tickets ativos`);
 
       for (const ticket of tickets) {
+        // Normalize requester for polymorphic associations
+        const ticketData = ticket.toJSON();
+        let requester = null;
+        switch (ticketData.requesterType) {
+          case 'provider': requester = ticketData.requesterUser; break;
+          case 'organization': requester = ticketData.requesterOrgUser; break;
+          case 'client': requester = ticketData.requesterClientUser; break;
+        }
+        ticket.requester = requester; // Attach normalized requester to model instance (virtual-ish)
+
         await this.checkTicketSLA(ticket);
       }
     } catch (error) {
@@ -90,7 +112,7 @@ class SLAMonitor {
 
       // Calcular tempo decorrido em horas úteis
       const businessHoursElapsed = this.calculateBusinessHours(createdAt, now);
-      
+
       // Atualizar tempo decorrido no ticket
       await ticket.update({
         slaTimeElapsed: businessHoursElapsed
@@ -201,7 +223,7 @@ class SLAMonitor {
 
   async escalateTicket(ticket, violationType) {
     const rule = this.findEscalationRule(ticket.priority, violationType);
-    
+
     if (!rule) {
       logger.info(`Sem regra de escalação para ticket #${ticket.ticketNumber}`);
       return;
@@ -241,8 +263,8 @@ class SLAMonitor {
   }
 
   findEscalationRule(priority, violationType) {
-    return this.escalationRules.find(rule => 
-      rule.priority === priority && 
+    return this.escalationRules.find(rule =>
+      rule.priority === priority &&
       rule.violationType === violationType
     );
   }
@@ -312,11 +334,11 @@ class SLAMonitor {
   getNextPriority(currentPriority) {
     const priorities = ['baixa', 'media', 'alta', 'urgente'];
     const currentIndex = priorities.indexOf(currentPriority);
-    
+
     if (currentIndex < priorities.length - 1) {
       return priorities[currentIndex + 1];
     }
-    
+
     return currentPriority; // Já está no máximo
   }
 
@@ -325,7 +347,7 @@ class SLAMonitor {
     const supervisor = await User.findOne({
       where: {
         departmentId: user.departmentId,
-        role: ['admin-org', 'supervisor'],
+        role: ['org-admin', 'supervisor'],
         isActive: true
       }
     });
@@ -338,7 +360,7 @@ class SLAMonitor {
     const manager = await User.findOne({
       where: {
         organizationId: ticket.organizationId,
-        role: 'admin-org',
+        role: 'org-admin',
         isActive: true
       },
       order: [['createdAt', 'ASC']] // Pegar o mais antigo (provavelmente o principal)
@@ -350,7 +372,7 @@ class SLAMonitor {
   async logEscalation(ticket, violationType, rule) {
     // Criar registro de auditoria
     logger.info(`📝 Escalação registrada: Ticket #${ticket.ticketNumber}, Tipo: ${violationType}`);
-    
+
     // TODO: Criar modelo de auditoria de escalação
     // await EscalationLog.create({
     //   ticketId: ticket.id,
@@ -401,7 +423,7 @@ class SLAMonitor {
       const managers = await User.findAll({
         where: {
           organizationId: ticket.organizationId,
-          role: 'admin-org',
+          role: 'org-admin',
           isActive: true
         }
       });
@@ -436,7 +458,7 @@ class SLAMonitor {
           // Calcular horas do dia
           const dayStart = new Date(current);
           dayStart.setHours(this.businessHours.start, 0, 0, 0);
-          
+
           const dayEnd = new Date(current);
           dayEnd.setHours(this.businessHours.end, 0, 0, 0);
 
@@ -466,13 +488,13 @@ class SLAMonitor {
   }
 
   calculateTimeRemaining(ticket, type) {
-    const slaTime = type === 'response' 
-      ? ticket.sla.responseTime 
+    const slaTime = type === 'response'
+      ? ticket.sla.responseTime
       : ticket.sla.resolutionTime;
-    
+
     const elapsed = ticket.slaTimeElapsed || 0;
     const remaining = Math.max(0, slaTime - elapsed);
-    
+
     return {
       hours: Math.floor(remaining),
       minutes: Math.round((remaining % 1) * 60)

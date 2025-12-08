@@ -1,34 +1,25 @@
-import { Ticket, User, Department, Category, Comment, SLA, Direction, Section, Priority } from '../models/index.js';
+import { Op } from 'sequelize';
+import { Ticket, User, OrganizationUser, Department, Category, Comment, SLA, Direction, Section, Priority, ClientUser } from '../models/index.js';
 import { CatalogItem } from '../catalog/catalogModel.js';
 import Attachment from '../attachments/attachmentModel.js';
 import TicketRelationship from './ticketRelationshipModel.js';
 import TicketHistory from './ticketHistoryModel.js';
 import { logTicketChange, trackTicketChanges, getTicketHistory } from './ticketHistoryHelper.js';
-import { Op } from 'sequelize';
-import { sequelize } from '../../config/database.js';
 import logger from '../../config/logger.js';
-import emailService from '../../services/emailService.js';
-import * as notificationService from '../notifications/notificationService.js';
-import { emitNotification, emitTicketUpdate } from '../../socket/index.js';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ... (keep existing imports)
 
 // Listar tickets (com filtros e paginação)
 export const getTickets = async (req, res, next) => {
   try {
-    const { 
-      page = 1, 
-      limit = 20, 
-      status, 
-      priority, 
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      priority,
       type,
       assigneeId,
       departmentId,
-      search 
+      search
     } = req.query;
 
     const where = { organizationId: req.user.organizationId };
@@ -37,7 +28,9 @@ export const getTickets = async (req, res, next) => {
     if (status) where.status = status;
     if (priority) where.priority = priority;
     if (type) where.type = type;
-    if (assigneeId) where.assigneeId = assigneeId;
+    if (assigneeId) {
+      where.assigneeId = assigneeId === 'null' ? null : assigneeId;
+    }
     if (departmentId) where.departmentId = departmentId;
 
     // Busca por texto
@@ -49,9 +42,9 @@ export const getTickets = async (req, res, next) => {
     }
 
     // Clientes só veem seus próprios tickets
-    const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
+    const isClientUser = ['client-user', 'client-admin', 'client-manager'].includes(req.user.role);
     if (isClientUser) {
-      where.requesterId = req.user.id;
+      where.requesterClientUserId = req.user.id;
     }
 
     const offset = (page - 1) * limit;
@@ -62,13 +55,28 @@ export const getTickets = async (req, res, next) => {
       offset,
       order: [['createdAt', 'DESC']],
       include: [
+        // Requester polimórfico
         {
           model: User,
-          as: 'requester',
-          attributes: ['id', 'name', 'email', 'avatar']
+          as: 'requesterUser',
+          attributes: ['id', 'name', 'email', 'avatar'],
+          required: false
         },
         {
-          model: User,
+          model: OrganizationUser,
+          as: 'requesterOrgUser',
+          attributes: ['id', 'name', 'email', 'avatar'],
+          required: false
+        },
+        {
+          model: ClientUser,
+          as: 'requesterClientUser',
+          attributes: ['id', 'name', 'email', 'avatar'],
+          required: false
+        },
+        // Assignee - sempre organization_user
+        {
+          model: OrganizationUser,
           as: 'assignee',
           attributes: ['id', 'name', 'email', 'avatar']
         },
@@ -81,34 +89,41 @@ export const getTickets = async (req, res, next) => {
           model: Category,
           as: 'category',
           attributes: ['id', 'name', 'color', 'icon']
+        },
+        {
+          model: SLA,
+          as: 'sla',
+          attributes: ['id', 'name', 'responseTimeMinutes', 'resolutionTimeMinutes']
         }
       ]
     });
 
-    // Buscar SLAs para todos os tickets
-    const ticketsWithSLA = await Promise.all(
-      tickets.map(async (ticket) => {
-        let sla = null;
-        if (ticket.priority) {
-          sla = await SLA.findOne({
-            where: {
-              organizationId: req.user.organizationId,
-              priority: ticket.priority,
-              isActive: true
-            },
-            attributes: ['id', 'name', 'responseTimeMinutes', 'resolutionTimeMinutes']
-          });
-        }
-        
-        return {
-          ...ticket.toJSON(),
-          sla: sla || null
-        };
-      })
-    );
+    // Normalizar retorno - determinar requester baseado no tipo polimórfico
+    const normalizedTickets = tickets.map(ticket => {
+      const ticketData = ticket.toJSON();
+
+      // Determinar requester baseado no tipo
+      let requester = null;
+      switch (ticketData.requesterType) {
+        case 'provider':
+          requester = ticketData.requesterUser;
+          break;
+        case 'organization':
+          requester = ticketData.requesterOrgUser;
+          break;
+        case 'client':
+          requester = ticketData.requesterClientUser;
+          break;
+      }
+
+      return {
+        ...ticketData,
+        requester: requester
+      };
+    });
 
     res.json({
-      tickets: ticketsWithSLA,
+      tickets: normalizedTickets,
       pagination: {
         total: count,
         page: parseInt(page),
@@ -129,13 +144,28 @@ export const getTicketById = async (req, res, next) => {
     const ticket = await Ticket.findOne({
       where: { id, organizationId: req.user.organizationId },
       include: [
+        // Requester polimórfico - incluir todas as possibilidades
         {
           model: User,
-          as: 'requester',
-          attributes: ['id', 'name', 'email', 'avatar', 'phone', 'role']
+          as: 'requesterUser',
+          attributes: ['id', 'name', 'email', 'avatar', 'phone', 'role'],
+          required: false
         },
         {
-          model: User,
+          model: OrganizationUser,
+          as: 'requesterOrgUser',
+          attributes: ['id', 'name', 'email', 'avatar', 'phone', 'role'],
+          required: false
+        },
+        {
+          model: ClientUser,
+          as: 'requesterClientUser',
+          attributes: ['id', 'name', 'email', 'avatar', 'phone', 'role'],
+          required: false
+        },
+        // Assignee - sempre organization_user
+        {
+          model: OrganizationUser,
           as: 'assignee',
           attributes: ['id', 'name', 'email', 'avatar']
         },
@@ -166,17 +196,38 @@ export const getTicketById = async (req, res, next) => {
           include: [{
             model: Priority,
             as: 'priority',
-            attributes: ['id', 'name', 'level']
+            attributes: ['id', 'name', 'order']
           }]
         },
         {
           model: Comment,
           as: 'comments',
           include: [
+            // Autor polimórfico
+            {
+              model: User,
+              as: 'authorUser',
+              attributes: ['id', 'name', 'avatar', 'email'],
+              required: false
+            },
+            {
+              model: OrganizationUser,
+              as: 'authorOrgUser',
+              attributes: ['id', 'name', 'avatar', 'email'],
+              required: false
+            },
+            {
+              model: ClientUser,
+              as: 'authorClientUser',
+              attributes: ['id', 'name', 'avatar', 'email'],
+              required: false
+            },
+            // Legado
             {
               model: User,
               as: 'user',
-              attributes: ['id', 'name', 'avatar', 'email']
+              attributes: ['id', 'name', 'avatar', 'email'],
+              required: false
             },
             {
               model: Attachment,
@@ -194,9 +245,12 @@ export const getTicketById = async (req, res, next) => {
     }
 
     // Clientes só veem seus próprios tickets
-    const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
-    if (isClientUser && ticket.requesterId !== req.user.id) {
-      return res.status(403).json({ error: 'Acesso negado' });
+    const isClientUser = ['client-user', 'client-admin', 'client-manager'].includes(req.user.role);
+    if (isClientUser) {
+      // Para clientes, verificar requesterClientUserId em vez de requesterId
+      if (ticket.requesterClientUserId !== req.user.id) {
+        return res.status(403).json({ error: 'Acesso negado' });
+      }
     }
 
     // Buscar SLA baseado na prioridade do ticket
@@ -212,9 +266,43 @@ export const getTicketById = async (req, res, next) => {
       });
     }
 
-    res.json({ 
+    // Determinar o requester correto baseado no tipo polimórfico
+    const ticketData = ticket.toJSON();
+    let requester = null;
+
+    switch (ticketData.requesterType) {
+      case 'provider':
+        requester = ticketData.requesterUser;
+        break;
+      case 'organization':
+        requester = ticketData.requesterOrgUser;
+        break;
+      case 'client':
+        requester = ticketData.requesterClientUser;
+        break;
+      default:
+        // Fallback para campo legado
+        requester = ticketData.requester;
+    }
+
+    // Adicionar requester unificado ao ticket
+    ticketData.requester = requester;
+
+    // Normalizar autores dos comentários
+    if (ticketData.comments) {
+      ticketData.comments = ticketData.comments.map(comment => {
+        let author = comment.authorOrgUser || comment.authorClientUser || comment.authorUser || comment.user;
+        return {
+          ...comment,
+          author: author,
+          user: author // Manter compatibilidade
+        };
+      });
+    }
+
+    res.json({
       ticket: {
-        ...ticket.toJSON(),
+        ...ticketData,
         sla: sla || null
       }
     });
@@ -226,7 +314,7 @@ export const getTicketById = async (req, res, next) => {
 // Criar ticket
 export const createTicket = async (req, res, next) => {
   try {
-    const { subject, description, priority, type, categoryId, departmentId, assigneeId } = req.body;
+    const { subject, description, priority, type, categoryId, departmentId, assigneeId, clientId } = req.body;
 
     // Gerar número do ticket
     const date = new Date();
@@ -234,8 +322,32 @@ export const createTicket = async (req, res, next) => {
     const random = Math.floor(1000 + Math.random() * 9000);
     const ticketNumber = `TKT-${dateStr}-${random}`;
 
+    // Determinar tipo de requester baseado no userType ou role
+    let requesterType = 'provider';
+    let requesterUserId = null;
+    let requesterOrgUserId = null;
+    let requesterClientUserId = null;
+
+    if (req.user.userType === 'organization' || ['org-admin', 'org-technician', 'org-manager'].includes(req.user.role)) {
+      requesterType = 'organization';
+      requesterOrgUserId = req.user.id;
+    } else if (req.user.userType === 'client' || ['client-admin', 'client-user', 'client-viewer', 'client-manager'].includes(req.user.role)) {
+      requesterType = 'client';
+      requesterClientUserId = req.user.id;
+    } else {
+      requesterType = 'provider';
+      requesterUserId = req.user.id;
+    }
+
     const ticket = await Ticket.create({
       organizationId: req.user.organizationId,
+      clientId: clientId || req.user.clientId || null,
+      // Campos polimórficos
+      requesterType,
+      requesterUserId,
+      requesterOrgUserId,
+      requesterClientUserId,
+      // Campo legado (manter compatibilidade)
       requesterId: req.user.id,
       assigneeId: assigneeId || null,
       ticketNumber,
@@ -251,19 +363,33 @@ export const createTicket = async (req, res, next) => {
     // Buscar ticket com relações
     const fullTicket = await Ticket.findByPk(ticket.id, {
       include: [
-        { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-        { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] },
+        // Requester polimórfico
+        { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+        // Assignee
+        { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] },
         { model: Category, as: 'category', attributes: ['id', 'name'] },
         { model: Department, as: 'department', attributes: ['id', 'name'] }
       ]
     });
+
+    // Normalizar requester
+    const ticketData = fullTicket.toJSON();
+    let requester = null;
+    switch (ticketData.requesterType) {
+      case 'provider': requester = ticketData.requesterUser; break;
+      case 'organization': requester = ticketData.requesterOrgUser; break;
+      case 'client': requester = ticketData.requesterClientUser; break;
+    }
+    ticketData.requester = requester;
 
     logger.info(`Ticket criado: ${ticket.ticketNumber} por ${req.user.email}`);
 
     // Notificar criação do ticket (async - não bloqueia a resposta)
     notificationService.notifyTicketCreated(fullTicket, req.user.id, req.user.userType || 'organization')
       .catch(err => logger.error('Erro ao notificar criação de ticket:', err));
-    
+
     // Se houver responsável atribuído, notificar
     if (fullTicket.assigneeId) {
       notificationService.notifyTicketAssigned(fullTicket, fullTicket.assigneeId, req.user.id, req.user.name)
@@ -272,7 +398,7 @@ export const createTicket = async (req, res, next) => {
 
     res.status(201).json({
       message: 'Ticket criado com sucesso',
-      ticket: fullTicket
+      ticket: ticketData
     });
   } catch (error) {
     next(error);
@@ -288,13 +414,13 @@ export const updateTicket = async (req, res, next) => {
     const ticket = await Ticket.findOne({
       where: { id, organizationId: req.user.organizationId },
       include: [
-        { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-        { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
-      ],
-      // Incluir campos polimórficos para notificações
-      attributes: { 
-        include: ['requesterType', 'requesterClientUserId', 'requesterOrgUserId'] 
-      }
+        // Requester polimórfico
+        { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+        // Assignee
+        { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
+      ]
     });
 
     if (!ticket) {
@@ -313,7 +439,7 @@ export const updateTicket = async (req, res, next) => {
     // ✅ VALIDAÇÃO: Não pode atribuir ou mesclar tickets concluídos
     const { isTicketClosed } = await import('../../utils/ticketValidations.js');
     if (isTicketClosed(ticket) && (updates.assigneeId !== undefined)) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Não é possível atribuir ticket concluído',
         reason: 'ticket_closed',
         status: ticket.status
@@ -322,25 +448,25 @@ export const updateTicket = async (req, res, next) => {
 
     // Atualizar campos permitidos
     const allowedFields = [
-      'subject', 
-      'description', 
-      'status', 
-      'priority', 
+      'subject',
+      'description',
+      'status',
+      'priority',
       'internalPriority',
       'resolutionStatus',
-      'assigneeId', 
+      'assigneeId',
       'directionId',
       'departmentId',
       'sectionId',
       'categoryId',
       'type'
     ];
-    
+
     // Campos UUID que precisam converter string vazia para null
     const uuidFields = ['assigneeId', 'directionId', 'departmentId', 'sectionId', 'categoryId'];
-    
+
     const updateData = {};
-    
+
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) {
         // Converter strings vazias em null para campos UUID
@@ -367,8 +493,8 @@ export const updateTicket = async (req, res, next) => {
     }
 
     // ✅ Parar cronômetro automaticamente quando ticket é concluído
-    const isBeingClosed = (updates.status === 'fechado' || updates.status === 'resolvido') && 
-                          oldTicket.status !== updates.status;
+    const isBeingClosed = (updates.status === 'fechado' || updates.status === 'resolvido') &&
+      oldTicket.status !== updates.status;
     if (isBeingClosed) {
       const TimeEntry = (await import('./timeEntryModel.js')).default;
       const activeTimers = await TimeEntry.findAll({
@@ -396,7 +522,7 @@ export const updateTicket = async (req, res, next) => {
     }
 
     const transaction = await sequelize.transaction();
-    
+
     try {
       await ticket.update(updateData, { transaction });
 
@@ -417,13 +543,11 @@ export const updateTicket = async (req, res, next) => {
     // Recarregar ticket com relações atualizadas
     await ticket.reload({
       include: [
-        { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-        { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
-      ],
-      // Incluir campos polimórficos
-      attributes: { 
-        include: ['requesterType', 'requesterClientUserId', 'requesterOrgUserId'] 
-      }
+        { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
+      ]
     });
 
     logger.info(`Ticket atualizado: ${ticket.ticketNumber} por ${req.user.email}`);
@@ -436,19 +560,21 @@ export const updateTicket = async (req, res, next) => {
     if (updates.status && oldStatus !== updates.status) {
       notificationService.notifyStatusChange(ticket, oldStatus, updates.status, req.user.id, req.user.name)
         .catch(err => logger.error('Erro ao notificar mudança de status:', err));
-      
+
       // 🔔 NOTIFICAR WATCHERS SOBRE MUDANÇA DE STATUS
       try {
         // Carregar ticket completo com relacionamentos
         const fullTicket = await Ticket.findByPk(ticket.id, {
           include: [
-            { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-            { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+            { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+            { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+            { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+            { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
           ]
         });
 
         const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
-        await notifyTicketWatchers(fullTicket, 'status_changed', { 
+        await notifyTicketWatchers(fullTicket, 'status_changed', {
           oldStatus: oldStatus,
           newStatus: updates.status,
           changedBy: req.user.name
@@ -457,7 +583,7 @@ export const updateTicket = async (req, res, next) => {
       } catch (error) {
         logger.error(`❌ Erro ao notificar watchers sobre mudança de status:`, error);
       }
-      
+
       // Notificações específicas
       if (updates.status === 'resolvido') {
         notificationService.notifyTicketResolved(ticket, req.user.id, req.user.name)
@@ -472,19 +598,21 @@ export const updateTicket = async (req, res, next) => {
     if (updates.assigneeId && oldAssigneeId !== updates.assigneeId) {
       notificationService.notifyTicketAssigned(ticket, updates.assigneeId, req.user.id, req.user.name)
         .catch(err => logger.error('Erro ao notificar atribuição:', err));
-      
+
       // 🔔 NOTIFICAR WATCHERS SOBRE ATRIBUIÇÃO
       try {
         // Carregar ticket completo com relacionamentos
         const fullTicket = await Ticket.findByPk(ticket.id, {
           include: [
-            { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-            { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+            { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+            { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+            { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+            { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
           ]
         });
 
         const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
-        await notifyTicketWatchers(fullTicket, 'assigned', { 
+        await notifyTicketWatchers(fullTicket, 'assigned', {
           assignedTo: req.user.name,
           previousAssignee: oldAssigneeId
         });
@@ -503,7 +631,7 @@ export const updateTicket = async (req, res, next) => {
         req.user.id,
         req.user.organizationId
       );
-      
+
       if (autoConsumeResult.success) {
         logger.info(`Auto-consumo executado: ${autoConsumeResult.consumedHours}h`);
       } else {
@@ -530,13 +658,11 @@ export const addComment = async (req, res, next) => {
     const ticket = await Ticket.findOne({
       where: { id: ticketId, organizationId: req.user.organizationId },
       include: [
-        { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-        { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
-      ],
-      // Incluir campos polimórficos para notificações
-      attributes: { 
-        include: ['requesterType', 'requesterClientUserId', 'requesterOrgUserId'] 
-      }
+        { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
+      ]
     });
 
     if (!ticket) {
@@ -552,7 +678,7 @@ export const addComment = async (req, res, next) => {
     // ✅ VALIDAÇÃO: Ticket concluído não pode receber comentários
     const { isTicketClosed, isTicketAssigned } = await import('../../utils/ticketValidations.js');
     if (isTicketClosed(ticket)) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Não é possível adicionar comentários em ticket concluído',
         reason: 'ticket_closed',
         status: ticket.status
@@ -561,7 +687,7 @@ export const addComment = async (req, res, next) => {
 
     // ✅ VALIDAÇÃO: Ticket deve estar atribuído para receber comentários (exceto clientes)
     if (!isClientUser && !isTicketAssigned(ticket)) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Ticket deve ser atribuído antes de adicionar comentários',
         reason: 'ticket_not_assigned'
       });
@@ -639,7 +765,7 @@ export const addComment = async (req, res, next) => {
     // 🔔 NOTIFICAR WATCHERS SOBRE O COMENTÁRIO
     try {
       const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
-      await notifyTicketWatchers(ticket, 'commented', { 
+      await notifyTicketWatchers(ticket, 'commented', {
         comment: comment.content,
         author: req.user.name
       });
@@ -665,17 +791,20 @@ export const getStatistics = async (req, res, next) => {
     // Clientes veem apenas suas estatísticas
     const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
     if (isClientUser) {
-      where.requesterId = req.user.id;
+      where[Op.or] = [
+        { requesterId: req.user.id },
+        { requesterClientUserId: req.user.id }
+      ];
     }
 
     // Aplicar filtros de data se fornecidos
     const { startDate, endDate } = req.query;
-    logger.info(`📊 getStatistics chamada - startDate: ${startDate}, endDate: ${endDate}`, { 
-      userId: req.user.id, 
+    logger.info(`📊 getStatistics chamada - startDate: ${startDate}, endDate: ${endDate}`, {
+      userId: req.user.id,
       organizationId: req.user.organizationId,
-      query: req.query 
+      query: req.query
     });
-    
+
     if (startDate && endDate) {
       where.createdAt = {
         [Op.gte]: new Date(startDate),
@@ -688,14 +817,22 @@ export const getStatistics = async (req, res, next) => {
       });
     }
 
-    const [total, novo, emProgresso, aguardandoCliente, resolvido, fechado] = await Promise.all([
-      Ticket.count({ where }),
-      Ticket.count({ where: { ...where, status: 'novo' } }),
-      Ticket.count({ where: { ...where, status: 'em_progresso' } }),
-      Ticket.count({ where: { ...where, status: 'aguardando_cliente' } }),
-      Ticket.count({ where: { ...where, status: 'resolvido' } }),
-      Ticket.count({ where: { ...where, status: 'fechado' } })
-    ]);
+    let stats;
+    try {
+      stats = await Promise.all([
+        Ticket.count({ where }),
+        Ticket.count({ where: { ...where, status: 'novo' } }),
+        Ticket.count({ where: { ...where, status: 'em_progresso' } }),
+        Ticket.count({ where: { ...where, status: 'aguardando_cliente' } }),
+        Ticket.count({ where: { ...where, status: 'resolvido' } }),
+        Ticket.count({ where: { ...where, status: 'fechado' } })
+      ]);
+    } catch (countError) {
+      logger.error('Erro ao contar tickets:', { error: countError.message, where });
+      throw countError;
+    }
+
+    const [total, novo, emProgresso, aguardandoCliente, resolvido, fechado] = stats;
 
     const result = {
       statistics: {
@@ -755,7 +892,7 @@ export const uploadAttachments = async (req, res, next) => {
       const comment = await Comment.findOne({
         where: { id: commentId, ticketId }
       });
-      
+
       if (!comment) {
         files.forEach(file => {
           fs.unlinkSync(file.path);
@@ -769,7 +906,7 @@ export const uploadAttachments = async (req, res, next) => {
 
     // Criar registos de anexos
     const attachments = await Promise.all(
-      files.map(file => 
+      files.map(file =>
         Attachment.create({
           ticketId,
           commentId: commentId || null, // Vincular ao comentário se fornecido
@@ -1040,7 +1177,7 @@ export const getRelatedTickets = async (req, res, next) => {
     });
 
     // Buscar detalhes dos tickets relacionados
-    const relatedTicketIds = relationships.map(r => 
+    const relatedTicketIds = relationships.map(r =>
       r.ticketId === ticketId ? r.relatedTicketId : r.ticketId
     );
 
@@ -1065,7 +1202,7 @@ export const getRelatedTickets = async (req, res, next) => {
 
     // Mapear com tipo de relacionamento
     const result = tickets.map(ticket => {
-      const rel = relationships.find(r => 
+      const rel = relationships.find(r =>
         r.ticketId === ticket.id || r.relatedTicketId === ticket.id
       );
       return {
@@ -1141,14 +1278,14 @@ export const getHistory = async (req, res, next) => {
 // Transferir ticket para outra área
 export const transferTicket = async (req, res, next) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const { ticketId } = req.params;
-    const { 
-      directionId, 
-      departmentId, 
-      sectionId, 
-      assigneeId, 
+    const {
+      directionId,
+      departmentId,
+      sectionId,
+      assigneeId,
       reason,
       categoryId,
       type
@@ -1230,7 +1367,7 @@ export const transferTicket = async (req, res, next) => {
 // Atualizar prioridade interna
 export const updateInternalPriority = async (req, res, next) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const { ticketId } = req.params;
     const { internalPriority, reason } = req.body;
@@ -1251,7 +1388,7 @@ export const updateInternalPriority = async (req, res, next) => {
 
     // Registrar no histórico
     const priorityDescription = `Prioridade interna alterada de "${oldPriority || 'Não definida'}" para "${internalPriority}"` + (reason ? ': ' + reason : '');
-    
+
     await logTicketChange(
       ticketId,
       req.user.id,
@@ -1281,7 +1418,7 @@ export const updateInternalPriority = async (req, res, next) => {
 // Atualizar estado de resolução
 export const updateResolutionStatus = async (req, res, next) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const { ticketId } = req.params;
     const { resolutionStatus, notes } = req.body;
@@ -1312,7 +1449,7 @@ export const updateResolutionStatus = async (req, res, next) => {
     };
 
     const resolutionDescription = `Estado de resolução alterado para "${statusLabels[resolutionStatus] || resolutionStatus}"` + (notes ? ': ' + notes : '');
-    
+
     await logTicketChange(
       ticketId,
       req.user.id,
@@ -1392,18 +1529,32 @@ export const updateTicketWatchers = async (req, res, next) => {
       { orgWatchers, clientWatchers }
     );
 
+    const updatedTicket = await Ticket.findByPk(id, {
+      include: [
+        { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] },
+        { model: Department, as: 'department', attributes: ['id', 'name'] },
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: Priority, as: 'ticketPriority', attributes: ['id', 'name', 'color'] },
+        { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name', 'description'] }
+      ]
+    });
+
+    // Normalizar requester
+    const ticketData = updatedTicket.toJSON();
+    let requester = null;
+    switch (ticketData.requesterType) {
+      case 'provider': requester = ticketData.requesterUser; break;
+      case 'organization': requester = ticketData.requesterOrgUser; break;
+      case 'client': requester = ticketData.requesterClientUser; break;
+    }
+    ticketData.requester = requester;
+
     res.json({
       success: true,
-      ticket: await Ticket.findByPk(id, {
-        include: [
-          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] },
-          { model: Department, as: 'department', attributes: ['id', 'name'] },
-          { model: Category, as: 'category', attributes: ['id', 'name'] },
-          { model: Priority, as: 'ticketPriority', attributes: ['id', 'name', 'color'] },
-          { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name', 'description'] }
-        ]
-      })
+      ticket: ticketData
     });
 
   } catch (error) {

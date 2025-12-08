@@ -22,7 +22,7 @@ export const getArticles = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
     const { search, categoryId, isPublished } = req.query;
-    const isClient = req.user.role === 'cliente-org';
+    const isClient = ['client-user', 'client-admin', 'client-manager', 'client'].includes(req.user.role);
 
     const where = { organizationId };
 
@@ -69,7 +69,7 @@ export const getArticleById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
-    const isClient = req.user.role === 'cliente-org';
+    const isClient = ['client-user', 'client-admin', 'client-manager', 'client'].includes(req.user.role);
 
     const where = { id, organizationId };
     if (isClient) {

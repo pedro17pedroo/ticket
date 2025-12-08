@@ -110,7 +110,7 @@ const setupAssociations = () => {
   User.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
   User.belongsTo(Section, { foreignKey: 'sectionId', as: 'section' });
   User.hasMany(Ticket, { foreignKey: 'requesterId', as: 'requestedTickets' });
-  User.hasMany(Ticket, { foreignKey: 'assigneeId', as: 'assignedTickets' });
+  // User.hasMany(Ticket, { foreignKey: 'assigneeId', as: 'assignedTickets' }); // ERROR: assigneeId refers to OrganizationUser
   User.hasMany(Comment, { foreignKey: 'userId', as: 'comments' });
   User.hasMany(KnowledgeArticle, { foreignKey: 'authorId', as: 'articles' });
   User.hasMany(HoursBank, { foreignKey: 'clientId', as: 'hoursBanks' });
@@ -193,10 +193,14 @@ const setupAssociations = () => {
   Ticket.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
   Ticket.belongsTo(Direction, { foreignKey: 'directionId', as: 'direction' });
   Ticket.belongsTo(Section, { foreignKey: 'sectionId', as: 'section' });
-  // Requester pode ser User ou ClientUser (polimórfico baseado em requesterType)
+  // Requester polimórfico - pode ser de 3 tabelas diferentes
+  Ticket.belongsTo(User, { foreignKey: 'requesterUserId', as: 'requesterUser' });
+  Ticket.belongsTo(OrganizationUser, { foreignKey: 'requesterOrgUserId', as: 'requesterOrgUser' });
+  Ticket.belongsTo(ClientUser, { foreignKey: 'requesterClientUserId', as: 'requesterClientUser' });
+  // Legado - manter por compatibilidade
   Ticket.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
-  Ticket.belongsTo(ClientUser, { foreignKey: 'requesterId', as: 'requesterClient' });
-  Ticket.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
+  // Assignee - sempre um organization_user (técnico/agente)
+  Ticket.belongsTo(OrganizationUser, { foreignKey: 'assigneeId', as: 'assignee' });
   Ticket.belongsTo(SLA, { foreignKey: 'slaId', as: 'sla' });
   Ticket.belongsTo(Priority, { foreignKey: 'priorityId', as: 'priorityConfig' });
   Ticket.belongsTo(Type, { foreignKey: 'typeId', as: 'typeConfig' });
