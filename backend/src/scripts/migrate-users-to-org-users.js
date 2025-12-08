@@ -13,7 +13,7 @@ import logger from '../config/logger.js';
  */
 
 const ROLE_MAPPING = {
-  'admin-org': 'org-admin',
+  'org-admin': 'org-admin',
   'agente': 'agent',
   'agent': 'agent',
   'gestor': 'org-manager',
@@ -28,7 +28,7 @@ async function migrateUsersToOrgUsers() {
     // 1. Buscar todos os usuários com roles de organização (SQL direto)
     const [usersToMigrate] = await sequelize.query(`
       SELECT * FROM users 
-      WHERE role IN ('admin-org', 'agente', 'agent')
+      WHERE role IN ('org-admin', 'agente', 'agent')
     `);
 
     logger.info(`📊 Encontrados ${usersToMigrate.length} usuários para migrar`);
@@ -142,7 +142,7 @@ async function migrateUsersToOrgUsers() {
       logger.info('   Verifique se tudo está OK antes de remover os registros antigos');
       logger.info('');
       logger.info('   Para remover os usuários antigos (CUIDADO!):');
-      logger.info(`   DELETE FROM users WHERE role IN ('admin-org', 'agente', 'agent');`);
+      logger.info(`   DELETE FROM users WHERE role IN ('org-admin', 'agente', 'agent');`);
     }
 
   } catch (error) {

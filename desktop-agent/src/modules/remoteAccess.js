@@ -1,6 +1,7 @@
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const os = require('os');
+const config = require('../config');
 
 const execAsync = promisify(exec);
 
@@ -61,7 +62,7 @@ class RemoteAccess {
 
   async connectWebSocket() {
     const io = require('socket.io-client');
-    const serverUrl = this.store.get('serverUrl', 'http://localhost:3000');
+    const serverUrl = this.store.get('serverUrl', config.backend.url);
     const token = this.store.get('token');
     
     this.socket = io(serverUrl, {

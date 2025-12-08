@@ -112,7 +112,7 @@ const options = {
             },
             role: {
               type: 'string',
-              enum: ['admin-sistema', 'admin-org', 'agente', 'cliente-org']
+              enum: ['admin-sistema', 'org-admin', 'agente', 'cliente-org']
             },
             isActive: {
               type: 'boolean'

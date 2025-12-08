@@ -2,17 +2,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { connectPostgreSQL, connectMongoDB, syncDatabase } from '../config/database.js';
-import { 
-  Organization, 
+import {
+  Organization,
   User,
   Client,
   ClientUser,
-  Department, 
-  Category, 
+  Department,
+  Category,
   SLA,
   Priority,
   Type,
-  setupAssociations 
+  setupAssociations
 } from '../modules/models/index.js';
 import logger from '../config/logger.js';
 
@@ -27,88 +27,20 @@ const runMultiTenantSeed = async () => {
     await syncDatabase();
 
     // ==========================================
-    // 1. CRIAR ORGANIZAÇÃO PROVIDER (TatuTicket)
+    // 1. BUSCAR ORGANIZAÇÃO PROVIDER (TatuTicket)
     // ==========================================
-    logger.info('📦 Criando Organização Provider...');
-    const [provider] = await Organization.findOrCreate({
-      where: { slug: 'tatuticket' },
-      defaults: {
-        type: 'provider',
-        parentId: null,
-        name: 'TatuTicket',
-        tradeName: 'TatuTicket Solutions Lda',
-        taxId: '123456789',
-        slug: 'tatuticket',
-        email: 'admin@tatuticket.com',
-        phone: '+351 210 000 000',
-        address: 'Avenida da Liberdade, 1000, Lisboa, Portugal',
-        primaryColor: '#3B82F6',
-        secondaryColor: '#10B981',
-        subscription: {
-          plan: 'unlimited',
-          status: 'active',
-          maxUsers: 999999,
-          maxClients: 999999,
-          maxStorageGB: 999999,
-          features: ['all']
-        },
-        deployment: {
-          type: 'saas',
-          region: 'global'
-        },
-        settings: {
-          language: 'pt',
-          timezone: 'Europe/Lisbon',
-          dateFormat: 'DD/MM/YYYY',
-          allowSelfRegistration: false,
-          requireApproval: true,
-          sessionTimeout: 480,
-          twoFactorAuth: true
-        },
-        isActive: true
-      }
+    logger.info('📦 Buscando Organização Provider...');
+    const provider = await Organization.findOne({
+      where: { type: 'provider' }
     });
-    logger.info(`✅ Provider criado: ${provider.name}\n`);
 
-    // ==========================================
-    // 2. CRIAR USUÁRIOS DO PROVIDER (Super Admins)
-    // ==========================================
-    logger.info('👥 Criando usuários do Provider...');
-    const providerUsers = await User.bulkCreate([
-      {
-        organizationId: provider.id,
-        name: 'Super Admin',
-        email: 'superadmin@tatuticket.com',
-        password: 'Super@123',
-        role: 'super-admin',
-        phone: '+351 910 000 001',
-        permissions: {
-          canManageUsers: true,
-          canManageClients: true,
-          canManageTickets: true,
-          canViewReports: true,
-          canManageSettings: true,
-          canAccessAPI: true
-        }
-      },
-      {
-        organizationId: provider.id,
-        name: 'Provider Admin',
-        email: 'provideradmin@tatuticket.com',
-        password: 'Provider@123',
-        role: 'provider-admin',
-        phone: '+351 910 000 002',
-        permissions: {
-          canManageUsers: true,
-          canManageClients: true,
-          canManageTickets: true,
-          canViewReports: true,
-          canManageSettings: true,
-          canAccessAPI: true
-        }
-      }
-    ], { individualHooks: true });
-    logger.info(`✅ ${providerUsers.length} usuários Provider criados\n`);
+    if (!provider) {
+      logger.error('❌ Provider não encontrado!');
+      logger.error('➡️  Execute primeiro: node src/seeds/provider-seed.js');
+      process.exit(1);
+    }
+
+    logger.info(`✅ Provider encontrado: ${provider.name} (ID: ${provider.id})\n`);
 
     // ==========================================
     // 3. CRIAR ORGANIZAÇÃO TENANT DEMO
@@ -506,18 +438,18 @@ const runMultiTenantSeed = async () => {
     logger.info('\n📋 ========================================');
     logger.info('   SEED MULTI-TENANT B2B2C COMPLETO!');
     logger.info('========================================\n');
-    
+
     logger.info('🔐 CREDENCIAIS DE ACESSO:\n');
-    
+
     logger.info('━━━ PROVIDER (Super Admin) ━━━');
     logger.info('Super Admin: superadmin@tatuticket.com / Super@123');
     logger.info('Provider Admin: provideradmin@tatuticket.com / Provider@123\n');
-    
+
     logger.info('━━━ TENANT (Empresa Demo - Staff) ━━━');
     logger.info('Tenant Admin: admin@empresademo.com / Admin@123');
     logger.info('Agente: agente@empresademo.com / Agente@123');
     logger.info('Manager: manager@empresademo.com / Manager@123\n');
-    
+
     logger.info('━━━ CLIENTES B2B ━━━');
     logger.info('Cliente Demo SA:');
     logger.info('  Admin: admin@clientedemo.com / ClientAdmin@123');
@@ -525,12 +457,11 @@ const runMultiTenantSeed = async () => {
     logger.info('TechCorp Lda:');
     logger.info('  Admin: admin@techcorp.com / TechAdmin@123');
     logger.info('  User: user@techcorp.com / TechUser@123\n');
-    
+
     logger.info('━━━ ESTATÍSTICAS ━━━');
-    logger.info(`✅ 1 Provider`);
-    logger.info(`✅ 1 Tenant`);
+    logger.info(`✅ Provider: ${provider.name}`);
+    logger.info(`✅ 1 Tenant Demo`);
     logger.info(`✅ 2 Empresas Clientes B2B`);
-    logger.info(`✅ ${providerUsers.length} Usuários Provider`);
     logger.info(`✅ ${tenantUsers.length} Usuários Tenant (Staff)`);
     logger.info(`✅ ${clientUsers.length} Usuários Clientes`);
     logger.info(`✅ ${departments.length} Departamentos`);

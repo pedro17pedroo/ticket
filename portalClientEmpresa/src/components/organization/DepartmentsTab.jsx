@@ -1,5 +1,7 @@
+
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit, Trash2, X } from 'lucide-react'
+import { Plus, Edit, Building2, Users, Search, X, Power } from 'lucide-react'
+import { confirmAction, showSuccess, showError } from '../../utils/alerts'
 import organizationService from '../../services/organizationService'
 import toast from 'react-hot-toast'
 
@@ -8,7 +10,7 @@ const DepartmentsTab = () => {
   const [directions, setDirections] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   // Modal states
   const [showModal, setShowModal] = useState(false)
   const [editingDepartment, setEditingDepartment] = useState(null)
@@ -72,7 +74,7 @@ const DepartmentsTab = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!formData.name.trim()) {
       toast.error('Nome é obrigatório')
       return
@@ -94,20 +96,31 @@ const DepartmentsTab = () => {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Tem certeza que deseja eliminar este departamento?')) {
-      return
-    }
+  const handleToggleActive = async (department) => {
+    const isActive = department.isActive;
+    const action = isActive ? 'desativar' : 'reativar';
+
+    const confirmed = await confirmAction(
+      `${isActive ? 'Desativar' : 'Reativar'} departamento?`,
+      `Tem certeza que deseja ${action} o departments "${department.name}"?`
+    );
+
+    if (!confirmed) return;
 
     try {
-      await organizationService.deleteDepartment(id)
-      toast.success('Departamento eliminado com sucesso')
-      loadDepartments()
+      if (isActive) {
+        await organizationService.deleteDepartment(department.id);
+        toast.success('Departamento desativado com sucesso');
+      } else {
+        await organizationService.reactivateDepartment(department.id);
+        toast.success('Departamento reativado com sucesso');
+      }
+      loadDepartments();
     } catch (error) {
-      console.error('Erro ao eliminar departamento:', error)
-      toast.error(error.response?.data?.message || 'Erro ao eliminar departamento')
+      console.error(`Erro ao ${action} departamento:`, error);
+      toast.error(error.response?.data?.message || `Erro ao ${action} departamento`);
     }
-  }
+  };
 
   const filteredDepartments = departments.filter(dept =>
     dept.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -131,7 +144,7 @@ const DepartmentsTab = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
           />
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="ml-4 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
         >
@@ -147,10 +160,16 @@ const DepartmentsTab = () => {
           </div>
         ) : (
           filteredDepartments.map((department) => (
-            <div key={department.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-shadow">
+            <div key={department.id} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-shadow ${!department.isActive ? 'opacity-50' : ''
+              }`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{department.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg">{department.name}</h3>
+                    {!department.isActive && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">Inativo</span>
+                    )}
+                  </div>
                   {department.code && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">Código: {department.code}</p>
                   )}
@@ -159,17 +178,23 @@ const DepartmentsTab = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => handleOpenModal(department)}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                    title="Editar"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
-                  <button 
-                    onClick={() => handleDelete(department.id)}
-                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                  <button
+                    onClick={() => handleToggleActive(department)}
+                    className={`p-1 rounded ${department.isActive
+                        ? 'hover:bg-red-100 dark:hover:bg-red-900/30'
+                        : 'hover:bg-green-100 dark:hover:bg-green-900/30'
+                      }`}
+                    title={department.isActive ? 'Desativar' : 'Reativar'}
                   >
-                    <Trash2 className="w-4 h-4 text-red-600" />
+                    <Power className={`w-4 h-4 ${department.isActive ? 'text-red-600' : 'text-green-600'
+                      }`} />
                   </button>
                 </div>
               </div>
@@ -193,7 +218,7 @@ const DepartmentsTab = () => {
               <h2 className="text-xl font-semibold">
                 {editingDepartment ? 'Editar Departamento' : 'Novo Departamento'}
               </h2>
-              <button 
+              <button
                 onClick={handleCloseModal}
                 className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
               >

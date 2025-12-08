@@ -106,7 +106,7 @@ const PERMISSIONS = [
 const SYSTEM_ROLES = [
   // ==================== NÍVEL 1: ORGANIZAÇÃO ====================
   {
-    name: 'admin-org',
+    name: 'org-admin',
     displayName: 'Administrador da Organização',
     description: 'Acesso total ao sistema. Pode gerir tudo.',
     level: 'organization',

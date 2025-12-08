@@ -22,35 +22,35 @@ router.get('/workflows/:id',
 // Criar workflow
 router.post('/workflows',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   workflowController.createWorkflow.bind(workflowController)
 );
 
 // Atualizar workflow
 router.put('/workflows/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   workflowController.updateWorkflow.bind(workflowController)
 );
 
 // Deletar workflow
 router.delete('/workflows/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   workflowController.deleteWorkflow.bind(workflowController)
 );
 
 // Alternar ativação do workflow
 router.patch('/workflows/:id/toggle',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   workflowController.toggleWorkflow.bind(workflowController)
 );
 
 // Duplicar workflow
 router.post('/workflows/:id/duplicate',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   workflowController.duplicateWorkflow.bind(workflowController)
 );
 
@@ -59,14 +59,14 @@ router.post('/workflows/:id/duplicate',
 // Executar workflow manualmente
 router.post('/workflows/execute',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico']),
+  requireRole(['admin', 'org-admin', 'tecnico']),
   workflowController.executeWorkflow.bind(workflowController)
 );
 
 // Testar workflow
 router.post('/workflows/:id/test',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   workflowController.testWorkflow.bind(workflowController)
 );
 
@@ -85,14 +85,14 @@ router.get('/executions/:id',
 // Cancelar execução
 router.patch('/executions/:id/cancel',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   workflowController.cancelExecution.bind(workflowController)
 );
 
 // Reiniciar execução falha
 router.post('/executions/:id/retry',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   workflowController.retryExecution.bind(workflowController)
 );
 
@@ -101,7 +101,7 @@ router.post('/executions/:id/retry',
 // Obter estatísticas
 router.get('/statistics',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   workflowController.getStatistics.bind(workflowController)
 );
 

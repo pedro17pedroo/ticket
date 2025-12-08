@@ -24,6 +24,7 @@ import {
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
+import { confirmDelete } from '../utils/alerts';
 
 const CatalogCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -62,7 +63,7 @@ const CatalogCategories = () => {
         api.get('/departments'),
         api.get('/client/sections')
       ]);
-      
+
       setCategories(catRes.data.categories || []);
       setDirections(dirRes.data.directions || []);
       setDepartments(deptRes.data.departments || []);
@@ -132,9 +133,11 @@ const CatalogCategories = () => {
   };
 
   const handleDelete = async (categoryId) => {
-    if (!confirm('Tem certeza que deseja excluir esta categoria? Os itens associados serão desativados.')) {
-      return;
-    }
+    const confirmed = await confirmDelete(
+      'Excluir categoria?',
+      'Tem certeza que deseja excluir esta categoria? Os itens associados serão desativados.'
+    )
+    if (!confirmed) return;
 
     try {
       await api.delete(`/catalog/categories/${categoryId}`);
@@ -169,12 +172,12 @@ const CatalogCategories = () => {
   const getCategoryPath = (categoryId) => {
     const path = [];
     let current = categories.find(c => c.id === categoryId);
-    
+
     while (current) {
       path.unshift(current.name);
       current = categories.find(c => c.id === current.parentCategoryId);
     }
-    
+
     return path.join(' > ');
   };
 
@@ -326,8 +329,8 @@ const CatalogCategories = () => {
                           <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
                         )}
                         {category.imageUrl ? (
-                          <img 
-                            src={category.imageUrl} 
+                          <img
+                            src={category.imageUrl}
                             alt={category.name}
                             className="w-10 h-10 rounded-lg object-cover"
                           />
@@ -393,11 +396,10 @@ const CatalogCategories = () => {
                     <td className="px-6 py-4">
                       <button
                         onClick={() => handleToggleActive(category)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          category.isActive !== false
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${category.isActive !== false
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
-                        }`}
+                          }`}
                       >
                         {category.isActive !== false ? 'Ativa' : 'Inativa'}
                       </button>
@@ -440,7 +442,7 @@ const CatalogCategories = () => {
                   {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
                 </h2>
                 <p className="text-primary-100 text-sm mt-1">
-                  {editingCategory 
+                  {editingCategory
                     ? 'Atualize as informações da categoria de serviços'
                     : 'Crie uma nova categoria para organizar seus serviços'
                   }
@@ -455,7 +457,7 @@ const CatalogCategories = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Scrollable Content */}
           <div className="overflow-y-auto max-h-[calc(90vh-220px)]">
             <div className="bg-gray-50 dark:bg-gray-900 p-6">
@@ -465,7 +467,7 @@ const CatalogCategories = () => {
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                     📝 Informações Básicas
                   </h3>
-                  
+
                   {/* Nome */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -517,7 +519,7 @@ const CatalogCategories = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Categoria Pai
@@ -555,7 +557,7 @@ const CatalogCategories = () => {
                     <ImageIcon className="w-5 h-5 text-primary-500" />
                     Aparência Visual
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Ícone */}
                     <div>
@@ -596,7 +598,7 @@ const CatalogCategories = () => {
                         className="w-full h-11 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer"
                       />
                       <div className="mt-3 flex items-center gap-2">
-                        <div 
+                        <div
                           className="flex-1 h-10 rounded-lg border-2 border-gray-200 dark:border-gray-600 shadow-sm"
                           style={{ backgroundColor: formData.color }}
                         />
@@ -620,8 +622,8 @@ const CatalogCategories = () => {
                       />
                       {formData.imageUrl && (
                         <div className="mt-3 flex justify-center">
-                          <img 
-                            src={formData.imageUrl} 
+                          <img
+                            src={formData.imageUrl}
                             alt="Preview"
                             className="h-16 w-16 rounded-lg object-cover border-2 border-gray-200 dark:border-gray-600 shadow-sm"
                             onError={(e) => e.target.style.display = 'none'}
@@ -709,7 +711,7 @@ const CatalogCategories = () => {
                     <Settings className="w-5 h-5 text-primary-500" />
                     Configurações
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -753,7 +755,7 @@ const CatalogCategories = () => {
               </form>
             </div>
           </div>
-          
+
           {/* Footer fixo com botões */}
           <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
             <div className="flex gap-3">

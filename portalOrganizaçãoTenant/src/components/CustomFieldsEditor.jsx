@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Trash2, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { confirmDelete } from '../utils/alerts';
 
 const CustomFieldsEditor = ({ fields, onChange }) => {
   const [expandedField, setExpandedField] = useState(null);
@@ -46,8 +47,12 @@ const CustomFieldsEditor = ({ fields, onChange }) => {
     onChange(updated);
   };
 
-  const removeField = (index) => {
-    if (confirm('Remover este campo?')) {
+  const removeField = async (index) => {
+    const confirmed = await confirmDelete(
+      'Remover campo?',
+      'Deseja realmente remover este campo?'
+    )
+    if (confirmed) {
       onChange(fields.filter((_, i) => i !== index));
     }
   };

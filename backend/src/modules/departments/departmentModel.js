@@ -53,6 +53,13 @@ const Department = sequelize.define('Department', {
     allowNull: true,
     validate: {
       isEmail: true
+    },
+    set(value) {
+      if (value === '') {
+        this.setDataValue('email', null);
+      } else {
+        this.setDataValue('email', value);
+      }
     }
   },
   clientId: {

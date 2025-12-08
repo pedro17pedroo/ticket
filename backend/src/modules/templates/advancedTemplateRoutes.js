@@ -22,21 +22,21 @@ router.get('/templates/:id',
 // Criar template
 router.post('/templates',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico', 'agente']),
+  requireRole(['admin', 'org-admin', 'tecnico', 'agente']),
   advancedTemplateController.createTemplate.bind(advancedTemplateController)
 );
 
 // Atualizar template
 router.put('/templates/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico', 'agente']),
+  requireRole(['admin', 'org-admin', 'tecnico', 'agente']),
   advancedTemplateController.updateTemplate.bind(advancedTemplateController)
 );
 
 // Deletar template
 router.delete('/templates/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   advancedTemplateController.deleteTemplate.bind(advancedTemplateController)
 );
 
@@ -63,21 +63,21 @@ router.get('/macros/:id',
 // Criar macro
 router.post('/macros',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico']),
+  requireRole(['admin', 'org-admin', 'tecnico']),
   advancedTemplateController.createMacro.bind(advancedTemplateController)
 );
 
 // Atualizar macro
 router.put('/macros/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico']),
+  requireRole(['admin', 'org-admin', 'tecnico']),
   advancedTemplateController.updateMacro.bind(advancedTemplateController)
 );
 
 // Deletar macro
 router.delete('/macros/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   advancedTemplateController.deleteMacro.bind(advancedTemplateController)
 );
 
@@ -90,7 +90,7 @@ router.post('/macros/execute',
 // Executar macro em lote
 router.post('/macros/batch-execute',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico']),
+  requireRole(['admin', 'org-admin', 'tecnico']),
   advancedTemplateController.batchExecuteMacro.bind(advancedTemplateController)
 );
 
@@ -105,21 +105,21 @@ router.get('/email-templates',
 // Criar template de e-mail
 router.post('/email-templates',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   advancedTemplateController.createEmailTemplate.bind(advancedTemplateController)
 );
 
 // Atualizar template de e-mail
 router.put('/email-templates/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   advancedTemplateController.updateEmailTemplate.bind(advancedTemplateController)
 );
 
 // Deletar template de e-mail
 router.delete('/email-templates/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   advancedTemplateController.deleteEmailTemplate.bind(advancedTemplateController)
 );
 
@@ -140,7 +140,7 @@ router.get('/quick-access',
 // Estatísticas
 router.get('/statistics',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   advancedTemplateController.getTemplateStatistics.bind(advancedTemplateController)
 );
 

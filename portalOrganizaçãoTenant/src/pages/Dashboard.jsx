@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ticketService } from '../services/api'
 import { Ticket, Clock, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const Dashboard = () => {
+  const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -111,13 +113,13 @@ const Dashboard = () => {
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-            <XAxis 
-              dataKey="name" 
+            <XAxis
+              dataKey="name"
               className="text-sm"
               tick={{ fill: 'currentColor' }}
             />
             <YAxis tick={{ fill: 'currentColor' }} />
-            <Tooltip 
+            <Tooltip
               contentStyle={{
                 backgroundColor: 'var(--tw-bg-opacity)',
                 border: '1px solid #e5e7eb',
@@ -133,17 +135,26 @@ const Dashboard = () => {
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
         <h2 className="text-xl font-bold mb-4">Ações Rápidas</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="p-4 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-colors">
+          <button
+            onClick={() => navigate('/tickets/new')}
+            className="p-4 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-colors"
+          >
             <Ticket className="w-6 h-6 text-primary-600 dark:text-primary-400 mb-2" />
             <p className="font-medium">Novo Ticket</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Criar um novo ticket</p>
           </button>
-          <button className="p-4 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-colors">
+          <button
+            onClick={() => navigate('/tickets?unassigned=true')}
+            className="p-4 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-colors"
+          >
             <CheckCircle className="w-6 h-6 text-primary-600 dark:text-primary-400 mb-2" />
             <p className="font-medium">Tickets Pendentes</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Ver tickets não atribuídos</p>
           </button>
-          <button className="p-4 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-colors">
+          <button
+            onClick={() => navigate('/reports')}
+            className="p-4 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-colors"
+          >
             <TrendingUp className="w-6 h-6 text-primary-600 dark:text-primary-400 mb-2" />
             <p className="font-medium">Relatórios</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Ver relatórios detalhados</p>

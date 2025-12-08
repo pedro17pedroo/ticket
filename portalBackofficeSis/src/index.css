@@ -13,3 +13,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Modal - z-index padrão */
+.modal-overlay {
+  z-index: 9999 !important;
+}
+
+/* React Hot Toast - Sempre acima de modais */
+.react-hot-toast,
+div[data-sonner-toaster] {
+  z-index: 99999 !important;
+}

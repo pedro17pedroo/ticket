@@ -349,10 +349,19 @@ export const ServiceRequest = sequelize.define('ServiceRequest', {
   },
   userId: {
     type: DataTypes.UUID,
-    allowNull: false,
+    allowNull: true, // Alterado para true para permitir requests de clientes
     field: 'user_id',
     references: {
       model: 'users',
+      key: 'id'
+    }
+  },
+  clientUserId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'client_user_id',
+    references: {
+      model: 'client_users',
       key: 'id'
     }
   },

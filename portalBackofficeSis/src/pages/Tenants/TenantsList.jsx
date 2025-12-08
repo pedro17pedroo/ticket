@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { tenantService } from '../../services/tenantService';
 import { Plus, Search, Building2, AlertCircle, Loader2 } from 'lucide-react';
+import { confirmInput, confirmAction } from '../../utils/alerts';
 
 export default function TenantsList() {
   const [tenants, setTenants] = useState([]);
@@ -12,7 +13,7 @@ export default function TenantsList() {
 
   useEffect(() => {
     loadTenants();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const loadTenants = async () => {
@@ -122,44 +123,51 @@ function TenantCard({ tenant, onUpdate }) {
   const [loading, setLoading] = useState(false);
 
   const handleSuspend = async () => {
-    if (!window.confirm(`Suspender tenant "${tenant.name}"?`)) return;
-    
-    try {
-      setLoading(true);
-      const reason = window.prompt('Motivo da suspensão:');
-      if (reason) {
+    const reason = await confirmInput(
+      'Suspender Tenant',
+      `Deseja suspender o tenant "${tenant.name}"?`,
+      'Motivo da suspensão'
+    );
+
+    if (reason) {
+      try {
+        setLoading(true);
         await tenantService.suspendTenant(tenant.id, reason);
         onUpdate();
+      } catch (err) {
+        console.error('Erro ao suspender tenant:', err);
+        alert('Erro ao suspender tenant');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Erro ao suspender tenant:', err);
-      alert('Erro ao suspender tenant');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleActivate = async () => {
-    if (!window.confirm(`Reativar tenant "${tenant.name}"?`)) return;
-    
-    try {
-      setLoading(true);
-      await tenantService.activateTenant(tenant.id);
-      onUpdate();
-    } catch (err) {
-      console.error('Erro ao reativar tenant:', err);
-      alert('Erro ao reativar tenant');
-    } finally {
-      setLoading(false);
+    const confirmed = await confirmAction(
+      'Reativar Tenant',
+      `Deseja reativar o tenant "${tenant.name}"?`
+    );
+
+    if (confirmed) {
+      try {
+        setLoading(true);
+        await tenantService.activateTenant(tenant.id);
+        onUpdate();
+      } catch (err) {
+        console.error('Erro ao reativar tenant:', err);
+        alert('Erro ao reativar tenant');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   const isSuspended = tenant.suspendedAt !== null;
 
   return (
-    <div className={`bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 ${
-      isSuspended ? 'opacity-75 border-2 border-red-200' : ''
-    }`}>
+    <div className={`bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 ${isSuspended ? 'opacity-75 border-2 border-red-200' : ''
+      }`}>
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">

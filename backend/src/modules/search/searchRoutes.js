@@ -58,14 +58,14 @@ router.get('/recent',
 // Reindexar tudo
 router.post('/reindex',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   searchController.reindex.bind(searchController)
 );
 
 // Indexar entidade específica
 router.post('/index',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   searchController.indexEntity.bind(searchController)
 );
 
@@ -74,7 +74,7 @@ router.post('/index',
 // Estatísticas de busca
 router.get('/statistics',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   searchController.getStatistics.bind(searchController)
 );
 

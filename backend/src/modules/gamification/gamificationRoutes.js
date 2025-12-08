@@ -38,21 +38,21 @@ router.get('/badges',
 // Criar badge
 router.post('/badges',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   gamificationController.createBadge.bind(gamificationController)
 );
 
 // Atualizar badge
 router.put('/badges/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   gamificationController.updateBadge.bind(gamificationController)
 );
 
 // Deletar badge
 router.delete('/badges/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   gamificationController.deleteBadge.bind(gamificationController)
 );
 
@@ -61,14 +61,14 @@ router.delete('/badges/:id',
 // Dar pontos manualmente
 router.post('/award-points',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   gamificationController.awardPoints.bind(gamificationController)
 );
 
 // Dar badge manualmente
 router.post('/award-badge',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   gamificationController.awardBadge.bind(gamificationController)
 );
 
@@ -77,7 +77,7 @@ router.post('/award-badge',
 // Criar badges padrão
 router.post('/setup',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   gamificationController.setupDefaultBadges.bind(gamificationController)
 );
 
@@ -86,7 +86,7 @@ router.post('/setup',
 // Analytics de gamificação
 router.get('/analytics',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   gamificationController.getAnalytics.bind(gamificationController)
 );
 

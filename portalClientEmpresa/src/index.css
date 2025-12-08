@@ -3,12 +3,14 @@
 @tailwind utilities;
 
 @layer base {
-  html, body {
+
+  html,
+  body {
     margin: 0;
     padding: 0;
     overflow-x: hidden;
   }
-  
+
   body {
     @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -19,6 +21,7 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -42,6 +45,17 @@
   align-items: center !important;
   justify-content: center !important;
   background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* SweetAlert2 - Sempre acima de modais */
+.swal2-container {
+  z-index: 99999 !important;
+}
+
+/* React Hot Toast - Sempre acima de modais */
+.react-hot-toast,
+div[data-sonner-toaster] {
+  z-index: 99999 !important;
 }
 
 /* Animações suaves */

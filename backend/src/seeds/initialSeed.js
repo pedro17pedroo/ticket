@@ -139,7 +139,7 @@ const runSeed = async () => {
         name: 'Admin Sistema',
         email: 'admin@empresademo.com',
         password: 'Admin@123',
-        role: 'admin-org',
+        role: 'org-admin',
         phone: '+351 910 000 001'
       },
       {

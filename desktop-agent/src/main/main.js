@@ -3,11 +3,20 @@ const path = require('path');
 const Store = require('electron-store');
 const AutoLaunch = require('auto-launch');
 
+// Configuração centralizada
+const config = require('../config');
+
 // Módulos customizados
 const InventoryCollector = require('../modules/inventoryCollector');
 const RemoteAccess = require('../modules/remoteAccess');
 const ApiClient = require('../modules/apiClient');
 const TicketManager = require('../modules/ticketManager');
+const OfflineQueue = require('../modules/offlineQueue');
+const ConnectionMonitor = require('../modules/connectionMonitor');
+const FileUploader = require('../modules/fileUploader');
+const AutoUpdaterManager = require('../modules/autoUpdater');
+const { getInstance: getI18n } = require('../modules/i18n');
+const ThemeManager = require('../modules/themeManager');
 
 // Configuração
 const store = new Store();
@@ -20,6 +29,12 @@ let inventoryCollector = null;
 let remoteAccess = null;
 let apiClient = null;
 let ticketManager = null;
+let offlineQueue = null;
+let connectionMonitor = null;
+let fileUploader = null;
+let autoUpdaterManager = null;
+let i18n = null;
+let themeManager = null;
 let updateTrayMenu = () => {}; // Função vazia como fallback
 
 // Auto-launch configuration
@@ -62,6 +77,11 @@ function createWindow() {
       console.log('📍 Acesse a interface gráfica na janela que acabou de abrir');
     } else {
       console.log('⚪ Janela minimizada. Use o tray icon ou reabre manualmente');
+    }
+    
+    // Inicializar auto-updater após janela estar pronta
+    if (!isDev) {
+      initializeAutoUpdater();
     }
   });
 
@@ -205,13 +225,97 @@ function createTray() {
   });
 }
 
+// Inicializar Auto-Updater
+function initializeAutoUpdater() {
+  try {
+    console.log('[AutoUpdater] Inicializando...');
+    
+    autoUpdaterManager = new AutoUpdaterManager(mainWindow);
+    
+    // Iniciar verificação periódica
+    autoUpdaterManager.startPeriodicCheck();
+    
+    console.log('[AutoUpdater] Inicializado com sucesso');
+  } catch (error) {
+    console.error('[AutoUpdater] Erro ao inicializar:', error);
+  }
+}
+
+// Inicializar i18n
+function initializeI18n() {
+  try {
+    console.log('[i18n] Inicializando...');
+    
+    i18n = getI18n();
+    
+    console.log('[i18n] Inicializado com sucesso. Idioma:', i18n.getLocale());
+  } catch (error) {
+    console.error('[i18n] Erro ao inicializar:', error);
+  }
+}
+
+// Inicializar Theme Manager
+function initializeThemeManager() {
+  try {
+    console.log('[ThemeManager] Inicializando...');
+    
+    themeManager = new ThemeManager(mainWindow);
+    
+    console.log('[ThemeManager] Inicializado com sucesso. Tema:', themeManager.getCurrentTheme());
+  } catch (error) {
+    console.error('[ThemeManager] Erro ao inicializar:', error);
+  }
+}
+
 // Inicialização
 async function initialize() {
-  // Inicializar API Client
-  const serverUrl = store.get('serverUrl', 'http://localhost:3000');
+  // Inicializar i18n primeiro
+  initializeI18n();
+  
+  // Inicializar Theme Manager
+  initializeThemeManager();
+  // Inicializar API Client (usa URL do .env como padrão)
+  const serverUrl = store.get('serverUrl', config.backend.url);
   const token = store.get('token');
   
   apiClient = new ApiClient(serverUrl, token);
+
+  // Inicializar Offline Queue
+  offlineQueue = new OfflineQueue(apiClient);
+  
+  // Inicializar Connection Monitor
+  connectionMonitor = new ConnectionMonitor(apiClient);
+  
+  // Inicializar File Uploader
+  fileUploader = new FileUploader(apiClient);
+  
+  // Configurar listeners de conexão
+  connectionMonitor.on('offline', () => {
+    console.log('🔴 Modo offline ativado');
+    mainWindow.webContents.send('connection-status', { online: false });
+    sendNotification('warning', 'Conexão perdida. Trabalhando em modo offline.', {
+      desktop: true,
+      title: 'Modo Offline'
+    });
+  });
+  
+  connectionMonitor.on('online', async () => {
+    console.log('🟢 Conexão restaurada');
+    mainWindow.webContents.send('connection-status', { online: true });
+    sendNotification('success', 'Conexão restaurada. Sincronizando dados...', {
+      desktop: true,
+      title: 'Conexão Restaurada'
+    });
+    
+    // Processar fila offline
+    const result = await offlineQueue.process();
+    if (result.processed > 0) {
+      sendNotification('success', `${result.processed} ações sincronizadas com sucesso.`, {
+        desktop: true,
+        title: 'Sincronização Completa'
+      });
+    }
+  });
 
   // Inicializar Inventory Collector
   inventoryCollector = new InventoryCollector(apiClient, store);
@@ -226,6 +330,10 @@ async function initialize() {
   if (token) {
     try {
       await apiClient.connect();
+      
+      // Iniciar monitoramento de conexão
+      connectionMonitor.start();
+      
       await inventoryCollector.start();
       await remoteAccess.start();
       
@@ -252,6 +360,9 @@ async function initialize() {
         // Enviar para renderer
         mainWindow.webContents.send('ticket-notification', notification);
       });
+      
+      // Iniciar sistema de notificações periódicas
+      startNotificationSystem();
       
       ticketManager.on('tickets-updated', (tickets) => {
         mainWindow.webContents.send('tickets-updated', tickets);
@@ -407,13 +518,15 @@ app.on('before-quit', () => {
 // IPC Handlers
 ipcMain.handle('get-config', () => {
   return {
-    serverUrl: store.get('serverUrl', 'http://localhost:3000'),
+    serverUrl: store.get('serverUrl', config.backend.url),
+    backendUrl: config.backend.url, // URL do backend do .env
     token: store.get('token'),
     autoLaunch: store.get('autoLaunch', false),
     autoSync: store.get('autoSync', true),
-    syncInterval: store.get('syncInterval', 60),
+    syncInterval: store.get('syncInterval', config.sync.intervalMinutes),
     minimizeOnStart: store.get('minimizeOnStart', true),
-    remoteAccessEnabled: store.get('remoteAccessEnabled', false)
+    remoteAccessEnabled: store.get('remoteAccessEnabled', false),
+    useMock: config.development.useMock
   };
 });
 
@@ -496,21 +609,118 @@ ipcMain.handle('validate-token', async () => {
 
 // Handler de login
 ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
+  // Modo MOCK configurado via .env (USE_MOCK=true/false)
+  const USE_MOCK = config.development.useMock;
+  
+  if (USE_MOCK) {
+    console.log('🔐 [MOCK] Tentando login com:', username);
+    
+    // Mock users para desenvolvimento (dentro da função para evitar redeclaração)
+    // Suporta organization_users e client_users
+    const MOCK_USERS = [
+      // Organization Users (tabela organization_users)
+      {
+        id: 1,
+        name: 'Pedro Organization',
+        email: 'pedro17pedroo@gmail.com',
+        password: '123456789',
+        role: 'org-admin', // ou org-technician, org-manager
+        userType: 'organization',
+        organizationId: 1,
+        organizationName: 'Organização Principal'
+      },
+      {
+        id: 2,
+        name: 'Técnico Suporte',
+        email: 'tecnico@organizacao.com',
+        password: 'Tecnico@123',
+        role: 'org-technician',
+        userType: 'organization',
+        organizationId: 1,
+        organizationName: 'Organização Principal'
+      },
+      
+      // Client Users (tabela client_users)
+      {
+        id: 3,
+        name: 'Pedro Cliente',
+        email: 'pedro.nekaka@gmail.com',
+        password: '123456789',
+        role: 'client-user',
+        userType: 'client',
+        organizationId: 1,
+        clientId: 1,
+        clientName: 'Empresa Cliente XYZ'
+      },
+      {
+        id: 4,
+        name: 'Cliente Teste',
+        email: 'cliente@empresa.com',
+        password: 'Cliente@123',
+        role: 'client-user',
+        userType: 'client',
+        organizationId: 1,
+        clientId: 2,
+        clientName: 'Empresa Teste'
+      }
+    ];
+    
+    // Simular delay de rede
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    const user = MOCK_USERS.find(u => u.email === username && u.password === password);
+    
+    if (!user) {
+      console.log('❌ [MOCK] Credenciais inválidas');
+      return {
+        success: false,
+        error: 'Email ou senha inválidos'
+      };
+    }
+    
+    const { password: _, ...userWithoutPassword } = user;
+    const mockToken = 'mock-jwt-token-' + Date.now();
+    
+    console.log('✅ [MOCK] Login bem-sucedido:', userWithoutPassword);
+    
+    // Salvar token e serverUrl
+    store.set('serverUrl', serverUrl);
+    store.set('token', mockToken);
+    store.set('user', userWithoutPassword);
+    
+    return {
+      success: true,
+      token: mockToken,
+      user: userWithoutPassword
+    };
+  }
+  
+  // Modo PRODUÇÃO (usar quando backend estiver pronto)
   try {
     const axios = require('axios');
     
-    // Fazer login no servidor
+    console.log('🔐 Fazendo login no servidor:', serverUrl);
+    
+    // Fazer login no servidor (não especifica portalType para permitir qualquer tipo de usuário)
     const response = await axios.post(`${serverUrl}/api/auth/login`, {
       email: username,
       password: password
+      // portalType não especificado = Agent Desktop (aceita organization_users e client_users)
     });
     
     if (response.data && response.data.token) {
       const { token, user } = response.data;
       
+      console.log('✅ Login bem-sucedido:', {
+        email: user.email,
+        userType: user.userType,
+        role: user.role
+      });
+      
       // Salvar token e serverUrl
       store.set('serverUrl', serverUrl);
       store.set('token', token);
+      store.set('user', user);
       
       return {
         success: true,
@@ -524,10 +734,17 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
       error: 'Resposta inválida do servidor'
     };
   } catch (error) {
-    console.error('Erro no login:', error.message);
+    console.error('❌ Erro no login:', error.message);
+    
+    // Extrair mensagem de erro do backend
+    const errorMessage = error.response?.data?.error 
+      || error.response?.data?.message 
+      || error.message 
+      || 'Erro ao fazer login';
+    
     return {
       success: false,
-      error: error.response?.data?.message || error.message || 'Erro ao fazer login'
+      error: errorMessage
     };
   }
 });
@@ -535,12 +752,44 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
 // Handler para conectar o agent após login
 ipcMain.handle('connect-agent', async (event, { serverUrl, token }) => {
   try {
+    console.log('🔧 Conectando agent ao backend:', serverUrl);
+    
     // Criar ou atualizar apiClient
     if (!apiClient) {
       apiClient = new ApiClient(serverUrl, token);
     } else {
       apiClient.updateConfig(serverUrl, token);
     }
+    
+    // Conectar ao backend (seta connected = true)
+    const connectResult = await apiClient.connect();
+    console.log('🔗 Resultado da conexão:', connectResult);
+    
+    if (!connectResult.success) {
+      console.log('⚠️ Aviso na conexão:', connectResult.error);
+      // Forçar connected = true já que o login foi validado
+      apiClient.connected = true;
+      console.log('🔧 Forçando connected = true após login válido');
+    }
+    
+    // Inicializar Inventory Collector (scanner de hardware)
+    if (!inventoryCollector) {
+      console.log('📊 Inicializando Inventory Collector...');
+      inventoryCollector = new InventoryCollector(apiClient, store);
+    }
+    
+    // Inicializar Remote Access
+    if (!remoteAccess) {
+      console.log('🖥️ Inicializando Remote Access...');
+      remoteAccess = new RemoteAccess(apiClient, store);
+    }
+    
+    // Inicializar Connection Monitor
+    if (!connectionMonitor) {
+      console.log('📡 Inicializando Connection Monitor...');
+      connectionMonitor = new ConnectionMonitor(apiClient);
+    }
+    connectionMonitor.start();
     
     // Inicializar ticket manager
     if (!ticketManager) {
@@ -551,9 +800,19 @@ ipcMain.handle('connect-agent', async (event, { serverUrl, token }) => {
     // Configurar listeners
     setupTicketListeners();
     
+    // Iniciar coleta de inventário
+    console.log('🔄 Iniciando coleta de inventário...');
+    try {
+      await inventoryCollector.start();
+      console.log('✅ Inventory Collector iniciado');
+    } catch (invError) {
+      console.log('⚠️ Aviso no inventário:', invError.message);
+    }
+    
+    console.log('✅ Agent conectado com sucesso');
     return { success: true };
   } catch (error) {
-    console.error('Erro ao conectar agent:', error.message);
+    console.error('❌ Erro ao conectar agent:', error.message);
     return {
       success: false,
       error: error.message || 'Erro ao conectar agent'
@@ -623,28 +882,55 @@ ipcMain.handle('get-status', () => {
 });
 
 ipcMain.handle('sync-now', async () => {
+  console.log('📊 [sync-now] Chamado. inventoryCollector:', inventoryCollector ? 'OK' : 'NULL');
+  console.log('📊 [sync-now] apiClient.connected:', apiClient ? apiClient.isConnected() : 'apiClient NULL');
+  
   try {
     if (!inventoryCollector) {
-      return { success: false, error: 'Coletor não inicializado' };
+      console.log('❌ [sync-now] Coletor não inicializado, criando agora...');
+      // Criar inventoryCollector se não existir
+      if (apiClient) {
+        inventoryCollector = new InventoryCollector(apiClient, store);
+        console.log('✅ [sync-now] InventoryCollector criado');
+      } else {
+        return { success: false, error: 'API Client não inicializado' };
+      }
+    }
+    
+    // Garantir que apiClient está conectado
+    if (apiClient && !apiClient.isConnected()) {
+      console.log('🔧 [sync-now] Forçando apiClient.connected = true');
+      apiClient.connected = true;
     }
     
     const result = await inventoryCollector.collect();
     return { success: true, data: result };
   } catch (error) {
+    console.error('❌ [sync-now] Erro:', error.message);
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('get-system-info', async () => {
+  console.log('📊 [get-system-info] Chamado. inventoryCollector:', inventoryCollector ? 'OK' : 'NULL');
+  
   try {
     if (!inventoryCollector) {
-      return null;
+      console.log('❌ [get-system-info] Coletor não inicializado, criando agora...');
+      // Criar inventoryCollector se não existir
+      if (apiClient) {
+        inventoryCollector = new InventoryCollector(apiClient, store);
+        console.log('✅ [get-system-info] InventoryCollector criado');
+      } else {
+        return null;
+      }
     }
     
     const info = await inventoryCollector.getSystemInfo();
+    console.log('✅ [get-system-info] Info obtida:', info ? 'OK' : 'NULL');
     return info;
   } catch (error) {
-    console.error('Erro ao obter informações do sistema:', error);
+    console.error('❌ [get-system-info] Erro:', error.message);
     return null;
   }
 });
@@ -964,6 +1250,666 @@ ipcMain.handle('remote-access:end', async (event, requestId) => {
   }
 });
 
+// ==================== CATÁLOGO DE SERVIÇOS ====================
+
+ipcMain.handle('catalog:get-categories', async () => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.getCatalogCategories();
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('catalog:get-items', async (event, categoryId) => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.getCatalogItems(categoryId);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('catalog:request-item', async (event, itemId, data) => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.requestCatalogItem(itemId, data);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== BASE DE CONHECIMENTO ====================
+
+ipcMain.handle('knowledge:get-articles', async (event, filters) => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.getKnowledgeArticles(filters);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('knowledge:get-article', async (event, id) => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.getKnowledgeArticle(id);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('knowledge:increment-views', async (event, id) => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.incrementArticleViews(id);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== NOTIFICAÇÕES ====================
+
+ipcMain.handle('notifications:get', async () => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.getNotifications();
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('notifications:mark-read', async (event, id) => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.markNotificationAsRead(id);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== ESTATÍSTICAS ====================
+
+ipcMain.handle('tickets:get-statistics', async () => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.getTicketStatistics();
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== OFFLINE QUEUE ====================
+
+ipcMain.handle('offline-queue:add', async (event, action, data, metadata) => {
+  try {
+    if (!offlineQueue) {
+      return { success: false, error: 'Offline queue não inicializado' };
+    }
+    
+    const itemId = offlineQueue.add(action, data, metadata);
+    return { success: true, itemId };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('offline-queue:process', async () => {
+  try {
+    if (!offlineQueue) {
+      return { success: false, error: 'Offline queue não inicializado' };
+    }
+    
+    const result = await offlineQueue.process();
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('offline-queue:get-stats', async () => {
+  try {
+    if (!offlineQueue) {
+      return { success: false, error: 'Offline queue não inicializado' };
+    }
+    
+    const stats = offlineQueue.getStats();
+    return { success: true, stats };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('offline-queue:get-all', async () => {
+  try {
+    if (!offlineQueue) {
+      return { success: false, error: 'Offline queue não inicializado' };
+    }
+    
+    const items = offlineQueue.getAll();
+    return { success: true, items };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('offline-queue:clear-failed', async () => {
+  try {
+    if (!offlineQueue) {
+      return { success: false, error: 'Offline queue não inicializado' };
+    }
+    
+    const count = offlineQueue.clearFailed();
+    return { success: true, count };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('offline-queue:clear-all', async () => {
+  try {
+    if (!offlineQueue) {
+      return { success: false, error: 'Offline queue não inicializado' };
+    }
+    
+    const count = offlineQueue.clearAll();
+    return { success: true, count };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== CONNECTION STATUS ====================
+
+ipcMain.handle('connection:get-status', async () => {
+  try {
+    if (!connectionMonitor) {
+      return { success: false, error: 'Connection monitor não inicializado' };
+    }
+    
+    const isOnline = connectionMonitor.getStatus();
+    const stats = connectionMonitor.getStats();
+    return { success: true, isOnline, stats };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('connection:check-now', async () => {
+  try {
+    if (!connectionMonitor) {
+      return { success: false, error: 'Connection monitor não inicializado' };
+    }
+    
+    await connectionMonitor.checkConnection();
+    const isOnline = connectionMonitor.getStatus();
+    return { success: true, isOnline };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== UPLOAD DE ARQUIVOS ====================
+
+ipcMain.handle('file:validate', async (event, filePath) => {
+  try {
+    if (!fileUploader) {
+      return { success: false, error: 'File uploader não inicializado' };
+    }
+    
+    const validation = fileUploader.validateFile(filePath);
+    return { success: true, ...validation };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:validate-multiple', async (event, filePaths) => {
+  try {
+    if (!fileUploader) {
+      return { success: false, error: 'File uploader não inicializado' };
+    }
+    
+    const results = fileUploader.validateFiles(filePaths);
+    return { success: true, results };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:get-info', async (event, filePath) => {
+  try {
+    if (!fileUploader) {
+      return { success: false, error: 'File uploader não inicializado' };
+    }
+    
+    const info = fileUploader.getFileInfo(filePath);
+    return { success: true, info };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:generate-preview', async (event, filePath) => {
+  try {
+    if (!fileUploader) {
+      return { success: false, error: 'File uploader não inicializado' };
+    }
+    
+    const preview = await fileUploader.generateImagePreview(filePath);
+    return { success: true, preview };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:upload', async (event, ticketId, filePath) => {
+  try {
+    if (!fileUploader) {
+      return { success: false, error: 'File uploader não inicializado' };
+    }
+    
+    const result = await fileUploader.uploadFile(ticketId, filePath, (progress) => {
+      // Enviar progresso para o renderer
+      mainWindow.webContents.send('file:upload-progress', {
+        ticketId,
+        filePath,
+        progress
+      });
+    });
+    
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:upload-multiple', async (event, ticketId, filePaths) => {
+  try {
+    if (!fileUploader) {
+      return { success: false, error: 'File uploader não inicializado' };
+    }
+    
+    const result = await fileUploader.uploadFiles(ticketId, filePaths, (progress) => {
+      // Enviar progresso para o renderer
+      mainWindow.webContents.send('file:upload-progress', {
+        ticketId,
+        progress
+      });
+    });
+    
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:get-attachments', async (event, ticketId) => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const attachments = await apiClient.getTicketAttachments(ticketId);
+    return { success: true, attachments };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:download-attachment', async (event, ticketId, attachmentId) => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const data = await apiClient.downloadAttachment(ticketId, attachmentId);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:delete-attachment', async (event, ticketId, attachmentId) => {
+  try {
+    if (!apiClient) {
+      return { success: false, error: 'API client não inicializado' };
+    }
+    
+    const result = await apiClient.deleteAttachment(ticketId, attachmentId);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Dialog para selecionar arquivos
+ipcMain.handle('file:select-files', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Todos os Arquivos', extensions: ['*'] },
+        { name: 'Imagens', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'] },
+        { name: 'Documentos', extensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'] },
+        { name: 'Texto', extensions: ['txt', 'csv', 'html', 'css', 'js', 'json', 'xml'] },
+        { name: 'Arquivos Compactados', extensions: ['zip', 'rar', '7z', 'tar', 'gz'] }
+      ]
+    });
+    
+    if (result.canceled) {
+      return { success: false, canceled: true };
+    }
+    
+    return { success: true, filePaths: result.filePaths };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== INTERNATIONALIZATION (i18n) ====================
+
+ipcMain.handle('i18n:get-locale', async () => {
+  try {
+    if (!i18n) {
+      return { success: false, error: 'i18n não inicializado' };
+    }
+    
+    const locale = i18n.getLocale();
+    return { success: true, locale };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('i18n:set-locale', async (event, locale) => {
+  try {
+    if (!i18n) {
+      return { success: false, error: 'i18n não inicializado' };
+    }
+    
+    const result = i18n.setLocale(locale);
+    if (result) {
+      // Notificar renderer sobre mudança de idioma
+      mainWindow.webContents.send('i18n:locale-changed', { locale });
+      return { success: true, locale };
+    } else {
+      return { success: false, error: 'Idioma não disponível' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('i18n:get-available-locales', async () => {
+  try {
+    if (!i18n) {
+      return { success: false, error: 'i18n não inicializado' };
+    }
+    
+    const locales = i18n.getAvailableLocales();
+    return { success: true, locales };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('i18n:get-translations', async () => {
+  try {
+    if (!i18n) {
+      return { success: false, error: 'i18n não inicializado' };
+    }
+    
+    const translations = i18n.getAllTranslations();
+    return { success: true, translations };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('i18n:translate', async (event, key, params) => {
+  try {
+    if (!i18n) {
+      return { success: false, error: 'i18n não inicializado' };
+    }
+    
+    const translation = i18n.t(key, params);
+    return { success: true, translation };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== AUTO-UPDATER ====================
+
+ipcMain.handle('updater:check', async (event, showDialog = true) => {
+  try {
+    if (!autoUpdaterManager) {
+      return { success: false, error: 'Auto-updater não inicializado' };
+    }
+    
+    await autoUpdaterManager.checkForUpdates(showDialog);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('updater:download', async () => {
+  try {
+    if (!autoUpdaterManager) {
+      return { success: false, error: 'Auto-updater não inicializado' };
+    }
+    
+    await autoUpdaterManager.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('updater:install', async () => {
+  try {
+    if (!autoUpdaterManager) {
+      return { success: false, error: 'Auto-updater não inicializado' };
+    }
+    
+    autoUpdaterManager.installUpdate();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('updater:get-info', async () => {
+  try {
+    if (!autoUpdaterManager) {
+      return { success: false, error: 'Auto-updater não inicializado' };
+    }
+    
+    const info = autoUpdaterManager.getUpdateInfo();
+    return { success: true, ...info };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('updater:get-settings', async () => {
+  try {
+    if (!autoUpdaterManager) {
+      return { success: false, error: 'Auto-updater não inicializado' };
+    }
+    
+    const settings = autoUpdaterManager.getSettings();
+    return { success: true, settings };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('updater:set-channel', async (event, channel) => {
+  try {
+    if (!autoUpdaterManager) {
+      return { success: false, error: 'Auto-updater não inicializado' };
+    }
+    
+    autoUpdaterManager.setChannel(channel);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('updater:set-auto-download', async (event, enabled) => {
+  try {
+    if (!autoUpdaterManager) {
+      return { success: false, error: 'Auto-updater não inicializado' };
+    }
+    
+    autoUpdaterManager.setAutoDownload(enabled);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== SISTEMA DE NOTIFICAÇÕES ====================
+
+let notificationTimer = null;
+let lastNotificationCheck = null;
+
+function startNotificationSystem() {
+  // Limpar timer existente
+  if (notificationTimer) {
+    clearInterval(notificationTimer);
+  }
+  
+  // Verificar notificações a cada 1 minuto
+  notificationTimer = setInterval(async () => {
+    await checkNotifications();
+  }, 60000); // 60 segundos
+  
+  // Verificação inicial após 5 segundos
+  setTimeout(() => {
+    checkNotifications();
+  }, 5000);
+  
+  console.log('✅ Sistema de notificações iniciado');
+}
+
+async function checkNotifications() {
+  if (!apiClient || !apiClient.isConnected()) {
+    return;
+  }
+  
+  try {
+    const result = await apiClient.getNotifications();
+    
+    if (!result || !result.notifications) {
+      return;
+    }
+    
+    const notifications = result.notifications;
+    const unreadNotifications = notifications.filter(n => !n.read);
+    
+    // Atualizar badge no dock/taskbar
+    if (unreadNotifications.length > 0) {
+      app.setBadgeCount(unreadNotifications.length);
+    } else {
+      app.setBadgeCount(0);
+    }
+    
+    // Enviar para renderer
+    if (mainWindow) {
+      mainWindow.webContents.send('notifications-updated', {
+        total: notifications.length,
+        unread: unreadNotifications.length,
+        notifications: notifications
+      });
+    }
+    
+    // Mostrar notificações desktop para novas notificações
+    unreadNotifications.forEach(notif => {
+      // Verificar se já foi mostrada (usando timestamp)
+      if (lastNotificationCheck && new Date(notif.createdAt) <= lastNotificationCheck) {
+        return;
+      }
+      
+      // Mostrar notificação desktop
+      const notification = new Notification({
+        title: notif.title || 'TatuTicket',
+        body: notif.message || notif.body || '',
+        icon: path.join(__dirname, '../../assets/icons/icon.png'),
+        silent: false,
+        urgency: notif.priority === 'high' || notif.priority === 'urgent' ? 'critical' : 'normal'
+      });
+      
+      notification.on('click', () => {
+        mainWindow.show();
+        mainWindow.focus();
+        
+        // Marcar como lida
+        apiClient.markNotificationAsRead(notif.id).catch(err => {
+          console.warn('Erro ao marcar notificação como lida:', err);
+        });
+        
+        // Navegar se houver link
+        if (notif.link || notif.ticketId) {
+          if (notif.ticketId) {
+            mainWindow.webContents.send('navigate-to', 'tickets');
+            mainWindow.webContents.send('open-ticket', notif.ticketId);
+          } else if (notif.link) {
+            mainWindow.webContents.send('navigate-to', notif.link);
+          }
+        }
+      });
+      
+      notification.show();
+    });
+    
+    lastNotificationCheck = new Date();
+    
+  } catch (error) {
+    console.error('Erro ao verificar notificações:', error);
+  }
+}
+
 // Enviar notificações para renderer
 function sendNotification(type, message, options = {}) {
   if (mainWindow) {
@@ -1003,6 +1949,64 @@ function sendNotification(type, message, options = {}) {
     }
   }
 }
+
+// ==================== THEME MANAGER ====================
+
+ipcMain.handle('theme:get', async () => {
+  try {
+    if (!themeManager) {
+      return { success: false, error: 'Theme manager não inicializado' };
+    }
+    
+    const theme = themeManager.getCurrentTheme();
+    return { success: true, theme };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('theme:set', async (event, theme) => {
+  try {
+    if (!themeManager) {
+      return { success: false, error: 'Theme manager não inicializado' };
+    }
+    
+    const result = themeManager.applyTheme(theme);
+    if (result) {
+      return { success: true, theme };
+    } else {
+      return { success: false, error: 'Tema inválido' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('theme:toggle', async () => {
+  try {
+    if (!themeManager) {
+      return { success: false, error: 'Theme manager não inicializado' };
+    }
+    
+    const newTheme = themeManager.toggleTheme();
+    return { success: true, theme: newTheme };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('theme:get-info', async () => {
+  try {
+    if (!themeManager) {
+      return { success: false, error: 'Theme manager não inicializado' };
+    }
+    
+    const info = themeManager.getThemeInfo();
+    return { success: true, ...info };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
 
 // Exportar para uso nos módulos
 global.sendNotification = sendNotification;

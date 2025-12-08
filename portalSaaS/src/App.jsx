@@ -28,10 +28,10 @@ function App() {
 
   return (
     <div className="App">
-      <Toaster position="top-right" />
-      <BrowserRouter future={{ 
+      <Toaster position="top-right" containerStyle={{ zIndex: 99999 }} />
+      <BrowserRouter future={{
         v7_startTransition: true,
-        v7_relativeSplatPath: true 
+        v7_relativeSplatPath: true
       }}>
         <Routes>
           {/* Public Routes with Layout */}

@@ -2,7 +2,8 @@ const axios = require('axios');
 
 class ApiClient {
   constructor(serverUrl, token) {
-    this.serverUrl = serverUrl;
+    // Remove /api do final se existir para evitar duplicação
+    this.serverUrl = serverUrl ? serverUrl.replace(/\/api\/?$/, '') : serverUrl;
     this.token = token;
     this.connected = false;
     this.client = null;
@@ -52,7 +53,8 @@ class ApiClient {
   }
 
   updateConfig(serverUrl, token) {
-    this.serverUrl = serverUrl;
+    // Remove /api do final se existir para evitar duplicação
+    this.serverUrl = serverUrl ? serverUrl.replace(/\/api\/?$/, '') : serverUrl;
     this.token = token;
     this.setupClient();
   }
@@ -170,6 +172,208 @@ class ApiClient {
       return response.data;
     } catch (error) {
       // Não logar erro de heartbeat para não poluir console
+      throw error;
+    }
+  }
+
+  // ==================== PERFIL DO USUÁRIO ====================
+  
+  async getUserProfile() {
+    try {
+      const response = await this.client.get('/api/auth/profile');
+      console.log('✅ Perfil do usuário obtido:', response.data.user);
+      return response.data.user;
+    } catch (error) {
+      console.error('❌ Erro ao obter perfil do usuário:', error.message);
+      throw error;
+    }
+  }
+
+  // ==================== CATÁLOGO DE SERVIÇOS ====================
+  
+  async getCatalogCategories() {
+    try {
+      const response = await this.client.get('/api/catalog/categories');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao obter categorias do catálogo:', error.message);
+      throw error;
+    }
+  }
+
+  async getCatalogItems(categoryId = null) {
+    try {
+      const params = categoryId ? { categoryId } : {};
+      const response = await this.client.get('/api/catalog/items', { params });
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao obter itens do catálogo:', error.message);
+      throw error;
+    }
+  }
+
+  async requestCatalogItem(itemId, data) {
+    try {
+      const response = await this.client.post('/api/catalog/requests', {
+        catalogItemId: itemId,
+        ...data
+      });
+      console.log('✅ Item do catálogo solicitado:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao solicitar item do catálogo:', error.message);
+      throw error;
+    }
+  }
+
+  // ==================== BASE DE CONHECIMENTO ====================
+  
+  async getKnowledgeArticles(filters = {}) {
+    try {
+      const response = await this.client.get('/api/knowledge', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao obter artigos da base de conhecimento:', error.message);
+      throw error;
+    }
+  }
+
+  async getKnowledgeArticle(id) {
+    try {
+      const response = await this.client.get(`/api/knowledge/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao obter artigo da base de conhecimento:', error.message);
+      throw error;
+    }
+  }
+
+  async incrementArticleViews(id) {
+    try {
+      const response = await this.client.post(`/api/knowledge/${id}/view`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao incrementar visualizações do artigo:', error.message);
+      throw error;
+    }
+  }
+
+  // ==================== NOTIFICAÇÕES ====================
+  
+  async getNotifications() {
+    try {
+      const response = await this.client.get('/api/notifications');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao obter notificações:', error.message);
+      throw error;
+    }
+  }
+
+  async markNotificationAsRead(id) {
+    try {
+      const response = await this.client.patch(`/api/notifications/${id}/read`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao marcar notificação como lida:', error.message);
+      throw error;
+    }
+  }
+
+  // ==================== ESTATÍSTICAS ====================
+  
+  async getTicketStatistics() {
+    try {
+      const response = await this.client.get('/api/tickets/statistics');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao obter estatísticas de tickets:', error.message);
+      throw error;
+    }
+  }
+
+  // ==================== UPLOAD DE ANEXOS ====================
+
+  /**
+   * Faz upload de anexo para um ticket
+   * @param {string} ticketId - ID do ticket
+   * @param {object} uploadData - Dados do upload (fileName, fileSize, mimeType, data)
+   * @param {function} onProgress - Callback de progresso
+   * @returns {Promise<object>} Resultado do upload
+   */
+  async uploadAttachment(ticketId, uploadData, onProgress = null) {
+    try {
+      const response = await this.client.post(
+        `/api/tickets/${ticketId}/attachments`,
+        uploadData,
+        {
+          onUploadProgress: (progressEvent) => {
+            if (onProgress) {
+              const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              onProgress({
+                loaded: progressEvent.loaded,
+                total: progressEvent.total,
+                percent
+              });
+            }
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao fazer upload de anexo:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Lista anexos de um ticket
+   * @param {string} ticketId - ID do ticket
+   * @returns {Promise<array>} Lista de anexos
+   */
+  async getTicketAttachments(ticketId) {
+    try {
+      const response = await this.client.get(`/api/tickets/${ticketId}/attachments`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao listar anexos:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Baixa um anexo
+   * @param {string} ticketId - ID do ticket
+   * @param {string} attachmentId - ID do anexo
+   * @returns {Promise<object>} Dados do anexo
+   */
+  async downloadAttachment(ticketId, attachmentId) {
+    try {
+      const response = await this.client.get(
+        `/api/tickets/${ticketId}/attachments/${attachmentId}`,
+        { responseType: 'arraybuffer' }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao baixar anexo:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove um anexo
+   * @param {string} ticketId - ID do ticket
+   * @param {string} attachmentId - ID do anexo
+   * @returns {Promise<object>} Resultado da remoção
+   */
+  async deleteAttachment(ticketId, attachmentId) {
+    try {
+      const response = await this.client.delete(
+        `/api/tickets/${ticketId}/attachments/${attachmentId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao remover anexo:', error.message);
       throw error;
     }
   }

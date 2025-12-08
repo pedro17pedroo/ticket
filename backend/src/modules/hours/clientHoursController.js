@@ -1,21 +1,21 @@
 import { HoursBank, HoursTransaction } from './hoursBankModel.js';
-import { User } from '../models/index.js';
+import { Client, OrganizationUser } from '../models/index.js';
 
 // GET /api/client/hours-banks - Cliente ver suas bolsas de horas
 export const getClientHoursBanks = async (req, res, next) => {
   try {
     const organizationId = req.user.organizationId;
-    const userId = req.user.id;
+    const clientId = req.user.clientId;
 
     const hoursBanks = await HoursBank.findAll({
       where: {
         organizationId,
-        clientId: userId,
+        clientId,
         isActive: true
       },
       include: [
         {
-          model: User,
+          model: Client,
           as: 'client',
           attributes: ['id', 'name', 'email']
         }
@@ -56,17 +56,17 @@ export const getClientHoursBankById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
-    const userId = req.user.id;
+    const clientId = req.user.clientId;
 
     const hoursBank = await HoursBank.findOne({
       where: {
         id,
         organizationId,
-        clientId: userId
+        clientId
       },
       include: [
         {
-          model: User,
+          model: Client,
           as: 'client',
           attributes: ['id', 'name', 'email', 'phone']
         }
@@ -96,14 +96,14 @@ export const getClientHoursBankTransactions = async (req, res, next) => {
     const { page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
     const organizationId = req.user.organizationId;
-    const userId = req.user.id;
+    const clientId = req.user.clientId;
 
     // Verificar se a bolsa pertence ao cliente
     const hoursBank = await HoursBank.findOne({
       where: {
         id,
         organizationId,
-        clientId: userId
+        clientId
       }
     });
 
@@ -119,9 +119,10 @@ export const getClientHoursBankTransactions = async (req, res, next) => {
       where: { hoursBankId: id },
       include: [
         {
-          model: User,
-          as: 'performedBy',
-          attributes: ['id', 'name', 'email']
+          model: OrganizationUser,
+          as: 'performedByOrgUser',
+          attributes: ['id', 'name', 'email'],
+          required: false
         }
       ],
       limit: parseInt(limit),
@@ -149,7 +150,7 @@ export const getClientAllTransactions = async (req, res, next) => {
     const { page = 1, limit = 50, type } = req.query;
     const offset = (page - 1) * limit;
     const organizationId = req.user.organizationId;
-    const userId = req.user.id;
+    const clientId = req.user.clientId;
 
     const where = {};
     if (type) where.type = type;
@@ -162,19 +163,20 @@ export const getClientAllTransactions = async (req, res, next) => {
           as: 'hoursBank',
           where: {
             organizationId,
-            clientId: userId
+            clientId
           },
           attributes: ['id', 'packageType'],
           include: [{
-            model: User,
+            model: Client,
             as: 'client',
             attributes: ['id', 'name']
           }]
         },
         {
-          model: User,
-          as: 'performedBy',
-          attributes: ['id', 'name', 'email']
+          model: OrganizationUser,
+          as: 'performedByOrgUser',
+          attributes: ['id', 'name', 'email'],
+          required: false
         }
       ],
       limit: parseInt(limit),

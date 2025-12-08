@@ -43,7 +43,7 @@ export const getCatalogCategories = async (req, res, next) => {
 
     // Listar plano
     const where = { organizationId: req.user.organizationId };
-    
+
     if (includeInactive !== 'true') {
       where.isActive = true;
     }
@@ -429,7 +429,7 @@ export const createCatalogItem = async (req, res, next) => {
 
     // Converter strings vazias em null para campos UUID
     const cleanUUID = (value) => value === '' || value === undefined ? null : value;
-    
+
     // Converter strings vazias em null para campos numéricos
     const cleanNumeric = (value) => {
       if (value === '' || value === undefined || value === null) return null;
@@ -509,7 +509,7 @@ export const updateCatalogItem = async (req, res, next) => {
 
     // Converter strings vazias em null para campos UUID
     const cleanUUID = (value) => value === '' || value === undefined ? null : value;
-    
+
     // Converter strings vazias em null para campos numéricos
     const cleanNumeric = (value) => {
       if (value === '' || value === undefined || value === null) return null;
@@ -520,7 +520,7 @@ export const updateCatalogItem = async (req, res, next) => {
     const uuidFields = [
       'priorityId', 'typeId', 'slaId', 'defaultTicketCategoryId', 'defaultApproverId',
       'defaultDirectionId', 'defaultDepartmentId', 'defaultSectionId',
-      'defaultWorkflowId', 'incidentWorkflowId', 'defaultAgentId', 
+      'defaultWorkflowId', 'incidentWorkflowId', 'defaultAgentId',
       'imageUrl', 'assignedDepartmentId'
     ];
 
@@ -529,7 +529,7 @@ export const updateCatalogItem = async (req, res, next) => {
         updates[field] = cleanUUID(updates[field]);
       }
     });
-    
+
     // Sanitizar campos numéricos
     const numericFields = ['estimatedCost', 'estimatedDeliveryTime'];
     numericFields.forEach(field => {
@@ -603,9 +603,9 @@ export const deleteCatalogItem = async (req, res, next) => {
  */
 export const createServiceRequest = async (req, res, next) => {
   try {
-    const { 
-      catalogItemId, 
-      formData, 
+    const {
+      catalogItemId,
+      formData,
       userProvidedPriority,
       additionalDetails,
       userPriority,
@@ -613,7 +613,7 @@ export const createServiceRequest = async (req, res, next) => {
       attachments,
       clientWatchers // Novos watchers do cliente
     } = req.body;
-    
+
     console.log('📥 Request body recebido:', req.body);
     console.log('📋 catalogItemId:', catalogItemId);
     console.log('📝 formData:', formData);
@@ -630,7 +630,7 @@ export const createServiceRequest = async (req, res, next) => {
         error: 'catalogItemId é obrigatório'
       });
     }
-    
+
     // formData pode ser um objeto vazio {} se não houver custom fields
     if (formData === undefined || formData === null) {
       console.log('❌ Validação falhou - formData ausente');
@@ -639,19 +639,22 @@ export const createServiceRequest = async (req, res, next) => {
       });
     }
 
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+
     // Usar o service para aplicar regras de negócio
     const result = await catalogService.createServiceRequest(
       catalogItemId,
       req.user.id,
       formData,
       req.user.organizationId,
-      { 
+      {
         userProvidedPriority,
         additionalDetails,
         userPriority,
         expectedResolutionTime,
         attachments,
-        clientWatchers // Incluir watchers
+        clientWatchers, // Incluir watchers
+        isClientUser // Flag para indicar se é usuário cliente
       }
     );
 
@@ -708,21 +711,18 @@ export const getServiceRequests = async (req, res, next) => {
 
       if (!clientId) {
         logger.error(`[getServiceRequests] Usuário cliente sem clientId! userId: ${req.user.id}`);
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Usuário sem empresa cliente associada' 
+        return res.status(400).json({
+          success: false,
+          error: 'Usuário sem empresa cliente associada'
         });
       }
 
-      // Filtrar por userId do solicitante que pertence ao mesmo clientId
-      include.push({
-        model: User,
-        as: 'user',
-        attributes: ['id', 'name', 'clientId'],
-        where: { clientId: clientId },
-        required: true
-      });
-      logger.info(`[getServiceRequests] Aplicando filtro por clientId: ${clientId}`);
+      // Para usuários clientes, filtrar apenas as suas próprias solicitações
+      // ou solicitações da sua empresa se for admin (futuro)
+      // Por enquanto, assumindo "Minhas Solicitações" = apenas do usuário logado
+      where.clientUserId = req.user.id;
+
+      logger.info(`[getServiceRequests] Filtrando por clientUserId: ${req.user.id}`);
     }
 
     if (status) {
@@ -744,12 +744,12 @@ export const getServiceRequests = async (req, res, next) => {
     });
 
     logger.info(`[getServiceRequests] Total de solicitações encontradas: ${requests.length}`);
-    
+
     // Contar solicitações por status e quantas têm ticket
     const statusCount = {};
     let withTicket = 0;
     let withoutTicket = 0;
-    
+
     requests.forEach(req => {
       statusCount[req.status] = (statusCount[req.status] || 0) + 1;
       if (req.ticketId) {
@@ -758,10 +758,10 @@ export const getServiceRequests = async (req, res, next) => {
         withoutTicket++;
       }
     });
-    
+
     logger.info(`[getServiceRequests] Status das solicitações:`, statusCount);
     logger.info(`[getServiceRequests] Com ticket: ${withTicket}, Sem ticket: ${withoutTicket}`);
-    
+
     if (requests.length > 0) {
       logger.info(`[getServiceRequests] Primeira solicitação:`, {
         id: requests[0].id,
@@ -832,12 +832,12 @@ export const getServiceRequestById = async (req, res, next) => {
       }
     ];
 
-    // Clientes só veem solicitações da sua própria empresa cliente
+    // Clientes só veem solicitações criadas por eles mesmos
     const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
     if (isClientUser) {
-      // Adicionar filtro de clientId no include do User
-      include[1].where = { clientId: req.user.clientId };
-      include[1].required = true;
+      // Filtrar por clientUserId diretamente no ServiceRequest
+      where.clientUserId = req.user.id;
+      logger.info(`[getServiceRequestById] Filtrando por clientUserId: ${req.user.id}`);
     }
 
     const request = await ServiceRequest.findOne({
@@ -854,7 +854,7 @@ export const getServiceRequestById = async (req, res, next) => {
 
     // Serializar corretamente os dados e mapear 'user' para 'requester'
     const plain = request.get({ plain: true });
-    
+
     // Parsear formData se for string JSON
     let formData = plain.formData;
     if (typeof formData === 'string') {
@@ -864,7 +864,7 @@ export const getServiceRequestById = async (req, res, next) => {
         // Se não for JSON válido, manter como string
       }
     }
-    
+
     const serializedRequest = {
       ...plain,
       requester: plain.user, // Mapear user para requester
@@ -943,7 +943,7 @@ export const approveServiceRequest = async (req, res, next) => {
       if (serviceRequest.ticketId) {
         const { Ticket } = await import('../models/index.js');
         await Ticket.update(
-          { 
+          {
             status: 'fechado',
             resolution: `Solicitação rejeitada: ${comments || 'Sem motivo informado'}`
           },
@@ -959,7 +959,7 @@ export const approveServiceRequest = async (req, res, next) => {
     if (serviceRequest.ticketId) {
       const { Ticket } = await import('../models/index.js');
       const ticket = await Ticket.findByPk(serviceRequest.ticketId);
-      
+
       if (ticket) {
         if (approved) {
           notificationService.notifyTicketApproved(ticket, req.user.id, req.user.name)
@@ -1031,7 +1031,8 @@ export const getPortalCategoryItems = async (req, res, next) => {
       req.user.organizationId,
       {
         categoryId,
-        includeInactive: false
+        includeInactive: false,
+        recursive: false
       }
     );
 
@@ -1224,10 +1225,10 @@ export const getAnalytics = async (req, res, next) => {
       const date = new Date();
       date.setDate(date.getDate() - i);
       date.setHours(0, 0, 0, 0);
-      
+
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
-      
+
       const count = await ServiceRequest.count({
         where: {
           organization_id: req.user.organizationId,
@@ -1237,7 +1238,7 @@ export const getAnalytics = async (req, res, next) => {
           }
         }
       });
-      
+
       last7Days.push({
         date: date.toISOString().split('T')[0],
         count
@@ -1248,12 +1249,12 @@ export const getAnalytics = async (req, res, next) => {
     const totalProcessed = requestsByStatus
       .filter(r => r.status === 'approved' || r.status === 'rejected')
       .reduce((sum, r) => sum + parseInt(r.count), 0);
-    
+
     const totalApproved = requestsByStatus
       .find(r => r.status === 'approved')?.count || 0;
-    
-    const approvalRate = totalProcessed > 0 
-      ? Math.round((totalApproved / totalProcessed) * 100) 
+
+    const approvalRate = totalProcessed > 0
+      ? Math.round((totalApproved / totalProcessed) * 100)
       : 0;
 
     // Tempo médio de resolução (considerando tickets associados que foram fechados)

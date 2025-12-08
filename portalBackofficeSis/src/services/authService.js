@@ -2,8 +2,9 @@ import api from './api';
 
 export const authService = {
   async loginProvider(email, password) {
+    // Modo PRODUÇÃO - Usar backend real
     try {
-      const { data } = await api.post('/auth/login-provider', { email, password });
+      const { data } = await api.post('/auth/login', { email, password, portalType: 'provider' });
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       return data;

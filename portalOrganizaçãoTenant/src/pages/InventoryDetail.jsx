@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as inventoryService from '../services/inventoryService';
+import { confirmDelete } from '../utils/alerts';
 
 const InventoryDetail = () => {
   const { id } = useParams();
@@ -50,7 +51,11 @@ const InventoryDetail = () => {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Tem certeza que deseja deletar este asset?')) return;
+    const confirmed = await confirmDelete(
+      'Deletar asset?',
+      'Tem certeza que deseja deletar este asset?'
+    )
+    if (!confirmed) return;
 
     try {
       await inventoryService.deleteAsset(id);
@@ -63,7 +68,11 @@ const InventoryDetail = () => {
   };
 
   const handleUnassignLicense = async (licenseId) => {
-    if (!confirm('Deseja desatribuir esta licença?')) return;
+    const confirmed = await confirmDelete(
+      'Desatribuir licença?',
+      'Deseja desatribuir esta licença?'
+    )
+    if (!confirmed) return;
 
     try {
       await inventoryService.unassignLicense(licenseId, id);
@@ -92,7 +101,7 @@ const InventoryDetail = () => {
   }
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'inactive': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       case 'maintenance': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
@@ -162,11 +171,10 @@ const InventoryDetail = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 px-1 border-b-2 font-medium transition-colors ${
-                activeTab === tab.id
+              className={`pb-3 px-1 border-b-2 font-medium transition-colors ${activeTab === tab.id
                   ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -209,7 +217,7 @@ const InventoryDetail = () => {
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Última Visto</p>
                     <p className="font-medium mt-1">
-                      {asset.lastSeen 
+                      {asset.lastSeen
                         ? new Date(asset.lastSeen).toLocaleString('pt-PT')
                         : '-'
                       }
@@ -485,7 +493,7 @@ const InventoryDetail = () => {
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Data de Compra</p>
                     <p className="font-medium mt-1">
-                      {asset.purchaseDate 
+                      {asset.purchaseDate
                         ? new Date(asset.purchaseDate).toLocaleDateString('pt-PT')
                         : '-'
                       }
@@ -494,7 +502,7 @@ const InventoryDetail = () => {
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Garantia Expira</p>
                     <p className="font-medium mt-1">
-                      {asset.warrantyExpiry 
+                      {asset.warrantyExpiry
                         ? new Date(asset.warrantyExpiry).toLocaleDateString('pt-PT')
                         : '-'
                       }

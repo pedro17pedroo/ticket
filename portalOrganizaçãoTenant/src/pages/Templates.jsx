@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, FileText, X, Save, Mail, FolderOpen, Settings } fr
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
+import { confirmDelete } from '../utils/alerts';
 
 const Templates = () => {
   const [templates, setTemplates] = useState([]);
@@ -61,7 +62,11 @@ const Templates = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Deseja realmente eliminar este template?')) return;
+    const confirmed = await confirmDelete(
+      'Eliminar template?',
+      'Deseja realmente eliminar este template?'
+    )
+    if (!confirmed) return;
     try {
       await api.delete(`/templates/${id}`);
       toast.success('Template eliminado');
@@ -197,7 +202,7 @@ const Templates = () => {
       {/* Modal */}
       <Modal isOpen={showModal} onClose={handleCloseModal}>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
-          
+
           {/* Header com gradiente */}
           <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
             <div className="flex items-center justify-between">
@@ -207,7 +212,7 @@ const Templates = () => {
                   {editingTemplate ? 'Editar Template' : 'Novo Template'}
                 </h2>
                 <p className="text-primary-100 text-sm mt-1">
-                  {editingTemplate 
+                  {editingTemplate
                     ? 'Atualize o template de resposta rápida'
                     : 'Crie um novo template para agilizar o atendimento'
                   }
@@ -222,7 +227,7 @@ const Templates = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Scrollable Content */}
           <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
             <div className="bg-gray-50 dark:bg-gray-900 p-6">
@@ -233,7 +238,7 @@ const Templates = () => {
                     <Mail className="w-5 h-5 text-primary-500" />
                     Conteúdo do Template
                   </h3>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome do Template *</label>
                     <input
@@ -277,7 +282,7 @@ const Templates = () => {
                     <FolderOpen className="w-5 h-5 text-primary-500" />
                     Organização
                   </h3>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Categoria <span className="text-xs text-gray-500">(opcional)</span></label>
                     <select
@@ -302,7 +307,7 @@ const Templates = () => {
                     <Settings className="w-5 h-5 text-primary-500" />
                     Configurações de Visibilidade
                   </h3>
-                  
+
                   <label className="flex items-center gap-3 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <input
                       type="checkbox"
@@ -313,8 +318,8 @@ const Templates = () => {
                     <div className="flex-1">
                       <span className="font-medium">Público</span>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {formData.isPublic 
-                          ? 'Visível para todos os membros da organização' 
+                        {formData.isPublic
+                          ? 'Visível para todos os membros da organização'
                           : 'Apenas visível para você'
                         }
                       </p>
@@ -325,7 +330,7 @@ const Templates = () => {
               </form>
             </div>
           </div>
-          
+
           {/* Footer fixo com botões */}
           <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
             <div className="flex gap-3">

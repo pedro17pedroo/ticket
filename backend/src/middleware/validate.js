@@ -257,7 +257,7 @@ export const schemas = {
     role: Joi.string().valid(
       'super-admin',
       'provider-admin',
-      'admin-org',
+      'org-admin',
       'tenant-admin',
       'tenant-manager',
       'agent',
@@ -277,7 +277,7 @@ export const schemas = {
     role: Joi.string().valid(
       'super-admin',
       'provider-admin',
-      'admin-org',
+      'org-admin',
       'tenant-admin',
       'tenant-manager',
       'agent',

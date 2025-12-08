@@ -73,6 +73,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   rejectRemoteAccess: (requestId, reason) => ipcRenderer.invoke('remote-access:reject', requestId, reason),
   endRemoteAccess: (requestId) => ipcRenderer.invoke('remote-access:end', requestId),
   
+  // ============ CATÁLOGO DE SERVIÇOS ============
+  
+  getCatalogCategories: () => ipcRenderer.invoke('catalog:get-categories'),
+  getCatalogItems: (categoryId) => ipcRenderer.invoke('catalog:get-items', categoryId),
+  requestCatalogItem: (itemId, data) => ipcRenderer.invoke('catalog:request-item', itemId, data),
+  
+  // ============ BASE DE CONHECIMENTO ============
+  
+  getKnowledgeArticles: (filters) => ipcRenderer.invoke('knowledge:get-articles', filters),
+  getKnowledgeArticle: (id) => ipcRenderer.invoke('knowledge:get-article', id),
+  incrementArticleViews: (id) => ipcRenderer.invoke('knowledge:increment-views', id),
+  
+  // ============ NOTIFICAÇÕES ============
+  
+  getNotifications: () => ipcRenderer.invoke('notifications:get'),
+  markNotificationAsRead: (id) => ipcRenderer.invoke('notifications:mark-read', id),
+  
+  // ============ ESTATÍSTICAS ============
+  
+  getTicketStatistics: () => ipcRenderer.invoke('tickets:get-statistics'),
+  
   // ============ EVENTOS ============
   
   onNotification: (callback) => {
@@ -110,6 +131,82 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   onUnreadCountChanged: (callback) => {
     ipcRenderer.on('unread-count-changed', (event, count) => callback(count));
+  },
+  
+  onNotificationsUpdated: (callback) => {
+    ipcRenderer.on('notifications-updated', (event, data) => callback(data));
+  },
+  
+  // ==================== OFFLINE QUEUE ====================
+  
+  offlineQueueAdd: (action, data, metadata) => ipcRenderer.invoke('offline-queue:add', action, data, metadata),
+  offlineQueueProcess: () => ipcRenderer.invoke('offline-queue:process'),
+  offlineQueueGetStats: () => ipcRenderer.invoke('offline-queue:get-stats'),
+  offlineQueueGetAll: () => ipcRenderer.invoke('offline-queue:get-all'),
+  offlineQueueClearFailed: () => ipcRenderer.invoke('offline-queue:clear-failed'),
+  offlineQueueClearAll: () => ipcRenderer.invoke('offline-queue:clear-all'),
+  
+  // ==================== CONNECTION STATUS ====================
+  
+  connectionGetStatus: () => ipcRenderer.invoke('connection:get-status'),
+  connectionCheckNow: () => ipcRenderer.invoke('connection:check-now'),
+  
+  onConnectionStatus: (callback) => {
+    ipcRenderer.on('connection-status', (event, data) => callback(data));
+  },
+  
+  // ==================== UPLOAD DE ARQUIVOS ====================
+  
+  fileValidate: (filePath) => ipcRenderer.invoke('file:validate', filePath),
+  fileValidateMultiple: (filePaths) => ipcRenderer.invoke('file:validate-multiple', filePaths),
+  fileGetInfo: (filePath) => ipcRenderer.invoke('file:get-info', filePath),
+  fileGeneratePreview: (filePath) => ipcRenderer.invoke('file:generate-preview', filePath),
+  fileUpload: (ticketId, filePath) => ipcRenderer.invoke('file:upload', ticketId, filePath),
+  fileUploadMultiple: (ticketId, filePaths) => ipcRenderer.invoke('file:upload-multiple', ticketId, filePaths),
+  fileGetAttachments: (ticketId) => ipcRenderer.invoke('file:get-attachments', ticketId),
+  fileDownloadAttachment: (ticketId, attachmentId) => ipcRenderer.invoke('file:download-attachment', ticketId, attachmentId),
+  fileDeleteAttachment: (ticketId, attachmentId) => ipcRenderer.invoke('file:delete-attachment', ticketId, attachmentId),
+  fileSelectFiles: () => ipcRenderer.invoke('file:select-files'),
+  
+  onFileUploadProgress: (callback) => {
+    ipcRenderer.on('file:upload-progress', (event, data) => callback(data));
+  },
+  
+  // ==================== INTERNATIONALIZATION (i18n) ====================
+  
+  i18nGetLocale: () => ipcRenderer.invoke('i18n:get-locale'),
+  i18nSetLocale: (locale) => ipcRenderer.invoke('i18n:set-locale', locale),
+  i18nGetAvailableLocales: () => ipcRenderer.invoke('i18n:get-available-locales'),
+  i18nGetTranslations: () => ipcRenderer.invoke('i18n:get-translations'),
+  i18nTranslate: (key, params) => ipcRenderer.invoke('i18n:translate', key, params),
+  
+  onLocaleChanged: (callback) => {
+    ipcRenderer.on('i18n:locale-changed', (event, data) => callback(data));
+  },
+  
+  // ==================== AUTO-UPDATER ====================
+  
+  updaterCheck: (showDialog) => ipcRenderer.invoke('updater:check', showDialog),
+  updaterDownload: () => ipcRenderer.invoke('updater:download'),
+  updaterInstall: () => ipcRenderer.invoke('updater:install'),
+  updaterGetInfo: () => ipcRenderer.invoke('updater:get-info'),
+  updaterGetSettings: () => ipcRenderer.invoke('updater:get-settings'),
+  updaterSetChannel: (channel) => ipcRenderer.invoke('updater:set-channel', channel),
+  updaterSetAutoDownload: (enabled) => ipcRenderer.invoke('updater:set-auto-download', enabled),
+  
+  onAutoUpdater: (callback) => {
+    ipcRenderer.on('auto-updater', (event, data) => callback(data));
+  },
+  
+  // ==================== THEME MANAGER ====================
+  
+  themeGet: () => ipcRenderer.invoke('theme:get'),
+  themeSet: (theme) => ipcRenderer.invoke('theme:set', theme),
+  themeToggle: () => ipcRenderer.invoke('theme:toggle'),
+  themeGetInfo: () => ipcRenderer.invoke('theme:get-info'),
+  
+  onThemeChanged: (callback) => {
+    ipcRenderer.on('theme-changed', (event, data) => callback(data));
   },
   
   // Remover listeners

@@ -6,6 +6,30 @@
 
 ## 📋 **Funcionalidades**
 
+### ✅ **Gestão de Tickets** 🆕
+- Visualização de todos os seus tickets
+- Criação de novos tickets
+- Chat em tempo real com suporte
+- Indicadores de SLA visuais
+- Filtros avançados (status, prioridade, busca)
+- Notificações de novas mensagens
+
+### ✅ **Catálogo de Serviços** 🆕
+- Navegação por categorias
+- Busca de serviços e recursos
+- Solicitação com justificativa
+- Indicadores de tempo estimado
+- Indicadores de aprovação necessária
+- Criação automática de ticket
+
+### ✅ **Base de Conhecimento** 🆕
+- Artigos e tutoriais
+- Busca por título, conteúdo e tags
+- Filtros por categoria
+- Contador de visualizações
+- Sistema de feedback (útil/não útil)
+- Acesso offline aos artigos visualizados
+
 ### ✅ **Inventário Automático**
 - Coleta detalhada de hardware e software
 - Sincronização automática periódica
@@ -17,12 +41,14 @@
 - Captura de screenshots
 - Monitoramento em tempo real
 - Sessões seguras via WebSocket
+- Notificações de solicitações de acesso
 
-### ✅ **Interface Simples**
-- Dashboard intuitivo
+### ✅ **Interface Moderna**
+- Dashboard com gráficos e estatísticas
 - Configurações fáceis
 - Notificações visuais
 - System tray integration
+- Design responsivo
 
 ---
 
@@ -281,7 +307,19 @@ Encontrou um bug ou tem uma sugestão?
 
 ## 📝 **Changelog**
 
-### **v1.0.0** (2025-01-26)
+### **v2.0.0 - Fase 1 Completa** (06/12/2024) 🆕
+- ✨ **Catálogo de Serviços** - Solicite recursos de TI
+- ✨ **Base de Conhecimento** - Acesse artigos e tutoriais
+- ✨ **Gestão de Tickets** - Interface completa com chat
+- ✅ 10 novos endpoints do backend consumidos
+- ✅ Indicadores de SLA visuais
+- ✅ Filtros avançados de tickets
+- ✅ Busca em tempo real
+- ✅ Modais responsivos
+- ✅ Loading states em todas as operações
+- 📚 Documentação completa (2,000+ linhas)
+
+### **v1.0.0** (26/01/2025)
 - ✨ Lançamento inicial
 - ✅ Inventário automático completo
 - ✅ Acesso remoto seguro

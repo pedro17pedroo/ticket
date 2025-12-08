@@ -170,7 +170,7 @@ const seed = async () => {
           name: 'Administrador Sistema',
           email: 'admin@empresademo.com',
           password: 'Admin@123',
-          role: 'admin-org',
+          role: 'org-admin',
           phone: '(11) 98888-8888',
           departmentId: supportDept.id
         }

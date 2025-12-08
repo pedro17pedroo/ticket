@@ -31,7 +31,7 @@ router.post(
 );
 router.put(
   '/:id',
-  authorize('admin-org', 'agente'),
+  authorize('org-admin', 'agente'),
   validate(schemas.updateTicket),
   auditLog('ticket_updated', 'ticket'),
   updateTicket

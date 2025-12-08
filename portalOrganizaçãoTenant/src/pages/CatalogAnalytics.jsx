@@ -204,7 +204,9 @@ const CatalogAnalytics = () => {
             <h3 className="font-semibold">Tempo Médio de Aprovação</h3>
           </div>
           <div className="text-3xl font-bold">
-            {stats.summary?.avgApprovalTime ? `${stats.summary.avgApprovalTime}h` : 'N/A'}
+            {stats.summary?.avgApprovalTime ? `${stats.summary.avgApprovalTime}h` : (
+              <span className="text-gray-400 text-xl">Sem dados</span>
+            )}
           </div>
         </div>
 
@@ -215,10 +217,12 @@ const CatalogAnalytics = () => {
           </div>
           <div className="text-3xl font-bold">
             {stats.summary?.avgResolutionTime ? (
-              stats.summary.avgResolutionTime >= 24 
+              stats.summary.avgResolutionTime >= 24
                 ? `${Math.round(stats.summary.avgResolutionTime / 24)} dias`
                 : `${stats.summary.avgResolutionTime}h`
-            ) : 'N/A'}
+            ) : (
+              <span className="text-gray-400 text-xl">Sem dados</span>
+            )}
           </div>
         </div>
 
@@ -228,7 +232,9 @@ const CatalogAnalytics = () => {
             <h3 className="font-semibold">Taxa de Conclusão</h3>
           </div>
           <div className="text-3xl font-bold">
-            {stats.summary?.completionRate !== undefined ? `${stats.summary.completionRate}%` : 'N/A'}
+            {stats.summary?.completionRate !== undefined ? `${stats.summary.completionRate}%` : (
+              <span className="text-gray-400 text-xl">0%</span>
+            )}
           </div>
         </div>
       </div>

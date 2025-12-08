@@ -468,3 +468,351 @@ export const getGlobalStats = async (req, res, next) => {
     next(error);
   }
 };
+
+
+// ==================== PROVIDER USERS ====================
+
+// GET /api/provider/users - Listar usuários Provider
+export const getProviderUsers = async (req, res, next) => {
+  try {
+    const { search, isActive, role, page = 1, limit = 20 } = req.query;
+
+    const where = {
+      role: { [Op.in]: ['super-admin', 'provider-admin'] }
+    };
+
+    if (isActive !== undefined) {
+      where.isActive = isActive === 'true';
+    }
+
+    if (role) {
+      where.role = role;
+    }
+
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows: users } = await User.findAndCountAll({
+      where,
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json({
+      success: true,
+      users,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/provider/users/:id - Obter usuário Provider por ID
+export const getProviderUserById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findOne({
+      where: { 
+        id,
+        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+      },
+      attributes: { exclude: ['password'] }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      user
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/provider/users - Criar usuário Provider
+export const createProviderUser = async (req, res, next) => {
+  try {
+    const { name, email, password, role, phone, department } = req.body;
+
+    // Validações
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome, email e senha são obrigatórios'
+      });
+    }
+
+    // Verificar se email já existe
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email já está em uso'
+      });
+    }
+
+    // Apenas super-admin pode criar outros super-admin
+    if (role === 'super-admin' && req.user.role !== 'super-admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas Super Admin pode criar outros Super Admins'
+      });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password, // O model deve fazer o hash
+      role: role || 'provider-admin',
+      phone,
+      department,
+      isActive: true
+    });
+
+    const { password: _, ...userWithoutPassword } = user.toJSON();
+
+    res.status(201).json({
+      success: true,
+      message: 'Usuário criado com sucesso',
+      user: userWithoutPassword
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/provider/users/:id - Atualizar usuário Provider
+export const updateProviderUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, department, role, isActive } = req.body;
+
+    const user = await User.findOne({
+      where: { 
+        id,
+        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    // Verificar se email já está em uso por outro usuário
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({
+        where: { 
+          email,
+          id: { [Op.ne]: id }
+        }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email já está em uso'
+        });
+      }
+    }
+
+    // Apenas super-admin pode alterar role para super-admin
+    if (role === 'super-admin' && req.user.role !== 'super-admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas Super Admin pode promover para Super Admin'
+      });
+    }
+
+    await user.update({
+      name: name || user.name,
+      email: email || user.email,
+      phone,
+      department,
+      role: role || user.role,
+      isActive: isActive !== undefined ? isActive : user.isActive
+    });
+
+    const { password: _, ...userWithoutPassword } = user.toJSON();
+
+    res.json({
+      success: true,
+      message: 'Usuário atualizado com sucesso',
+      user: userWithoutPassword
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/provider/users/:id - Deletar usuário Provider
+export const deleteProviderUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Não pode deletar a si mesmo
+    if (id === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Você não pode deletar sua própria conta'
+      });
+    }
+
+    const user = await User.findOne({
+      where: { 
+        id,
+        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    // Apenas super-admin pode deletar outros super-admin
+    if (user.role === 'super-admin' && req.user.role !== 'super-admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas Super Admin pode deletar outros Super Admins'
+      });
+    }
+
+    await user.destroy();
+
+    res.json({
+      success: true,
+      message: 'Usuário deletado com sucesso'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/provider/users/:id/toggle-status - Toggle status do usuário
+export const toggleProviderUserStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Não pode desativar a si mesmo
+    if (id === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Você não pode desativar sua própria conta'
+      });
+    }
+
+    const user = await User.findOne({
+      where: { 
+        id,
+        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    await user.update({ isActive: !user.isActive });
+
+    res.json({
+      success: true,
+      message: user.isActive ? 'Usuário ativado' : 'Usuário desativado',
+      isActive: user.isActive
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/provider/users/:id/permissions - Atualizar permissões
+export const updateProviderUserPermissions = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { permissions } = req.body;
+
+    const user = await User.findOne({
+      where: { 
+        id,
+        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    await user.update({ permissions });
+
+    res.json({
+      success: true,
+      message: 'Permissões atualizadas com sucesso'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/provider/users/:id/reset-password - Resetar senha
+export const resetProviderUserPassword = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findOne({
+      where: { 
+        id,
+        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    // Gerar senha temporária
+    const tempPassword = Math.random().toString(36).slice(-8) + 'A1!';
+    
+    await user.update({ password: tempPassword });
+
+    // TODO: Enviar email com nova senha
+
+    res.json({
+      success: true,
+      message: 'Senha resetada com sucesso',
+      tempPassword // Em produção, enviar por email e não retornar aqui
+    });
+  } catch (error) {
+    next(error);
+  }
+};

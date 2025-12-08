@@ -32,39 +32,39 @@ router.get('/unsubscribe/:token',
 // Gerenciamento de Serviços
 router.post('/services',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   statusPageController.createService.bind(statusPageController)
 );
 
 router.put('/services/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   statusPageController.updateService.bind(statusPageController)
 );
 
 // Gerenciamento de Incidentes
 router.post('/incidents',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico']),
+  requireRole(['admin', 'org-admin', 'tecnico']),
   statusPageController.createIncident.bind(statusPageController)
 );
 
 router.put('/incidents/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico']),
+  requireRole(['admin', 'org-admin', 'tecnico']),
   statusPageController.updateIncident.bind(statusPageController)
 );
 
 // Gerenciamento de Manutenções
 router.post('/maintenances',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   statusPageController.createMaintenance.bind(statusPageController)
 );
 
 router.put('/maintenances/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   statusPageController.updateMaintenance.bind(statusPageController)
 );
 

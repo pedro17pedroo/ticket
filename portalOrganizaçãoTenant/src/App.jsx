@@ -58,91 +58,94 @@ function App() {
     >
       <SocketProvider>
         <NotificationProvider>
-          <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10B981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#EF4444',
-              secondary: '#fff',
-            },
-          },
-        }}
-      />
-      
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        
-        <Route
-          path="/*"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/tickets" element={<Tickets />} />
-                  <Route path="/tickets/kanban" element={<TicketsKanban />} />
-                  <Route path="/tickets/new" element={<NewTicket />} />
-                  <Route path="/tickets/:id" element={<TicketDetail />} />
-                  <Route path="/clients" element={<Clients />} />
-                  <Route path="/clients/:id" element={<ClientDetails />} />
-                  <Route path="/users" element={<Users />} />
-                  <Route path="/directions" element={<Directions />} />
-                  <Route path="/departments" element={<Departments />} />
-                  <Route path="/sections" element={<Sections />} />
-                  {/* Rotas antigas (compatibilidade) - podem ser removidas futuramente */}
-                  <Route path="/categories" element={<Categories />} />
-                  <Route path="/slas" element={<SLAs />} />
-                  <Route path="/priorities" element={<Priorities />} />
-                  <Route path="/types" element={<Types />} />
-                  
-                  {/* Rotas novas com prefixo /system/ */}
-                  <Route path="/system/categories" element={<Categories />} />
-                  <Route path="/system/slas" element={<SLAs />} />
-                  <Route path="/system/priorities" element={<Priorities />} />
-                  <Route path="/system/types" element={<Types />} />
-                  <Route path="/system/roles" element={<RoleManagement />} />
-                  
-                  <Route path="/knowledge" element={<Knowledge />} />
-                  <Route path="/hours-bank" element={<HoursBank />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/catalog" element={<ServiceCatalog />} />
-                  <Route path="/catalog/categories" element={<CatalogCategories />} />
-                  <Route path="/catalog/approvals" element={<CatalogApprovals />} />
-                  <Route path="/catalog/analytics" element={<CatalogAnalytics />} />
-                  <Route path="/tags" element={<Tags />} />
-                  <Route path="/templates" element={<Templates />} />
-                  <Route path="/inventory" element={<InventoryDashboard />} />
-                  <Route path="/inventory/organization" element={<OrganizationInventory />} />
-                  <Route path="/inventory/organization/:userId" element={<UserInventoryDetail />} />
-                  <Route path="/inventory/clients" element={<ClientsInventory />} />
-                  <Route path="/inventory/clients/:clientId" element={<ClientInventoryDetail />} />
-                  <Route path="/inventory/clients/:clientId/users/:userId" element={<UserInventoryDetail />} />
-                  <Route path="/inventory/assets" element={<Inventory />} />
-                  <Route path="/inventory/new" element={<AssetForm />} />
-                  <Route path="/inventory/licenses" element={<Licenses />} />
-                  <Route path="/inventory/:id" element={<InventoryDetail />} />
-                  <Route path="/inventory/:id/edit" element={<AssetForm />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-              </Layout>
-            </PrivateRoute>
-          }
-        />
-      </Routes>
+          <Toaster
+            position="top-right"
+            containerStyle={{
+              zIndex: 99999,
+            }}
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#10B981',
+                  secondary: '#fff',
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: '#EF4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+
+          <Routes>
+            <Route path="/login" element={<Login />} />
+
+            <Route
+              path="/*"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/tickets" element={<Tickets />} />
+                      <Route path="/tickets/kanban" element={<TicketsKanban />} />
+                      <Route path="/tickets/new" element={<NewTicket />} />
+                      <Route path="/tickets/:id" element={<TicketDetail />} />
+                      <Route path="/clients" element={<Clients />} />
+                      <Route path="/clients/:id" element={<ClientDetails />} />
+                      <Route path="/users" element={<Users />} />
+                      <Route path="/directions" element={<Directions />} />
+                      <Route path="/departments" element={<Departments />} />
+                      <Route path="/sections" element={<Sections />} />
+                      {/* Rotas antigas (compatibilidade) - podem ser removidas futuramente */}
+                      <Route path="/categories" element={<Categories />} />
+                      <Route path="/slas" element={<SLAs />} />
+                      <Route path="/priorities" element={<Priorities />} />
+                      <Route path="/types" element={<Types />} />
+
+                      {/* Rotas novas com prefixo /system/ */}
+                      <Route path="/system/categories" element={<Categories />} />
+                      <Route path="/system/slas" element={<SLAs />} />
+                      <Route path="/system/priorities" element={<Priorities />} />
+                      <Route path="/system/types" element={<Types />} />
+                      <Route path="/system/roles" element={<RoleManagement />} />
+
+                      <Route path="/knowledge" element={<Knowledge />} />
+                      <Route path="/hours-bank" element={<HoursBank />} />
+                      <Route path="/reports" element={<Reports />} />
+                      <Route path="/catalog" element={<ServiceCatalog />} />
+                      <Route path="/catalog/categories" element={<CatalogCategories />} />
+                      <Route path="/catalog/approvals" element={<CatalogApprovals />} />
+                      <Route path="/catalog/analytics" element={<CatalogAnalytics />} />
+                      <Route path="/tags" element={<Tags />} />
+                      <Route path="/templates" element={<Templates />} />
+                      <Route path="/inventory" element={<InventoryDashboard />} />
+                      <Route path="/inventory/organization" element={<OrganizationInventory />} />
+                      <Route path="/inventory/organization/:userId" element={<UserInventoryDetail />} />
+                      <Route path="/inventory/clients" element={<ClientsInventory />} />
+                      <Route path="/inventory/clients/:clientId" element={<ClientInventoryDetail />} />
+                      <Route path="/inventory/clients/:clientId/users/:userId" element={<UserInventoryDetail />} />
+                      <Route path="/inventory/assets" element={<Inventory />} />
+                      <Route path="/inventory/new" element={<AssetForm />} />
+                      <Route path="/inventory/licenses" element={<Licenses />} />
+                      <Route path="/inventory/:id" element={<InventoryDetail />} />
+                      <Route path="/inventory/:id/edit" element={<AssetForm />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/profile" element={<Profile />} />
+                      <Route path="*" element={<Navigate to="/" />} />
+                    </Routes>
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+          </Routes>
         </NotificationProvider>
       </SocketProvider>
     </Router>

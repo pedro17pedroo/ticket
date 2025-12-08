@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Tag as TagIcon, X, Save, FileText, Palette } from 
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
+import { confirmDelete } from '../utils/alerts';
 
 const Tags = () => {
   const [tags, setTags] = useState([]);
@@ -60,7 +61,11 @@ const Tags = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Deseja realmente eliminar esta tag?')) return;
+    const confirmed = await confirmDelete(
+      'Eliminar tag?',
+      'Deseja realmente eliminar esta tag?'
+    )
+    if (!confirmed) return;
     try {
       await api.delete(`/tags/${id}`);
       toast.success('Tag eliminada');
@@ -162,7 +167,7 @@ const Tags = () => {
       {/* Modal */}
       <Modal isOpen={showModal} onClose={handleCloseModal}>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
-          
+
           {/* Header com gradiente */}
           <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
             <div className="flex items-center justify-between">
@@ -172,7 +177,7 @@ const Tags = () => {
                   {editingTag ? 'Editar Tag' : 'Nova Tag'}
                 </h2>
                 <p className="text-primary-100 text-sm mt-1">
-                  {editingTag 
+                  {editingTag
                     ? 'Atualize as informações da tag'
                     : 'Crie uma nova etiqueta para organizar tickets'
                   }
@@ -187,7 +192,7 @@ const Tags = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Scrollable Content */}
           <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
             <div className="bg-gray-50 dark:bg-gray-900 p-6">
@@ -198,7 +203,7 @@ const Tags = () => {
                     <FileText className="w-5 h-5 text-primary-500" />
                     Informações da Tag
                   </h3>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome da Tag *</label>
                     <input
@@ -229,7 +234,7 @@ const Tags = () => {
                     <Palette className="w-5 h-5 text-primary-500" />
                     Aparência Visual
                   </h3>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cor da Tag *</label>
                     <div className="grid grid-cols-3 gap-2">
@@ -238,11 +243,10 @@ const Tags = () => {
                           key={color.value}
                           type="button"
                           onClick={() => setFormData({ ...formData, color: color.value })}
-                          className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${color.class} ${
-                            formData.color === color.value 
-                              ? 'ring-2 ring-offset-2 ring-primary-500 scale-105 shadow-md' 
+                          className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${color.class} ${formData.color === color.value
+                              ? 'ring-2 ring-offset-2 ring-primary-500 scale-105 shadow-md'
                               : 'hover:scale-105'
-                          }`}
+                            }`}
                         >
                           {color.label}
                         </button>
@@ -255,7 +259,7 @@ const Tags = () => {
               </form>
             </div>
           </div>
-          
+
           {/* Footer fixo com botões */}
           <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
             <div className="flex gap-3">

@@ -14,8 +14,9 @@ export default function Dashboard() {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const data = await tenantService.getStats();
-      setStats(data.stats);
+      const response = await tenantService.getStats();
+      // Backend retorna { success: true, stats: {...} }
+      setStats(response.stats || response);
     } catch (err) {
       setError('Erro ao carregar estatísticas');
       console.error('Erro:', err);

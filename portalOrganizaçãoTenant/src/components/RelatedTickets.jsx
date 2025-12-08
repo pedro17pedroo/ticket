@@ -3,6 +3,7 @@ import { Link2, Plus, X, Search, ExternalLink, AlertCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { confirmDelete } from '../utils/alerts';
 
 const RelatedTickets = ({ ticketId }) => {
   const [relatedTickets, setRelatedTickets] = useState([]);
@@ -30,7 +31,7 @@ const RelatedTickets = ({ ticketId }) => {
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
-    
+
     setSearching(true);
     try {
       const { data } = await api.get('/tickets', {
@@ -65,8 +66,12 @@ const RelatedTickets = ({ ticketId }) => {
   };
 
   const handleRemoveRelationship = async (relationshipId) => {
-    if (!confirm('Deseja remover este relacionamento?')) return;
-    
+    const confirmed = await confirmDelete(
+      'Remover relacionamento?',
+      'Deseja remover este relacionamento?'
+    )
+    if (!confirmed) return;
+
     try {
       await api.delete(`/relationships/${relationshipId}`);
       toast.success('Relacionamento removido');
@@ -167,7 +172,7 @@ const RelatedTickets = ({ ticketId }) => {
       {/* Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div 
+          <div
             className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >

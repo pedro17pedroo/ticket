@@ -1,5 +1,6 @@
-// Configuração
-const SERVER_URL = 'http://localhost:3000';
+// Configuração - A URL do backend é definida no arquivo .env
+// Para alterar, edite: desktop-agent/.env -> BACKEND_URL
+const SERVER_URL = window.BACKEND_URL || 'http://localhost:4003/api';
 
 // Importar componentes
 import { SLAIndicator } from './components/SLAIndicator.js';
@@ -36,6 +37,88 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ============================================
+// SISTEMA DE TEMAS
+// ============================================
+
+/**
+ * Inicializar sistema de temas
+ */
+async function initializeThemeSystem() {
+  try {
+    console.log('🎨 Inicializando sistema de temas...');
+    
+    // Obter tema atual
+    const result = await window.electronAPI.themeGet();
+    if (result.success) {
+      applyTheme(result.theme);
+    }
+    
+    // Configurar listener de mudança de tema
+    window.electronAPI.onThemeChanged((data) => {
+      console.log('🎨 Tema alterado:', data);
+      applyTheme(data.theme, data.effectiveTheme);
+    });
+    
+    // Configurar botão de toggle
+    const toggleBtn = document.getElementById('themeToggleBtn');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', toggleTheme);
+    }
+    
+    console.log('✅ Sistema de temas inicializado');
+  } catch (error) {
+    console.error('❌ Erro ao inicializar sistema de temas:', error);
+  }
+}
+
+/**
+ * Aplicar tema no HTML
+ * @param {string} theme - Tema selecionado (light, dark, system)
+ * @param {string} effectiveTheme - Tema efetivo (light ou dark)
+ */
+function applyTheme(theme, effectiveTheme = null) {
+  const html = document.documentElement;
+  const themeIcon = document.getElementById('themeIcon');
+  
+  // Se não tiver effectiveTheme, usar o theme
+  const actualTheme = effectiveTheme || theme;
+  
+  // Aplicar data-theme no HTML
+  if (actualTheme === 'dark') {
+    html.setAttribute('data-theme', 'dark');
+  } else {
+    html.setAttribute('data-theme', 'light');
+  }
+  
+  // Atualizar ícone do botão
+  if (themeIcon) {
+    const icons = {
+      'light': '☀️',
+      'dark': '🌙',
+      'system': '💻'
+    };
+    themeIcon.textContent = icons[theme] || '🎨';
+  }
+  
+  console.log(`🎨 Tema aplicado: ${theme} (efetivo: ${actualTheme})`);
+}
+
+/**
+ * Alternar tema
+ */
+async function toggleTheme() {
+  try {
+    const result = await window.electronAPI.themeToggle();
+    if (result.success) {
+      console.log('🎨 Tema alternado para:', result.theme);
+      // O evento theme-changed será disparado automaticamente
+    }
+  } catch (error) {
+    console.error('❌ Erro ao alternar tema:', error);
+  }
 }
 
 // Calcular tempo restante do SLA
@@ -130,7 +213,7 @@ function calculateSLARemaining(ticket) {
 if (typeof window !== 'undefined' && !window.electronAPI) {
   window.electronAPI = {
     async getConfig() {
-      return { serverUrl: 'http://localhost:3000', token: null };
+      return { serverUrl: 'http://localhost:4003/api', token: null };
     },
     async connect() { return { success: true, user: { id: 'preview-user', role: 'cliente', name: 'Preview User' } }; },
     async getSystemInfo() { return { os: 'macOS', version: 'Preview' }; },
@@ -177,6 +260,9 @@ document.addEventListener('DOMContentLoaded', async function init() {
   
   setupEventListeners();
   setupTicketFilters();
+  
+  // Inicializar sistema de temas
+  await initializeThemeSystem();
   
   // Verificar se existe sessão válida
   await checkExistingSession();
@@ -560,7 +646,12 @@ async function handleLogin(e) {
   
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
-  const serverUrl = 'http://localhost:3000'; // URL do servidor fixo
+  
+  // Obter URL do backend da configuração (sem /api no final)
+  const appConfig = await window.electronAPI.getConfig();
+  // Remove /api do final se existir para evitar duplicação
+  let serverUrl = appConfig.backendUrl || 'http://localhost:4003';
+  serverUrl = serverUrl.replace(/\/api\/?$/, '');
   
   if (!email || !password) {
     showLoginError('Por favor, preencha todos os campos');
@@ -841,6 +932,15 @@ async function loadPageData(pageName) {
     case 'tickets':
       await loadTickets();
       updateDashboard();
+      break;
+    case 'catalog':
+      await loadCatalog();
+      break;
+    case 'knowledge':
+      await loadKnowledge();
+      break;
+    case 'notifications':
+      await loadNotifications();
       break;
     case 'info':
       await loadSystemInfo();
@@ -1393,10 +1493,10 @@ let priorityChart = null;
 let trendChart = null;
 
 // Atualizar dashboard com gráficos e estatísticas
-function updateDashboard() {
+async function updateDashboard() {
   const stats = calculateStatistics();
   
-  // Atualizar cards de estatísticas
+  // Atualizar cards de estatísticas básicas
   const statTotal = document.getElementById('statTotal');
   if (statTotal) statTotal.textContent = stats.total;
   
@@ -1408,6 +1508,16 @@ function updateDashboard() {
   
   const statResolved = document.getElementById('statResolved');
   if (statResolved) statResolved.textContent = stats.resolved;
+  
+  // Buscar estatísticas detalhadas do backend
+  try {
+    const result = await window.electronAPI.getTicketStatistics();
+    if (result.success && result.statistics) {
+      updateAdvancedStatistics(result.statistics);
+    }
+  } catch (error) {
+    console.warn('Erro ao carregar estatísticas detalhadas:', error);
+  }
   
   // Atualizar indicadores de SLA
   const slaNormal = document.getElementById('slaNormal');
@@ -1648,6 +1758,180 @@ function calculateTrendData() {
   return { labels, created, resolved };
 }
 
+// Atualizar estatísticas avançadas do backend
+function updateAdvancedStatistics(statistics) {
+  console.log('📊 Atualizando estatísticas avançadas:', statistics);
+  
+  // Tempo médio de resposta
+  if (statistics.averageResponseTime !== undefined) {
+    const avgResponseEl = document.getElementById('avgResponseTime');
+    if (avgResponseEl) {
+      avgResponseEl.textContent = formatDuration(statistics.averageResponseTime);
+    }
+  }
+  
+  // Tempo médio de resolução
+  if (statistics.averageResolutionTime !== undefined) {
+    const avgResolutionEl = document.getElementById('avgResolutionTime');
+    if (avgResolutionEl) {
+      avgResolutionEl.textContent = formatDuration(statistics.averageResolutionTime);
+    }
+  }
+  
+  // Taxa de resolução no prazo (SLA)
+  if (statistics.slaComplianceRate !== undefined) {
+    const slaRateEl = document.getElementById('slaComplianceRate');
+    if (slaRateEl) {
+      const rate = Math.round(statistics.slaComplianceRate);
+      slaRateEl.textContent = `${rate}%`;
+      
+      // Atualizar cor baseado na taxa
+      const color = rate >= 90 ? '#10b981' : rate >= 70 ? '#f59e0b' : '#ef4444';
+      slaRateEl.style.color = color;
+    }
+  }
+  
+  // Tickets por categoria (se disponível)
+  if (statistics.byCategory && typeof Chart !== 'undefined') {
+    const categoryCtx = document.getElementById('categoryChart');
+    if (categoryCtx) {
+      const categories = Object.keys(statistics.byCategory);
+      const counts = Object.values(statistics.byCategory);
+      
+      if (window.categoryChart) window.categoryChart.destroy();
+      
+      window.categoryChart = new Chart(categoryCtx, {
+        type: 'pie',
+        data: {
+          labels: categories,
+          datasets: [{
+            data: counts,
+            backgroundColor: [
+              '#667eea', '#3b82f6', '#10b981', '#f59e0b', 
+              '#ef4444', '#8b5cf6', '#ec4899', '#6b7280'
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { padding: 10, font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+  }
+  
+  // Tickets por agente (se disponível)
+  if (statistics.byAgent && typeof Chart !== 'undefined') {
+    const agentCtx = document.getElementById('agentChart');
+    if (agentCtx) {
+      const agents = Object.keys(statistics.byAgent).slice(0, 10); // Top 10
+      const counts = Object.values(statistics.byAgent).slice(0, 10);
+      
+      if (window.agentChart) window.agentChart.destroy();
+      
+      window.agentChart = new Chart(agentCtx, {
+        type: 'horizontalBar',
+        data: {
+          labels: agents,
+          datasets: [{
+            label: 'Tickets',
+            data: counts,
+            backgroundColor: '#667eea'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: { stepSize: 1 }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+  }
+  
+  // Tendência de 30 dias (se disponível)
+  if (statistics.trend30Days && typeof Chart !== 'undefined') {
+    const trendCtx = document.getElementById('trend30DaysChart');
+    if (trendCtx) {
+      const labels = statistics.trend30Days.map(d => {
+        const date = new Date(d.date);
+        return date.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' });
+      });
+      const created = statistics.trend30Days.map(d => d.created || 0);
+      const resolved = statistics.trend30Days.map(d => d.resolved || 0);
+      
+      if (window.trend30DaysChart) window.trend30DaysChart.destroy();
+      
+      window.trend30DaysChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Criados',
+            data: created,
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            tension: 0.4
+          }, {
+            label: 'Resolvidos',
+            data: resolved,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1 }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { padding: 15, font: { size: 12 } }
+            }
+          }
+        }
+      });
+    }
+  }
+}
+
+// Formatar duração em formato legível
+function formatDuration(minutes) {
+  if (!minutes || minutes === 0) return '-';
+  
+  if (minutes < 60) {
+    return `${Math.round(minutes)} min`;
+  } else if (minutes < 1440) {
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
+  } else {
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  }
+}
+
 // ============================================
 // TICKETS
 // ============================================
@@ -1672,6 +1956,10 @@ async function loadTickets() {
     state.tickets = tickets || [];
     console.log('📋 Tickets carregados:', state.tickets.length);
     console.log('🔍 Primeiro ticket com SLA:', state.tickets.find(t => t.sla));
+    
+    // Carregar tipos e categorias para os filtros
+    await loadFilterOptions();
+    
     renderTicketsList();
     document.getElementById('statTickets').textContent = state.tickets.length.toString();
     updateDashboard();
@@ -1682,22 +1970,73 @@ async function loadTickets() {
   }
 }
 
+async function loadFilterOptions() {
+  try {
+    // Carregar tipos
+    const typesResult = await window.electronAPI.getTypes();
+    if (typesResult.success) {
+      const types = typesResult.types?.types || typesResult.types || [];
+      const typeSelect = document.getElementById('filterType');
+      if (typeSelect && Array.isArray(types)) {
+        typeSelect.innerHTML = '<option value="">Todos os Tipos</option>';
+        types.forEach(type => {
+          const option = document.createElement('option');
+          option.value = type.id;
+          option.textContent = type.name;
+          typeSelect.appendChild(option);
+        });
+      }
+    }
+    
+    // Carregar categorias
+    const categoriesResult = await window.electronAPI.getCategories();
+    if (categoriesResult.success) {
+      const categories = categoriesResult.categories?.categories || categoriesResult.categories || [];
+      const categorySelect = document.getElementById('filterCategory');
+      if (categorySelect && Array.isArray(categories)) {
+        categorySelect.innerHTML = '<option value="">Todas as Categorias</option>';
+        categories.forEach(category => {
+          const option = document.createElement('option');
+          option.value = category.id;
+          option.textContent = category.name;
+          categorySelect.appendChild(option);
+        });
+      }
+    }
+  } catch (error) {
+    console.warn('Erro ao carregar opções de filtro:', error);
+  }
+}
+
 async function handleNewTicket() {
   showNewTicketForm();
 }
 
 // Configurar filtros de tickets
 function setupTicketFilters() {
-  // Busca em tempo real
+  // Busca em tempo real com debounce
   const searchInput = document.getElementById('ticketSearchInput');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       state.filters.search = e.target.value;
-      // Aplicar filtro com debounce
+      // Aplicar filtro com debounce de 300ms
       clearTimeout(state.searchTimeout);
       state.searchTimeout = setTimeout(() => {
         applyFilters();
       }, 300);
+    });
+  }
+  
+  // Toggle filtros avançados
+  const toggleAdvancedBtn = document.getElementById('toggleAdvancedFiltersBtn');
+  const advancedFilters = document.getElementById('advancedFilters');
+  if (toggleAdvancedBtn && advancedFilters) {
+    toggleAdvancedBtn.addEventListener('click', () => {
+      const isVisible = advancedFilters.style.display !== 'none';
+      advancedFilters.style.display = isVisible ? 'none' : 'block';
+      toggleAdvancedBtn.innerHTML = isVisible 
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="margin-right: 0.25rem;"><path d="M12 6v6m0 0v6m0-6h6m-6 0H6" stroke="currentColor" stroke-width="2"/></svg>Mais Filtros'
+        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="margin-right: 0.25rem;"><path d="M18 12H6" stroke="currentColor" stroke-width="2"/></svg>Menos Filtros';
     });
   }
   
@@ -1849,6 +2188,12 @@ function sortTickets(tickets, sortBy) {
 function applyFilters() {
   const { search, status, priority, sortBy } = state.filters;
   
+  // Obter filtros avançados
+  const dateFilter = document.getElementById('filterDate')?.value || '';
+  const slaFilter = document.getElementById('filterSLA')?.value || '';
+  const typeFilter = document.getElementById('filterType')?.value || '';
+  const categoryFilter = document.getElementById('filterCategory')?.value || '';
+  
   let filtered = [...state.tickets];
   
   // Filtro de busca
@@ -1872,6 +2217,75 @@ function applyFilters() {
     filtered = filtered.filter(t => t.priority === priority);
   }
   
+  // Filtro de data
+  if (dateFilter) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    filtered = filtered.filter(t => {
+      const createdAt = new Date(t.createdAt);
+      
+      switch(dateFilter) {
+        case 'today':
+          return createdAt >= today;
+        case 'yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          return createdAt >= yesterday && createdAt < today;
+        case 'this-week':
+          const weekStart = new Date(today);
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+          return createdAt >= weekStart;
+        case 'last-week':
+          const lastWeekStart = new Date(today);
+          lastWeekStart.setDate(lastWeekStart.getDate() - lastWeekStart.getDay() - 7);
+          const lastWeekEnd = new Date(lastWeekStart);
+          lastWeekEnd.setDate(lastWeekEnd.getDate() + 7);
+          return createdAt >= lastWeekStart && createdAt < lastWeekEnd;
+        case 'this-month':
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          return createdAt >= monthStart;
+        case 'last-month':
+          const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+          return createdAt >= lastMonthStart && createdAt < lastMonthEnd;
+        default:
+          return true;
+      }
+    });
+  }
+  
+  // Filtro de SLA
+  if (slaFilter) {
+    filtered = filtered.filter(t => {
+      const slaInfo = calculateSLARemaining(t);
+      if (!slaInfo) return false;
+      
+      switch(slaFilter) {
+        case 'expired':
+          return slaInfo.expired;
+        case 'critical':
+          return !slaInfo.expired && slaInfo.status === 'critical';
+        case 'warning':
+          return !slaInfo.expired && slaInfo.status === 'warning';
+        case 'ok':
+          return !slaInfo.expired && slaInfo.status === 'ok';
+        default:
+          return true;
+      }
+    });
+  }
+  
+  // Filtro de tipo
+  if (typeFilter) {
+    filtered = filtered.filter(t => t.typeId === typeFilter || t.type === typeFilter);
+  }
+  
+  // Filtro de categoria
+  if (categoryFilter) {
+    filtered = filtered.filter(t => t.categoryId === categoryFilter || t.category === categoryFilter);
+  }
+  
   // Aplicar ordenação
   filtered = sortTickets(filtered, sortBy);
   
@@ -1880,7 +2294,7 @@ function applyFilters() {
   // Atualizar contador
   const filterResults = document.getElementById('filterResults');
   if (filterResults) {
-    const hasFilters = search || status || priority;
+    const hasFilters = search || status || priority || dateFilter || slaFilter || typeFilter || categoryFilter;
     if (hasFilters) {
       filterResults.style.display = 'block';
       document.getElementById('filteredCount').textContent = filtered.length;
@@ -3070,6 +3484,810 @@ function initNewTicketForm(formCard) {
 
 
 // ============================================
+// CATÁLOGO DE SERVIÇOS
+// ============================================
+
+let catalogState = {
+  categories: [],
+  items: [],
+  selectedCategory: null,
+  searchTerm: ''
+};
+
+async function loadCatalog() {
+  try {
+    showLoading('Carregando catálogo...');
+    
+    // Carregar categorias
+    const categoriesResult = await window.electronAPI.getCatalogCategories();
+    if (categoriesResult.success) {
+      catalogState.categories = categoriesResult.categories || [];
+      renderCatalogCategories();
+    }
+    
+    // Carregar todos os itens inicialmente
+    const itemsResult = await window.electronAPI.getCatalogItems(null);
+    if (itemsResult.success) {
+      catalogState.items = itemsResult.items || [];
+      renderCatalogItems();
+    }
+    
+  } catch (error) {
+    console.error('Erro ao carregar catálogo:', error);
+    showNotification('Erro ao carregar catálogo', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderCatalogCategories() {
+  const container = document.getElementById('catalogCategories');
+  if (!container) return;
+  
+  if (catalogState.categories.length === 0) {
+    container.innerHTML = '<p style="color: #64748b; text-align: center; grid-column: 1/-1;">Nenhuma categoria disponível</p>';
+    return;
+  }
+  
+  container.innerHTML = catalogState.categories.map(cat => `
+    <div 
+      class="catalog-category-card ${catalogState.selectedCategory === cat.id ? 'active' : ''}" 
+      data-category-id="${cat.id}"
+      style="
+        padding: 1rem;
+        background: ${catalogState.selectedCategory === cat.id ? '#667eea' : 'white'};
+        color: ${catalogState.selectedCategory === cat.id ? 'white' : '#1e293b'};
+        border: 2px solid ${catalogState.selectedCategory === cat.id ? '#667eea' : '#e2e8f0'};
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+      "
+      onmouseover="if (!this.classList.contains('active')) { this.style.borderColor='#667eea'; this.style.transform='translateY(-2px)'; }"
+      onmouseout="if (!this.classList.contains('active')) { this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'; }"
+    >
+      <div style="font-size: 2rem; margin-bottom: 0.5rem;">${cat.icon || '📦'}</div>
+      <div style="font-weight: 600; font-size: 0.875rem;">${escapeHTML(cat.name)}</div>
+      ${cat.description ? `<div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;">${escapeHTML(cat.description)}</div>` : ''}
+    </div>
+  `).join('');
+  
+  // Adicionar event listeners
+  container.querySelectorAll('.catalog-category-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const categoryId = card.dataset.categoryId;
+      catalogState.selectedCategory = categoryId;
+      
+      // Recarregar itens da categoria
+      try {
+        showLoading('Carregando itens...');
+        const result = await window.electronAPI.getCatalogItems(categoryId);
+        if (result.success) {
+          catalogState.items = result.items || [];
+          renderCatalogCategories(); // Re-render para atualizar active
+          renderCatalogItems();
+        }
+      } catch (error) {
+        console.error('Erro ao carregar itens:', error);
+        showNotification('Erro ao carregar itens', 'error');
+      } finally {
+        hideLoading();
+      }
+    });
+  });
+}
+
+function renderCatalogItems() {
+  const container = document.getElementById('catalogItems');
+  if (!container) return;
+  
+  let items = catalogState.items;
+  
+  // Filtrar por busca
+  if (catalogState.searchTerm) {
+    const search = catalogState.searchTerm.toLowerCase();
+    items = items.filter(item => 
+      item.name.toLowerCase().includes(search) ||
+      (item.description && item.description.toLowerCase().includes(search))
+    );
+  }
+  
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="grid-column: 1/-1;">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+          <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Nenhum item encontrado</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = items.map(item => `
+    <div 
+      class="catalog-item-card"
+      data-item-id="${item.id}"
+      style="
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      "
+      onmouseover="this.style.borderColor='#667eea'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';"
+      onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+    >
+      <div style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1rem;">
+        <div style="font-size: 2.5rem;">${item.icon || '📦'}</div>
+        <div style="flex: 1;">
+          <h3 style="font-size: 1rem; font-weight: 600; color: #1e293b; margin-bottom: 0.25rem;">${escapeHTML(item.name)}</h3>
+          ${item.description ? `<p style="font-size: 0.875rem; color: #64748b; line-height: 1.4;">${escapeHTML(item.description)}</p>` : ''}
+        </div>
+      </div>
+      
+      ${item.estimatedTime ? `
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem;">
+          <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Tempo estimado: ${escapeHTML(item.estimatedTime)}</span>
+        </div>
+      ` : ''}
+      
+      ${item.requiresApproval ? `
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: #f59e0b; margin-bottom: 0.5rem;">
+          <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          <span>Requer aprovação</span>
+        </div>
+      ` : ''}
+      
+      <button 
+        class="btn btn-primary btn-block" 
+        style="margin-top: 1rem; width: 100%;"
+        onclick="requestCatalogItem('${item.id}')"
+      >
+        Solicitar
+      </button>
+    </div>
+  `).join('');
+}
+
+async function requestCatalogItem(itemId) {
+  const item = catalogState.items.find(i => i.id === itemId);
+  if (!item) return;
+  
+  // Criar modal de solicitação
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2>Solicitar: ${escapeHTML(item.name)}</h2>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Justificativa</label>
+          <textarea 
+            id="catalogRequestJustification" 
+            rows="4" 
+            placeholder="Explique por que você precisa deste serviço..."
+            style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-family: inherit; resize: vertical;"
+          ></textarea>
+        </div>
+        
+        ${item.requiresApproval ? `
+          <div class="info-box" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 0.375rem; margin-top: 1rem;">
+            <strong>⚠️ Atenção:</strong> Esta solicitação requer aprovação do seu gestor.
+          </div>
+        ` : ''}
+        
+        <div class="actions" style="margin-top: 1.5rem;">
+          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+          <button class="btn btn-primary" onclick="submitCatalogRequest('${itemId}')">Enviar Solicitação</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+}
+
+async function submitCatalogRequest(itemId) {
+  const justification = document.getElementById('catalogRequestJustification').value.trim();
+  
+  if (!justification) {
+    showNotification('Por favor, informe uma justificativa', 'error');
+    return;
+  }
+  
+  try {
+    showLoading('Enviando solicitação...');
+    
+    const result = await window.electronAPI.requestCatalogItem(itemId, {
+      justification
+    });
+    
+    if (result.success) {
+      showNotification('Solicitação enviada com sucesso!', 'success');
+      document.querySelector('.modal-overlay')?.remove();
+      
+      // Navegar para tickets
+      navigateTo('tickets');
+      await loadTickets();
+    } else {
+      showNotification(result.error || 'Erro ao enviar solicitação', 'error');
+    }
+    
+  } catch (error) {
+    console.error('Erro ao solicitar item:', error);
+    showNotification('Erro ao enviar solicitação', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// Configurar busca no catálogo
+document.getElementById('catalogSearchInput')?.addEventListener('input', (e) => {
+  catalogState.searchTerm = e.target.value;
+  renderCatalogItems();
+});
+
+// ============================================
+// BASE DE CONHECIMENTO
+// ============================================
+
+let knowledgeState = {
+  articles: [],
+  categories: [],
+  searchTerm: '',
+  selectedCategory: null
+};
+
+async function loadKnowledge() {
+  try {
+    showLoading('Carregando base de conhecimento...');
+    
+    const result = await window.electronAPI.getKnowledgeArticles({
+      published: true
+    });
+    
+    if (result.success) {
+      knowledgeState.articles = result.articles || [];
+      
+      // Extrair categorias únicas
+      const categoriesSet = new Set();
+      knowledgeState.articles.forEach(article => {
+        if (article.category) {
+          categoriesSet.add(article.category);
+        }
+      });
+      knowledgeState.categories = Array.from(categoriesSet);
+      
+      renderKnowledgeCategories();
+      renderKnowledgeArticles();
+    }
+    
+  } catch (error) {
+    console.error('Erro ao carregar base de conhecimento:', error);
+    showNotification('Erro ao carregar base de conhecimento', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderKnowledgeCategories() {
+  const container = document.getElementById('knowledgeCategories');
+  if (!container) return;
+  
+  if (knowledgeState.categories.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  container.innerHTML = `
+    <button 
+      class="btn ${!knowledgeState.selectedCategory ? 'btn-primary' : 'btn-secondary'}" 
+      style="padding: 0.5rem 1rem; font-size: 0.875rem;"
+      onclick="filterKnowledgeByCategory(null)"
+    >
+      Todos
+    </button>
+    ${knowledgeState.categories.map(cat => `
+      <button 
+        class="btn ${knowledgeState.selectedCategory === cat ? 'btn-primary' : 'btn-secondary'}" 
+        style="padding: 0.5rem 1rem; font-size: 0.875rem;"
+        onclick="filterKnowledgeByCategory('${escapeHTML(cat)}')"
+      >
+        ${escapeHTML(cat)}
+      </button>
+    `).join('')}
+  `;
+}
+
+function filterKnowledgeByCategory(category) {
+  knowledgeState.selectedCategory = category;
+  renderKnowledgeCategories();
+  renderKnowledgeArticles();
+}
+
+function renderKnowledgeArticles() {
+  const container = document.getElementById('knowledgeArticles');
+  if (!container) return;
+  
+  let articles = knowledgeState.articles;
+  
+  // Filtrar por categoria
+  if (knowledgeState.selectedCategory) {
+    articles = articles.filter(a => a.category === knowledgeState.selectedCategory);
+  }
+  
+  // Filtrar por busca
+  if (knowledgeState.searchTerm) {
+    const search = knowledgeState.searchTerm.toLowerCase();
+    articles = articles.filter(a => 
+      a.title.toLowerCase().includes(search) ||
+      (a.content && a.content.toLowerCase().includes(search)) ||
+      (a.tags && a.tags.some(tag => tag.toLowerCase().includes(search)))
+    );
+  }
+  
+  if (articles.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+          <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Nenhum artigo encontrado</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = articles.map(article => `
+    <div 
+      class="knowledge-article-card"
+      data-article-id="${article.id}"
+      style="
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      "
+      onclick="showKnowledgeArticle('${article.id}')"
+      onmouseover="this.style.borderColor='#667eea'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';"
+      onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+    >
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+        <h3 style="font-size: 1.125rem; font-weight: 600; color: #1e293b; flex: 1;">${escapeHTML(article.title)}</h3>
+        ${article.category ? `
+          <span style="
+            padding: 0.25rem 0.75rem;
+            background: #e0e7ff;
+            color: #4c51bf;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+            margin-left: 1rem;
+          ">
+            ${escapeHTML(article.category)}
+          </span>
+        ` : ''}
+      </div>
+      
+      ${article.summary || article.excerpt ? `
+        <p style="font-size: 0.875rem; color: #64748b; line-height: 1.5; margin-bottom: 1rem;">
+          ${escapeHTML(article.summary || article.excerpt)}
+        </p>
+      ` : ''}
+      
+      <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.75rem; color: #94a3b8;">
+        ${article.views ? `
+          <span style="display: flex; align-items: center; gap: 0.25rem;">
+            <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            ${article.views} visualizações
+          </span>
+        ` : ''}
+        
+        ${article.helpful !== undefined ? `
+          <span style="display: flex; align-items: center; gap: 0.25rem;">
+            <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+            </svg>
+            ${article.helpful}% útil
+          </span>
+        ` : ''}
+        
+        ${article.updatedAt ? `
+          <span>Atualizado ${formatRelativeTime(new Date(article.updatedAt))}</span>
+        ` : ''}
+      </div>
+      
+      ${article.tags && article.tags.length > 0 ? `
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+          ${article.tags.map(tag => `
+            <span style="
+              padding: 0.25rem 0.5rem;
+              background: #f1f5f9;
+              color: #475569;
+              border-radius: 0.25rem;
+              font-size: 0.75rem;
+            ">
+              #${escapeHTML(tag)}
+            </span>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+async function showKnowledgeArticle(articleId) {
+  try {
+    showLoading('Carregando artigo...');
+    
+    const result = await window.electronAPI.getKnowledgeArticle(articleId);
+    
+    if (!result.success) {
+      showNotification('Erro ao carregar artigo', 'error');
+      return;
+    }
+    
+    const article = result.article;
+    
+    // Incrementar visualizações
+    window.electronAPI.incrementArticleViews(articleId).catch(err => {
+      console.warn('Erro ao incrementar visualizações:', err);
+    });
+    
+    // Criar modal com o artigo
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header" style="position: sticky; top: 0; background: white; z-index: 10; border-bottom: 1px solid #e2e8f0;">
+          <div style="flex: 1;">
+            <h2 style="margin: 0; font-size: 1.5rem; color: #1e293b;">${escapeHTML(article.title)}</h2>
+            ${article.category ? `
+              <span style="
+                display: inline-block;
+                margin-top: 0.5rem;
+                padding: 0.25rem 0.75rem;
+                background: #e0e7ff;
+                color: #4c51bf;
+                border-radius: 1rem;
+                font-size: 0.75rem;
+                font-weight: 500;
+              ">
+                ${escapeHTML(article.category)}
+              </span>
+            ` : ''}
+          </div>
+          <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 2rem;">
+          <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #e2e8f0;">
+            ${article.views ? `👁️ ${article.views} visualizações` : ''}
+            ${article.updatedAt ? ` • Atualizado ${formatRelativeTime(new Date(article.updatedAt))}` : ''}
+          </div>
+          
+          <div style="line-height: 1.7; color: #334155;">
+            ${article.content || article.body || '<p>Conteúdo não disponível</p>'}
+          </div>
+          
+          ${article.tags && article.tags.length > 0 ? `
+            <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+              <div style="font-size: 0.875rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem;">Tags:</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                ${article.tags.map(tag => `
+                  <span style="
+                    padding: 0.375rem 0.75rem;
+                    background: #f1f5f9;
+                    color: #475569;
+                    border-radius: 0.375rem;
+                    font-size: 0.875rem;
+                  ">
+                    #${escapeHTML(tag)}
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+          
+          <div style="margin-top: 2rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem; text-align: center;">
+            <p style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.75rem;">Este artigo foi útil?</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+              <button class="btn btn-secondary" style="padding: 0.5rem 1.5rem;">
+                👍 Sim
+              </button>
+              <button class="btn btn-secondary" style="padding: 0.5rem 1.5rem;">
+                👎 Não
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+  } catch (error) {
+    console.error('Erro ao mostrar artigo:', error);
+    showNotification('Erro ao carregar artigo', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// Configurar busca na base de conhecimento
+document.getElementById('knowledgeSearchBtn')?.addEventListener('click', () => {
+  const searchInput = document.getElementById('knowledgeSearchInput');
+  knowledgeState.searchTerm = searchInput?.value || '';
+  renderKnowledgeArticles();
+});
+
+document.getElementById('knowledgeSearchInput')?.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    knowledgeState.searchTerm = e.target.value;
+    renderKnowledgeArticles();
+  }
+});
+
+// Expor funções globalmente para uso nos botões HTML
+window.requestCatalogItem = requestCatalogItem;
+window.submitCatalogRequest = submitCatalogRequest;
+window.filterKnowledgeByCategory = filterKnowledgeByCategory;
+window.showKnowledgeArticle = showKnowledgeArticle;
+
+// ============================================
+// NOTIFICAÇÕES
+// ============================================
+
+let notificationsState = {
+  notifications: [],
+  filter: 'all' // all, unread, read
+};
+
+async function loadNotifications() {
+  try {
+    showLoading('Carregando notificações...');
+    
+    const result = await window.electronAPI.getNotifications();
+    
+    if (result.success) {
+      notificationsState.notifications = result.notifications || [];
+      renderNotifications();
+      updateNotificationsBadge();
+    }
+    
+  } catch (error) {
+    console.error('Erro ao carregar notificações:', error);
+    showNotification('Erro ao carregar notificações', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderNotifications() {
+  const container = document.getElementById('notificationsList');
+  if (!container) return;
+  
+  let notifications = notificationsState.notifications;
+  
+  // Aplicar filtro
+  if (notificationsState.filter === 'unread') {
+    notifications = notifications.filter(n => !n.read);
+  } else if (notificationsState.filter === 'read') {
+    notifications = notifications.filter(n => n.read);
+  }
+  
+  // Ordenar por data (mais recentes primeiro)
+  notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  
+  if (notifications.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+          <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Nenhuma notificação ${notificationsState.filter === 'unread' ? 'não lida' : notificationsState.filter === 'read' ? 'lida' : ''}</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = notifications.map(notif => {
+    const isUnread = !notif.read;
+    const priorityColors = {
+      high: '#ef4444',
+      urgent: '#dc2626',
+      normal: '#667eea',
+      low: '#64748b'
+    };
+    const priorityColor = priorityColors[notif.priority] || priorityColors.normal;
+    
+    return `
+      <div 
+        class="notification-item ${isUnread ? 'unread' : ''}"
+        data-notification-id="${notif.id}"
+        style="
+          background: ${isUnread ? '#f0f9ff' : 'white'};
+          border: 1px solid ${isUnread ? '#bae6fd' : '#e2e8f0'};
+          border-left: 4px solid ${priorityColor};
+          border-radius: 0.5rem;
+          padding: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        "
+        onclick="handleNotificationClick('${notif.id}')"
+        onmouseover="this.style.borderColor='${priorityColor}'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';"
+        onmouseout="this.style.borderColor='${isUnread ? '#bae6fd' : '#e2e8f0'}'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+      >
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            ${isUnread ? '<div style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></div>' : ''}
+            <h3 style="font-size: 1rem; font-weight: 600; color: #1e293b; margin: 0;">
+              ${escapeHTML(notif.title || 'Notificação')}
+            </h3>
+          </div>
+          <span style="font-size: 0.75rem; color: #64748b; white-space: nowrap;">
+            ${formatRelativeTime(new Date(notif.createdAt))}
+          </span>
+        </div>
+        
+        <p style="font-size: 0.875rem; color: #475569; line-height: 1.5; margin: 0;">
+          ${escapeHTML(notif.message || notif.body || '')}
+        </p>
+        
+        ${notif.ticketId ? `
+          <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0;">
+            <span style="font-size: 0.75rem; color: #667eea; font-weight: 500;">
+              🎫 Ticket #${notif.ticketId}
+            </span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+async function handleNotificationClick(notificationId) {
+  const notification = notificationsState.notifications.find(n => n.id === notificationId);
+  if (!notification) return;
+  
+  // Marcar como lida
+  if (!notification.read) {
+    try {
+      await window.electronAPI.markNotificationAsRead(notificationId);
+      notification.read = true;
+      renderNotifications();
+      updateNotificationsBadge();
+    } catch (error) {
+      console.error('Erro ao marcar notificação como lida:', error);
+    }
+  }
+  
+  // Navegar se houver link
+  if (notification.ticketId) {
+    navigateTo('tickets');
+    // Aguardar um pouco para garantir que a página carregou
+    setTimeout(() => {
+      showTicketDetails(notification.ticketId);
+    }, 300);
+  } else if (notification.link) {
+    navigateTo(notification.link);
+  }
+}
+
+async function markAllNotificationsAsRead() {
+  const unreadNotifications = notificationsState.notifications.filter(n => !n.read);
+  
+  if (unreadNotifications.length === 0) {
+    showNotification('Não há notificações não lidas', 'info');
+    return;
+  }
+  
+  try {
+    showLoading('Marcando todas como lidas...');
+    
+    // Marcar todas como lidas
+    await Promise.all(
+      unreadNotifications.map(n => window.electronAPI.markNotificationAsRead(n.id))
+    );
+    
+    // Atualizar estado local
+    notificationsState.notifications.forEach(n => {
+      n.read = true;
+    });
+    
+    renderNotifications();
+    updateNotificationsBadge();
+    showNotification('Todas as notificações foram marcadas como lidas', 'success');
+    
+  } catch (error) {
+    console.error('Erro ao marcar notificações como lidas:', error);
+    showNotification('Erro ao marcar notificações como lidas', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+function updateNotificationsBadge() {
+  const badge = document.getElementById('notificationsBadge');
+  if (!badge) return;
+  
+  const unreadCount = notificationsState.notifications.filter(n => !n.read).length;
+  
+  if (unreadCount > 0) {
+    badge.textContent = unreadCount.toString();
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Configurar filtros de notificações
+document.getElementById('filterAllNotifications')?.addEventListener('click', () => {
+  notificationsState.filter = 'all';
+  document.getElementById('filterAllNotifications').className = 'btn btn-primary';
+  document.getElementById('filterUnreadNotifications').className = 'btn btn-secondary';
+  document.getElementById('filterReadNotifications').className = 'btn btn-secondary';
+  renderNotifications();
+});
+
+document.getElementById('filterUnreadNotifications')?.addEventListener('click', () => {
+  notificationsState.filter = 'unread';
+  document.getElementById('filterAllNotifications').className = 'btn btn-secondary';
+  document.getElementById('filterUnreadNotifications').className = 'btn btn-primary';
+  document.getElementById('filterReadNotifications').className = 'btn btn-secondary';
+  renderNotifications();
+});
+
+document.getElementById('filterReadNotifications')?.addEventListener('click', () => {
+  notificationsState.filter = 'read';
+  document.getElementById('filterAllNotifications').className = 'btn btn-secondary';
+  document.getElementById('filterUnreadNotifications').className = 'btn btn-secondary';
+  document.getElementById('filterReadNotifications').className = 'btn btn-primary';
+  renderNotifications();
+});
+
+document.getElementById('markAllReadBtn')?.addEventListener('click', markAllNotificationsAsRead);
+
+// Listener para atualizações de notificações do main process
+if (window.electronAPI && window.electronAPI.onNotificationsUpdated) {
+  window.electronAPI.onNotificationsUpdated((data) => {
+    console.log('🔔 Notificações atualizadas:', data);
+    
+    // Atualizar estado local
+    if (data.notifications) {
+      notificationsState.notifications = data.notifications;
+    }
+    
+    // Atualizar badge
+    updateNotificationsBadge();
+    
+    // Se estamos na página de notificações, re-renderizar
+    const notificationsPage = document.getElementById('notificationsPage');
+    if (notificationsPage && notificationsPage.classList.contains('active')) {
+      renderNotifications();
+    }
+  });
+}
+
+// Expor funções globalmente
+window.handleNotificationClick = handleNotificationClick;
+
+// ============================================
 // ACESSO REMOTO
 // ============================================
 
@@ -3219,4 +4437,958 @@ document.querySelector('[data-page="settings"]')?.addEventListener('click', asyn
   } catch (error) {
     console.error('Erro ao carregar configurações:', error);
   }
+});
+
+// ==================== CONNECTION STATUS & OFFLINE QUEUE ====================
+
+// Estado de conexão
+let connectionState = {
+  isOnline: true,
+  lastCheck: null,
+  consecutiveFailures: 0
+};
+
+// Estado da fila offline
+let offlineQueueState = {
+  items: [],
+  stats: {
+    total: 0,
+    pending: 0,
+    failed: 0
+  }
+};
+
+/**
+ * Inicializar sistema de conexão e fila offline
+ */
+async function initializeConnectionSystem() {
+  // Verificar status inicial
+  await checkConnectionStatus();
+  
+  // Atualizar indicador de fila
+  await updateOfflineQueueIndicator();
+  
+  // Listener para mudanças de status de conexão
+  window.electronAPI.onConnectionStatus((data) => {
+    connectionState.isOnline = data.online;
+    updateConnectionStatusUI();
+    
+    if (data.online) {
+      // Conexão restaurada - atualizar fila
+      setTimeout(() => updateOfflineQueueIndicator(), 1000);
+    }
+  });
+  
+  // Atualizar fila periodicamente (a cada 30 segundos)
+  setInterval(() => {
+    updateOfflineQueueIndicator();
+  }, 30000);
+  
+  // Click no indicador de fila
+  const queueIndicator = document.getElementById('offlineQueueIndicator');
+  if (queueIndicator) {
+    queueIndicator.addEventListener('click', () => {
+      showOfflineQueueModal();
+    });
+  }
+}
+
+/**
+ * Verificar e atualizar status de conexão
+ */
+async function checkConnectionStatus() {
+  try {
+    const result = await window.electronAPI.connectionGetStatus();
+    if (result.success) {
+      connectionState.isOnline = result.isOnline;
+      connectionState.lastCheck = result.stats.lastCheckTime;
+      updateConnectionStatusUI();
+    }
+  } catch (error) {
+    console.error('Erro ao verificar status de conexão:', error);
+  }
+}
+
+/**
+ * Atualizar UI do status de conexão
+ */
+function updateConnectionStatusUI() {
+  const statusElement = document.getElementById('connectionStatus');
+  if (!statusElement) return;
+  
+  if (connectionState.isOnline) {
+    statusElement.className = 'connection-status online';
+    statusElement.innerHTML = `
+      <span class="status-dot"></span>
+      <span class="status-text">Online</span>
+    `;
+    statusElement.title = 'Conexão ativa';
+    
+    // Remover banner offline se existir
+    removeOfflineBanner();
+  } else {
+    statusElement.className = 'connection-status offline';
+    statusElement.innerHTML = `
+      <span class="status-dot"></span>
+      <span class="status-text">Offline</span>
+    `;
+    statusElement.title = 'Sem conexão - Modo offline ativo';
+    
+    // Mostrar banner offline
+    showOfflineBanner();
+  }
+}
+
+/**
+ * Atualizar indicador de fila offline
+ */
+async function updateOfflineQueueIndicator() {
+  try {
+    const result = await window.electronAPI.offlineQueueGetStats();
+    if (result.success) {
+      offlineQueueState.stats = result.stats;
+      
+      const indicator = document.getElementById('offlineQueueIndicator');
+      const countElement = document.getElementById('queueCount');
+      
+      if (indicator && countElement) {
+        if (result.stats.pending > 0 || result.stats.failed > 0) {
+          indicator.style.display = 'flex';
+          countElement.textContent = result.stats.pending + result.stats.failed;
+        } else {
+          indicator.style.display = 'none';
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar indicador de fila:', error);
+  }
+}
+
+/**
+ * Mostrar banner de modo offline
+ */
+function showOfflineBanner() {
+  // Verificar se já existe
+  if (document.getElementById('offlineBanner')) return;
+  
+  const banner = document.createElement('div');
+  banner.id = 'offlineBanner';
+  banner.className = 'offline-banner';
+  banner.innerHTML = `
+    <div class="offline-banner-icon">⚠️</div>
+    <div class="offline-banner-content">
+      <div class="offline-banner-title">Modo Offline</div>
+      <div class="offline-banner-text">Você está trabalhando offline. Suas ações serão sincronizadas quando a conexão for restaurada.</div>
+    </div>
+    <div class="offline-banner-actions">
+      <button class="btn btn-sm btn-secondary" onclick="checkConnectionNow()">Verificar Conexão</button>
+      <button class="btn btn-sm btn-secondary" onclick="showOfflineQueueModal()">Ver Fila</button>
+    </div>
+  `;
+  
+  // Inserir no topo do conteúdo principal
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent) {
+    mainContent.insertBefore(banner, mainContent.firstChild);
+  }
+}
+
+/**
+ * Remover banner de modo offline
+ */
+function removeOfflineBanner() {
+  const banner = document.getElementById('offlineBanner');
+  if (banner) {
+    banner.remove();
+  }
+}
+
+/**
+ * Verificar conexão agora (manual)
+ */
+async function checkConnectionNow() {
+  try {
+    showLoading('Verificando conexão...');
+    const result = await window.electronAPI.connectionCheckNow();
+    hideLoading();
+    
+    if (result.success) {
+      if (result.isOnline) {
+        showNotification('success', 'Conexão restaurada!');
+      } else {
+        showNotification('warning', 'Ainda sem conexão. Tente novamente em alguns instantes.');
+      }
+    }
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao verificar conexão: ' + error.message);
+  }
+}
+
+/**
+ * Mostrar modal da fila offline
+ */
+async function showOfflineQueueModal() {
+  try {
+    // Buscar itens da fila
+    const result = await window.electronAPI.offlineQueueGetAll();
+    if (!result.success) {
+      showNotification('error', 'Erro ao carregar fila: ' + result.error);
+      return;
+    }
+    
+    offlineQueueState.items = result.items || [];
+    
+    // Criar modal
+    const modal = document.createElement('div');
+    modal.id = 'offlineQueueModal';
+    modal.className = 'offline-queue-modal';
+    modal.innerHTML = `
+      <div class="offline-queue-content">
+        <div class="offline-queue-header">
+          <h2>📤 Fila de Sincronização</h2>
+          <button class="btn-close" onclick="closeOfflineQueueModal()">✕</button>
+        </div>
+        
+        <div class="offline-queue-stats">
+          <div class="queue-stat">
+            <div class="queue-stat-value">${offlineQueueState.stats.total}</div>
+            <div class="queue-stat-label">Total</div>
+          </div>
+          <div class="queue-stat">
+            <div class="queue-stat-value">${offlineQueueState.stats.pending}</div>
+            <div class="queue-stat-label">Pendentes</div>
+          </div>
+          <div class="queue-stat">
+            <div class="queue-stat-value">${offlineQueueState.stats.failed}</div>
+            <div class="queue-stat-label">Falhados</div>
+          </div>
+        </div>
+        
+        <div class="queue-actions">
+          <button class="btn btn-primary" onclick="processOfflineQueue()">
+            🔄 Sincronizar Agora
+          </button>
+          <button class="btn btn-secondary" onclick="clearFailedQueueItems()">
+            🗑️ Limpar Falhados
+          </button>
+          <button class="btn btn-danger" onclick="clearAllQueueItems()">
+            ⚠️ Limpar Tudo
+          </button>
+        </div>
+        
+        <div class="queue-items-list" id="queueItemsList">
+          ${renderQueueItems()}
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Click fora do modal fecha
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeOfflineQueueModal();
+      }
+    });
+  } catch (error) {
+    showNotification('error', 'Erro ao abrir modal: ' + error.message);
+  }
+}
+
+/**
+ * Renderizar itens da fila
+ */
+function renderQueueItems() {
+  if (offlineQueueState.items.length === 0) {
+    return `
+      <div class="queue-empty">
+        <div class="queue-empty-icon">✅</div>
+        <div class="queue-empty-text">Fila vazia</div>
+        <div class="queue-empty-subtext">Todas as ações foram sincronizadas</div>
+      </div>
+    `;
+  }
+  
+  return offlineQueueState.items.map(item => {
+    const actionNames = {
+      'create_ticket': 'Criar Ticket',
+      'send_message': 'Enviar Mensagem',
+      'update_ticket': 'Atualizar Ticket',
+      'request_catalog_item': 'Solicitar Item',
+      'mark_notification_read': 'Marcar Notificação',
+      'increment_article_views': 'Visualizar Artigo'
+    };
+    
+    const actionName = actionNames[item.action] || item.action;
+    const date = new Date(item.timestamp);
+    const formattedDate = date.toLocaleString('pt-BR');
+    
+    return `
+      <div class="queue-item">
+        <div class="queue-item-header">
+          <div class="queue-item-action">${actionName}</div>
+          <div class="queue-item-status ${item.status}">${item.status === 'pending' ? 'Pendente' : 'Falhado'}</div>
+        </div>
+        <div class="queue-item-meta">
+          <span>📅 ${formattedDate}</span>
+          <span>🔄 ${item.retries} tentativa(s)</span>
+          ${item.error ? `<span>❌ ${item.error}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Fechar modal da fila
+ */
+function closeOfflineQueueModal() {
+  const modal = document.getElementById('offlineQueueModal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+/**
+ * Processar fila offline manualmente
+ */
+async function processOfflineQueue() {
+  try {
+    showLoading('Sincronizando...');
+    const result = await window.electronAPI.offlineQueueProcess();
+    hideLoading();
+    
+    if (result.success) {
+      if (result.processed > 0) {
+        showNotification('success', `${result.processed} ação(ões) sincronizada(s) com sucesso!`);
+      } else if (result.remaining > 0) {
+        showNotification('warning', `${result.failed} ação(ões) falharam. ${result.remaining} ainda pendente(s).`);
+      } else {
+        showNotification('info', 'Nenhuma ação para sincronizar.');
+      }
+      
+      // Atualizar modal
+      closeOfflineQueueModal();
+      await updateOfflineQueueIndicator();
+      
+      // Reabrir modal se ainda houver itens
+      if (result.remaining > 0 || result.failed > 0) {
+        setTimeout(() => showOfflineQueueModal(), 500);
+      }
+    } else {
+      showNotification('error', 'Erro ao sincronizar: ' + result.error);
+    }
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao sincronizar: ' + error.message);
+  }
+}
+
+/**
+ * Limpar itens falhados da fila
+ */
+async function clearFailedQueueItems() {
+  if (!confirm('Deseja realmente remover todos os itens falhados da fila?')) {
+    return;
+  }
+  
+  try {
+    showLoading('Limpando...');
+    const result = await window.electronAPI.offlineQueueClearFailed();
+    hideLoading();
+    
+    if (result.success) {
+      showNotification('success', `${result.count} item(ns) removido(s).`);
+      closeOfflineQueueModal();
+      await updateOfflineQueueIndicator();
+    } else {
+      showNotification('error', 'Erro ao limpar: ' + result.error);
+    }
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao limpar: ' + error.message);
+  }
+}
+
+/**
+ * Limpar toda a fila
+ */
+async function clearAllQueueItems() {
+  if (!confirm('⚠️ ATENÇÃO: Isso removerá TODAS as ações pendentes da fila. Esta ação não pode ser desfeita. Deseja continuar?')) {
+    return;
+  }
+  
+  try {
+    showLoading('Limpando...');
+    const result = await window.electronAPI.offlineQueueClearAll();
+    hideLoading();
+    
+    if (result.success) {
+      showNotification('success', `${result.count} item(ns) removido(s).`);
+      closeOfflineQueueModal();
+      await updateOfflineQueueIndicator();
+    } else {
+      showNotification('error', 'Erro ao limpar: ' + result.error);
+    }
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao limpar: ' + error.message);
+  }
+}
+
+/**
+ * Adicionar ação à fila offline (helper)
+ */
+async function addToOfflineQueue(action, data, metadata = {}) {
+  try {
+    const result = await window.electronAPI.offlineQueueAdd(action, data, metadata);
+    if (result.success) {
+      console.log(`[OfflineQueue] Ação adicionada: ${action}`, result.itemId);
+      await updateOfflineQueueIndicator();
+      return result.itemId;
+    } else {
+      console.error('[OfflineQueue] Erro ao adicionar ação:', result.error);
+      return null;
+    }
+  } catch (error) {
+    console.error('[OfflineQueue] Erro ao adicionar ação:', error);
+    return null;
+  }
+}
+
+/**
+ * Wrapper para ações que suportam modo offline
+ */
+async function executeWithOfflineSupport(action, apiCall, data, metadata = {}) {
+  // Verificar se está online
+  const statusResult = await window.electronAPI.connectionGetStatus();
+  const isOnline = statusResult.success && statusResult.isOnline;
+  
+  if (isOnline) {
+    // Tentar executar normalmente
+    try {
+      return await apiCall();
+    } catch (error) {
+      // Se falhar, adicionar à fila
+      console.warn('[OfflineSupport] Falha na execução, adicionando à fila:', error);
+      await addToOfflineQueue(action, data, metadata);
+      throw error;
+    }
+  } else {
+    // Offline - adicionar à fila diretamente
+    console.log('[OfflineSupport] Modo offline, adicionando à fila');
+    await addToOfflineQueue(action, data, metadata);
+    showNotification('info', 'Ação adicionada à fila. Será sincronizada quando a conexão for restaurada.');
+    return { success: true, queued: true };
+  }
+}
+
+// Inicializar sistema de conexão quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+  initializeConnectionSystem();
+});
+
+// ==================== FILE UPLOAD SYSTEM ====================
+
+// Estado de upload de arquivos
+let fileUploadState = {
+  selectedFiles: [],
+  uploadingFiles: [],
+  uploadProgress: {},
+  currentTicketId: null
+};
+
+/**
+ * Inicializar sistema de upload de arquivos
+ */
+function initializeFileUploadSystem() {
+  // Listener para progresso de upload
+  window.electronAPI.onFileUploadProgress((data) => {
+    updateFileUploadProgress(data);
+  });
+  
+  // Prevenir comportamento padrão de drag & drop no documento
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+}
+
+/**
+ * Configurar área de drag & drop
+ * @param {HTMLElement} element - Elemento da área de upload
+ * @param {function} onFilesSelected - Callback quando arquivos são selecionados
+ */
+function setupFileDropZone(element, onFilesSelected) {
+  if (!element) return;
+  
+  // Drag over
+  element.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    element.classList.add('drag-over');
+  });
+  
+  // Drag leave
+  element.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    element.classList.remove('drag-over');
+  });
+  
+  // Drop
+  element.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    element.classList.remove('drag-over');
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      const filePaths = files.map(f => f.path);
+      await handleFilesSelected(filePaths, onFilesSelected);
+    }
+  });
+  
+  // Click para selecionar
+  element.addEventListener('click', async () => {
+    const result = await window.electronAPI.fileSelectFiles();
+    if (result.success && !result.canceled) {
+      await handleFilesSelected(result.filePaths, onFilesSelected);
+    }
+  });
+}
+
+/**
+ * Manipular arquivos selecionados
+ * @param {array} filePaths - Caminhos dos arquivos
+ * @param {function} callback - Callback com arquivos validados
+ */
+async function handleFilesSelected(filePaths, callback) {
+  try {
+    showLoading('Validando arquivos...');
+    
+    // Validar arquivos
+    const result = await window.electronAPI.fileValidateMultiple(filePaths);
+    hideLoading();
+    
+    if (!result.success) {
+      showNotification('error', 'Erro ao validar arquivos: ' + result.error);
+      return;
+    }
+    
+    const { valid, invalid } = result.results;
+    
+    // Mostrar erros de validação
+    if (invalid.length > 0) {
+      const errors = invalid.map(f => `${f.name}: ${f.error}`).join('\n');
+      showNotification('warning', `${invalid.length} arquivo(s) inválido(s):\n${errors}`);
+    }
+    
+    // Processar arquivos válidos
+    if (valid.length > 0) {
+      // Gerar previews para imagens
+      for (const file of valid) {
+        if (file.extension.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          const previewResult = await window.electronAPI.fileGeneratePreview(file.path);
+          if (previewResult.success && previewResult.preview) {
+            file.preview = previewResult.preview;
+          }
+        }
+      }
+      
+      if (callback) {
+        callback(valid);
+      }
+    }
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao processar arquivos: ' + error.message);
+  }
+}
+
+/**
+ * Renderizar lista de arquivos selecionados
+ * @param {array} files - Lista de arquivos
+ * @param {HTMLElement} container - Container para renderizar
+ * @param {object} options - Opções de renderização
+ */
+function renderFileList(files, container, options = {}) {
+  if (!container) return;
+  
+  const {
+    showRemove = true,
+    showUpload = false,
+    onRemove = null,
+    onUpload = null
+  } = options;
+  
+  if (files.length === 0) {
+    container.innerHTML = '<div class="file-list-empty">Nenhum arquivo selecionado</div>';
+    return;
+  }
+  
+  container.innerHTML = files.map((file, index) => {
+    const icon = getFileIcon(file.extension);
+    const hasPreview = file.preview || file.isImage;
+    
+    return `
+      <div class="file-item" data-index="${index}">
+        <div class="file-item-preview">
+          ${hasPreview && file.preview ? 
+            `<img src="${file.preview}" alt="${file.name}">` :
+            `<div class="file-item-preview-icon">${icon}</div>`
+          }
+        </div>
+        <div class="file-item-info">
+          <div class="file-item-name" title="${file.name}">${file.name}</div>
+          <div class="file-item-meta">
+            <span>${formatFileSize(file.size)}</span>
+            <span>${file.extension.toUpperCase()}</span>
+          </div>
+          ${file.uploadProgress !== undefined ? `
+            <div class="file-upload-progress">
+              <div class="file-upload-progress-bar">
+                <div class="file-upload-progress-fill" style="width: ${file.uploadProgress}%"></div>
+              </div>
+              <div class="file-upload-progress-text">${file.uploadProgress}%</div>
+            </div>
+          ` : ''}
+        </div>
+        <div class="file-item-actions">
+          ${showUpload ? `
+            <button class="file-item-action" onclick="uploadSingleFile(${index})">
+              📤 Upload
+            </button>
+          ` : ''}
+          ${showRemove ? `
+            <button class="file-item-action danger" onclick="removeFileFromList(${index})">
+              🗑️ Remover
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Obter ícone para tipo de arquivo
+ * @param {string} ext - Extensão do arquivo
+ * @returns {string} Emoji do ícone
+ */
+function getFileIcon(ext) {
+  const icons = {
+    '.jpg': '🖼️', '.jpeg': '🖼️', '.png': '🖼️', '.gif': '🖼️', '.webp': '🖼️', '.svg': '🖼️',
+    '.pdf': '📄',
+    '.doc': '📝', '.docx': '📝',
+    '.xls': '📊', '.xlsx': '📊',
+    '.ppt': '📊', '.pptx': '📊',
+    '.txt': '📄', '.csv': '📊',
+    '.html': '🌐', '.css': '🎨', '.js': '⚙️', '.json': '⚙️', '.xml': '⚙️',
+    '.zip': '📦', '.rar': '📦', '.7z': '📦', '.tar': '📦', '.gz': '📦'
+  };
+  return icons[ext.toLowerCase()] || '📎';
+}
+
+/**
+ * Remover arquivo da lista
+ * @param {number} index - Índice do arquivo
+ */
+function removeFileFromList(index) {
+  fileUploadState.selectedFiles.splice(index, 1);
+  
+  // Re-renderizar lista
+  const container = document.getElementById('fileList');
+  if (container) {
+    renderFileList(fileUploadState.selectedFiles, container, {
+      showRemove: true,
+      showUpload: false
+    });
+  }
+}
+
+/**
+ * Upload de arquivo individual
+ * @param {number} index - Índice do arquivo
+ */
+async function uploadSingleFile(index) {
+  const file = fileUploadState.selectedFiles[index];
+  if (!file || !fileUploadState.currentTicketId) return;
+  
+  try {
+    showLoading('Fazendo upload...');
+    
+    const result = await window.electronAPI.fileUpload(
+      fileUploadState.currentTicketId,
+      file.path
+    );
+    
+    hideLoading();
+    
+    if (result.success) {
+      showNotification('success', 'Arquivo enviado com sucesso!');
+      // Remover da lista
+      removeFileFromList(index);
+    } else {
+      showNotification('error', 'Erro ao enviar arquivo: ' + result.error);
+    }
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao enviar arquivo: ' + error.message);
+  }
+}
+
+/**
+ * Upload de múltiplos arquivos
+ * @param {string} ticketId - ID do ticket
+ * @param {array} files - Lista de arquivos
+ */
+async function uploadMultipleFiles(ticketId, files) {
+  if (!files || files.length === 0) return;
+  
+  try {
+    showLoading(`Enviando ${files.length} arquivo(s)...`);
+    
+    const filePaths = files.map(f => f.path);
+    const result = await window.electronAPI.fileUploadMultiple(ticketId, filePaths);
+    
+    hideLoading();
+    
+    if (result.success) {
+      showNotification('success', `${result.uploaded} arquivo(s) enviado(s) com sucesso!`);
+      
+      if (result.failed > 0) {
+        const errors = result.results.failed.map(f => f.fileName).join(', ');
+        showNotification('warning', `${result.failed} arquivo(s) falharam: ${errors}`);
+      }
+      
+      // Limpar lista
+      fileUploadState.selectedFiles = [];
+      
+      return result;
+    } else {
+      showNotification('error', 'Erro ao enviar arquivos');
+      return null;
+    }
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao enviar arquivos: ' + error.message);
+    return null;
+  }
+}
+
+/**
+ * Atualizar progresso de upload
+ * @param {object} data - Dados de progresso
+ */
+function updateFileUploadProgress(data) {
+  const { ticketId, filePath, progress } = data;
+  
+  // Atualizar estado
+  if (filePath) {
+    fileUploadState.uploadProgress[filePath] = progress.percent;
+  }
+  
+  // Atualizar UI se necessário
+  const progressElement = document.querySelector(`[data-file-path="${filePath}"] .file-upload-progress-fill`);
+  if (progressElement) {
+    progressElement.style.width = `${progress.percent}%`;
+  }
+  
+  const progressText = document.querySelector(`[data-file-path="${filePath}"] .file-upload-progress-text`);
+  if (progressText) {
+    progressText.textContent = `${progress.percent}%`;
+  }
+}
+
+/**
+ * Mostrar modal de anexos do ticket
+ * @param {string} ticketId - ID do ticket
+ */
+async function showTicketAttachmentsModal(ticketId) {
+  try {
+    showLoading('Carregando anexos...');
+    
+    const result = await window.electronAPI.fileGetAttachments(ticketId);
+    hideLoading();
+    
+    if (!result.success) {
+      showNotification('error', 'Erro ao carregar anexos: ' + result.error);
+      return;
+    }
+    
+    const attachments = result.attachments || [];
+    
+    // Criar modal
+    const modal = document.createElement('div');
+    modal.id = 'attachmentModal';
+    modal.className = 'attachment-modal';
+    modal.innerHTML = `
+      <div class="attachment-modal-content">
+        <div class="attachment-modal-header">
+          <h2>📎 Anexos do Ticket</h2>
+          <button class="btn-close" onclick="closeAttachmentModal()">✕</button>
+        </div>
+        
+        ${attachments.length === 0 ? `
+          <div class="attachment-empty">
+            <div class="attachment-empty-icon">📎</div>
+            <div class="attachment-empty-text">Nenhum anexo</div>
+          </div>
+        ` : `
+          <div class="attachment-grid">
+            ${attachments.map(att => renderAttachmentCard(att, ticketId)).join('')}
+          </div>
+        `}
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Click fora fecha
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeAttachmentModal();
+      }
+    });
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao carregar anexos: ' + error.message);
+  }
+}
+
+/**
+ * Renderizar card de anexo
+ * @param {object} attachment - Dados do anexo
+ * @param {string} ticketId - ID do ticket
+ * @returns {string} HTML do card
+ */
+function renderAttachmentCard(attachment, ticketId) {
+  const icon = getFileIcon(attachment.extension || '');
+  const isImage = attachment.mimeType && attachment.mimeType.startsWith('image/');
+  
+  return `
+    <div class="attachment-card" onclick="downloadAttachment('${ticketId}', '${attachment.id}')">
+      <div class="attachment-card-preview">
+        ${isImage ? 
+          `<img src="${attachment.url}" alt="${attachment.fileName}">` :
+          `<div class="attachment-card-preview-icon">${icon}</div>`
+        }
+      </div>
+      <div class="attachment-card-info">
+        <div class="attachment-card-name" title="${attachment.fileName}">${attachment.fileName}</div>
+        <div class="attachment-card-size">${formatFileSize(attachment.fileSize)}</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Fechar modal de anexos
+ */
+function closeAttachmentModal() {
+  const modal = document.getElementById('attachmentModal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+/**
+ * Baixar anexo
+ * @param {string} ticketId - ID do ticket
+ * @param {string} attachmentId - ID do anexo
+ */
+async function downloadAttachment(ticketId, attachmentId) {
+  try {
+    showLoading('Baixando anexo...');
+    
+    const result = await window.electronAPI.fileDownloadAttachment(ticketId, attachmentId);
+    hideLoading();
+    
+    if (result.success) {
+      showNotification('success', 'Anexo baixado com sucesso!');
+      // Aqui você pode salvar o arquivo ou abrir
+    } else {
+      showNotification('error', 'Erro ao baixar anexo: ' + result.error);
+    }
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao baixar anexo: ' + error.message);
+  }
+}
+
+/**
+ * Remover anexo
+ * @param {string} ticketId - ID do ticket
+ * @param {string} attachmentId - ID do anexo
+ */
+async function deleteAttachment(ticketId, attachmentId) {
+  if (!confirm('Deseja realmente remover este anexo?')) {
+    return;
+  }
+  
+  try {
+    showLoading('Removendo anexo...');
+    
+    const result = await window.electronAPI.fileDeleteAttachment(ticketId, attachmentId);
+    hideLoading();
+    
+    if (result.success) {
+      showNotification('success', 'Anexo removido com sucesso!');
+      // Recarregar modal
+      closeAttachmentModal();
+      setTimeout(() => showTicketAttachmentsModal(ticketId), 300);
+    } else {
+      showNotification('error', 'Erro ao remover anexo: ' + result.error);
+    }
+  } catch (error) {
+    hideLoading();
+    showNotification('error', 'Erro ao remover anexo: ' + error.message);
+  }
+}
+
+/**
+ * Adicionar área de upload ao formulário de ticket
+ * @param {HTMLElement} form - Formulário
+ */
+function addFileUploadToTicketForm(form) {
+  if (!form) return;
+  
+  const uploadArea = document.createElement('div');
+  uploadArea.className = 'form-group';
+  uploadArea.innerHTML = `
+    <label>Anexos</label>
+    <div id="ticketFileUploadArea" class="file-upload-area">
+      <div class="file-upload-icon">📎</div>
+      <div class="file-upload-text">Arraste arquivos aqui ou clique para selecionar</div>
+      <div class="file-upload-hint">Máximo 10MB por arquivo</div>
+    </div>
+    <div id="ticketFileList" class="file-list"></div>
+  `;
+  
+  form.appendChild(uploadArea);
+  
+  // Configurar drag & drop
+  const dropZone = uploadArea.querySelector('#ticketFileUploadArea');
+  const fileList = uploadArea.querySelector('#ticketFileList');
+  
+  setupFileDropZone(dropZone, (files) => {
+    fileUploadState.selectedFiles = [...fileUploadState.selectedFiles, ...files];
+    renderFileList(fileUploadState.selectedFiles, fileList, {
+      showRemove: true,
+      showUpload: false
+    });
+  });
+}
+
+// Inicializar sistema de upload quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+  initializeFileUploadSystem();
 });

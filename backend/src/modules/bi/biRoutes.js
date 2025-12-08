@@ -19,19 +19,19 @@ router.get('/dashboards/:id',
 
 router.post('/dashboards',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   biController.createDashboard.bind(biController)
 );
 
 router.put('/dashboards/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   biController.updateDashboard.bind(biController)
 );
 
 router.delete('/dashboards/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   biController.deleteDashboard.bind(biController)
 );
 
@@ -49,7 +49,7 @@ router.get('/reports',
 
 router.post('/reports',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico']),
+  requireRole(['admin', 'org-admin', 'tecnico']),
   biController.createReport.bind(biController)
 );
 
@@ -72,7 +72,7 @@ router.get('/kpis',
 
 router.post('/kpis',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   biController.createKPI.bind(biController)
 );
 
@@ -83,7 +83,7 @@ router.post('/kpis/:id/calculate',
 
 router.post('/kpis/calculate-all',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   biController.calculateAllKPIs.bind(biController)
 );
 
@@ -108,7 +108,7 @@ router.get('/metrics/compare',
 
 router.get('/export',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico']),
+  requireRole(['admin', 'org-admin', 'tecnico']),
   biController.exportData.bind(biController)
 );
 

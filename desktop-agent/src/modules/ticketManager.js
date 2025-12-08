@@ -12,13 +12,23 @@ class TicketManager extends EventEmitter {
   constructor() {
     super();
     
-    this.baseUrl = null;
+    this.baseUrl = null; // URL base do servidor (sem /api)
     this.token = null;
     this.socket = null;
     this.user = null;
     this.tickets = [];
     this.unreadCount = 0;
     this.connected = false;
+  }
+  
+  /**
+   * Retorna a URL da API (baseUrl + /api)
+   */
+  getApiUrl() {
+    if (!this.baseUrl) return null;
+    // Remove /api se já existir no final para evitar duplicação
+    const cleanUrl = this.baseUrl.replace(/\/api\/?$/, '');
+    return `${cleanUrl}/api`;
   }
 
   /**
@@ -134,7 +144,7 @@ class TicketManager extends EventEmitter {
         throw new Error('URL do servidor não configurada');
       }
       
-      const response = await axios.get(`${this.baseUrl}/api/auth/profile`, {
+      const response = await axios.get(`${this.getApiUrl()}/auth/profile`, {
         headers: {
           Authorization: `Bearer ${this.token}`
         }
@@ -194,7 +204,7 @@ class TicketManager extends EventEmitter {
       if (filters.priority) params.append('priority', filters.priority);
       if (filters.search) params.append('search', filters.search);
 
-      const response = await axios.get(`${this.baseUrl}/api/tickets?${params}`, {
+      const response = await axios.get(`${this.getApiUrl()}/tickets?${params}`, {
         headers: {
           Authorization: `Bearer ${this.token}`
         }
@@ -219,7 +229,7 @@ class TicketManager extends EventEmitter {
    */
   async getTicket(ticketId) {
     try {
-      const response = await axios.get(`${this.baseUrl}/api/tickets/${ticketId}`, {
+      const response = await axios.get(`${this.getApiUrl()}/tickets/${ticketId}`, {
         headers: {
           Authorization: `Bearer ${this.token}`
         }
@@ -258,7 +268,7 @@ class TicketManager extends EventEmitter {
         payload.clientId = this.user.id;
       }
 
-      const response = await axios.post(`${this.baseUrl}/api/tickets`, payload, {
+      const response = await axios.post(`${this.getApiUrl()}/tickets`, payload, {
         headers: {
           Authorization: `Bearer ${this.token}`
         }
@@ -284,7 +294,7 @@ class TicketManager extends EventEmitter {
   async updateTicket(ticketId, updates) {
     try {
       const response = await axios.put(
-        `${this.baseUrl}/api/tickets/${ticketId}`,
+        `${this.getApiUrl()}/tickets/${ticketId}`,
         updates,
         {
           headers: {
@@ -317,7 +327,7 @@ class TicketManager extends EventEmitter {
   async assignTicket(ticketId, agentId) {
     try {
       const response = await axios.post(
-        `${this.baseUrl}/api/tickets/${ticketId}/assign`,
+        `${this.getApiUrl()}/tickets/${ticketId}/assign`,
         { assignedTo: agentId },
         {
           headers: {
@@ -351,7 +361,7 @@ class TicketManager extends EventEmitter {
     try {
       // 1. Enviar comentário como JSON
       const response = await axios.post(
-        `${this.baseUrl}/api/tickets/${ticketId}/comments`,
+        `${this.getApiUrl()}/tickets/${ticketId}/comments`,
         {
           content: message,
           isInternal: false,
@@ -384,7 +394,7 @@ class TicketManager extends EventEmitter {
           });
 
           await axios.post(
-            `${this.baseUrl}/api/tickets/${ticketId}/upload`,
+            `${this.getApiUrl()}/tickets/${ticketId}/upload`,
             formData,
             {
               headers: {
@@ -416,7 +426,7 @@ class TicketManager extends EventEmitter {
     try {
       // Buscar o ticket completo que inclui os comentários
       const response = await axios.get(
-        `${this.baseUrl}/api/tickets/${ticketId}`,
+        `${this.getApiUrl()}/tickets/${ticketId}`,
         {
           headers: {
             Authorization: `Bearer ${this.token}`
@@ -443,7 +453,7 @@ class TicketManager extends EventEmitter {
   async getAttachments(ticketId) {
     try {
       const response = await axios.get(
-        `${this.baseUrl}/api/tickets/${ticketId}/attachments`,
+        `${this.getApiUrl()}/tickets/${ticketId}/attachments`,
         {
           headers: {
             Authorization: `Bearer ${this.token}`
@@ -467,7 +477,7 @@ class TicketManager extends EventEmitter {
   async markAsRead(ticketId) {
     try {
       await axios.post(
-        `${this.baseUrl}/api/tickets/${ticketId}/read`,
+        `${this.getApiUrl()}/tickets/${ticketId}/read`,
         {},
         {
           headers: {
@@ -595,7 +605,7 @@ class TicketManager extends EventEmitter {
   async changeTicketStatus(ticketId, status) {
     try {
       const response = await axios.put(
-        `${this.baseUrl}/api/tickets/${ticketId}/status`,
+        `${this.getApiUrl()}/tickets/${ticketId}/status`,
         { status },
         {
           headers: {
@@ -641,7 +651,7 @@ class TicketManager extends EventEmitter {
   async getAvailableAgents() {
     try {
       const response = await axios.get(
-        `${this.baseUrl}/api/users?role=agente&organizationId=${this.user.organizationId}`,
+        `${this.getApiUrl()}/users?role=agente&organizationId=${this.user.organizationId}`,
         {
           headers: {
             Authorization: `Bearer ${this.token}`
@@ -662,7 +672,7 @@ class TicketManager extends EventEmitter {
   async getCategories() {
     try {
       const response = await axios.get(
-        `${this.baseUrl}/api/categories`,
+        `${this.getApiUrl()}/categories`,
         {
           headers: {
             Authorization: `Bearer ${this.token}`
@@ -683,7 +693,7 @@ class TicketManager extends EventEmitter {
   async getPriorities() {
     try {
       const response = await axios.get(
-        `${this.baseUrl}/api/priorities`,
+        `${this.getApiUrl()}/priorities`,
         {
           headers: {
             Authorization: `Bearer ${this.token}`
@@ -704,7 +714,7 @@ class TicketManager extends EventEmitter {
   async getTypes() {
     try {
       const response = await axios.get(
-        `${this.baseUrl}/api/types`,
+        `${this.getApiUrl()}/types`,
         {
           headers: {
             Authorization: `Bearer ${this.token}`
@@ -749,7 +759,7 @@ class TicketManager extends EventEmitter {
       }
 
       const response = await axios.get(
-        `${this.baseUrl}/api/remote-access/pending`,
+        `${this.getApiUrl()}/remote-access/pending`,
         {
           headers: {
             Authorization: `Bearer ${this.token}`
@@ -770,7 +780,7 @@ class TicketManager extends EventEmitter {
   async acceptRemoteAccess(requestId) {
     try {
       const response = await axios.post(
-        `${this.baseUrl}/api/remote-access/${requestId}/accept`,
+        `${this.getApiUrl()}/remote-access/${requestId}/accept`,
         {},
         {
           headers: {
@@ -792,7 +802,7 @@ class TicketManager extends EventEmitter {
   async rejectRemoteAccess(requestId, reason) {
     try {
       const response = await axios.post(
-        `${this.baseUrl}/api/remote-access/${requestId}/reject`,
+        `${this.getApiUrl()}/remote-access/${requestId}/reject`,
         { reason },
         {
           headers: {
@@ -814,7 +824,7 @@ class TicketManager extends EventEmitter {
   async endRemoteAccess(requestId) {
     try {
       const response = await axios.post(
-        `${this.baseUrl}/api/remote-access/${requestId}/end`,
+        `${this.getApiUrl()}/remote-access/${requestId}/end`,
         {},
         {
           headers: {

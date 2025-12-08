@@ -138,7 +138,7 @@ export const createClient = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     // Apenas admin pode criar clientes
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem criar clientes'
@@ -199,7 +199,7 @@ export const updateClient = async (req, res, next) => {
     const { name, email, phone, isActive } = req.body;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem atualizar clientes'
@@ -266,7 +266,7 @@ export const deleteClient = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem desativar clientes'
@@ -322,7 +322,7 @@ export const activateClient = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    if (req.user.role !== 'admin-org') {
+    if (req.user.role !== 'org-admin') {
       return res.status(403).json({
         success: false,
         error: 'Apenas administradores podem reativar clientes'

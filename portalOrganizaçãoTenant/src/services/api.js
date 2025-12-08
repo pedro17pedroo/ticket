@@ -23,12 +23,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const message = error.response?.data?.error || error.message || 'Erro desconhecido'
-    
+
     // Se token expirou, fazer logout
     if (error.response?.status === 401) {
       // Só fazer logout e redirecionar se não estiver na página de login
       const isLoginPage = window.location.pathname === '/login'
-      
+
       if (!isLoginPage) {
         console.log('🚪 Token expirado, fazendo logout...')
         useAuthStore.getState().logout()
@@ -36,13 +36,12 @@ api.interceptors.response.use(
         toast.error('Sessão expirada. Faça login novamente.')
       } else {
         console.log('❌ Erro 401 na página de login:', message)
-        // Na página de login, apenas mostrar o erro sem redirecionar
-        toast.error(message)
+        // Na página de login, não mostrar toast aqui - o componente Login já trata isso
       }
     } else {
       toast.error(message)
     }
-    
+
     return Promise.reject(error)
   }
 )
@@ -52,15 +51,27 @@ export default api
 // Serviços de autenticação
 export const authService = {
   login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password })
+    const response = await api.post('/auth/login', { email, password, portalType: 'organization' })
     return response.data
   },
-  
+  requestPasswordReset: async (email, portalType = 'organization') => {
+    const response = await api.post('/auth/password-reset/request', { email, portalType })
+    return response.data
+  },
+  validatePasswordResetToken: async (email, token, portalType = 'organization') => {
+    const response = await api.post('/auth/password-reset/validate', { email, token, portalType })
+    return response.data
+  },
+  resetPasswordWithToken: async (email, token, newPassword, portalType = 'organization') => {
+    const response = await api.post('/auth/password-reset/reset', { email, token, newPassword, portalType })
+    return response.data
+  },
+
   getProfile: async () => {
     const response = await api.get('/auth/profile')
     return response.data
   },
-  
+
   updateProfile: async (data) => {
     const response = await api.put('/auth/profile', data)
     return response.data
@@ -79,17 +90,17 @@ export const ticketService = {
     const response = await api.get('/tickets', { params })
     return response.data
   },
-  
+
   getById: async (id) => {
     const response = await api.get(`/tickets/${id}`)
     return response.data
   },
-  
+
   create: async (data) => {
     const response = await api.post('/tickets', data)
     return response.data
   },
-  
+
   update: async (id, data) => {
     const response = await api.put(`/tickets/${id}`, data)
     return response.data
@@ -100,7 +111,7 @@ export const ticketService = {
     const response = await api.put(`/tickets/${id}`, data)
     return response.data
   },
-  
+
   addComment: async (id, data) => {
     const response = await api.post(`/tickets/${id}/comments`, data)
     return response.data
@@ -126,12 +137,12 @@ export const ticketService = {
     files.forEach(file => {
       formData.append('files', file)
     })
-    
+
     // Se houver commentId, adicionar ao FormData
     if (commentId) {
       formData.append('commentId', commentId)
     }
-    
+
     const response = await api.post(`/tickets/${ticketId}/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -156,7 +167,7 @@ export const ticketService = {
     const response = await api.delete(`/tickets/${ticketId}/attachments/${attachmentId}`)
     return response.data
   },
-  
+
   getStatistics: async (params = {}) => {
     const response = await api.get('/tickets/statistics', { params })
     return response.data
@@ -169,17 +180,17 @@ export const departmentService = {
     const response = await api.get('/departments')
     return response.data
   },
-  
+
   create: async (data) => {
     const response = await api.post('/departments', data)
     return response.data
   },
-  
+
   update: async (id, data) => {
     const response = await api.put(`/departments/${id}`, data)
     return response.data
   },
-  
+
   delete: async (id) => {
     const response = await api.delete(`/departments/${id}`)
     return response.data

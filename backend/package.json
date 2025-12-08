@@ -12,9 +12,22 @@
     "test:unit": "NODE_ENV=test mocha --recursive --require @babel/register --require ./tests/setup.js tests/unit/**/*.test.js",
     "test:integration": "NODE_ENV=test mocha --recursive --require @babel/register --require ./tests/setup.js tests/integration/**/*.test.js",
     "test:e2e": "NODE_ENV=test mocha --recursive --require @babel/register --require ./tests/setup.js tests/e2e/**/*.test.js",
+    "test:security": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/multi-tenant-security.test.js",
+    "test:catalog": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/integration/catalog.test.js tests/e2e/catalog-workflow.test.js",
+    "test:rbac": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/integration/rbac.test.js",
+    "test:knowledge": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/integration/knowledge.test.js",
+    "test:slas": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/integration/slas.test.js",
+    "test:auth": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/integration/auth.test.js",
+    "test:org-structure": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/integration/organizational-structure.test.js",
+    "test:priorities-types": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/integration/priorities-types.test.js",
+    "test:hours-bank": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/integration/hours-bank.test.js",
+    "test:comments": "NODE_ENV=test mocha --require @babel/register --require ./tests/setup.js tests/integration/comments.test.js",
     "test:coverage": "NODE_ENV=test c8 --reporter=text --reporter=html --reporter=lcov npm test",
+    "test:coverage:report": "NODE_ENV=test c8 --reporter=text --reporter=html --reporter=lcov npm test && open coverage/index.html",
     "test:watch": "NODE_ENV=test mocha --recursive --require @babel/register --require ./tests/setup.js tests/**/*.test.js --watch",
-    "lint": "eslint src/**/*.js"
+    "test:ci": "NODE_ENV=test c8 --reporter=text --reporter=lcov npm test",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix"
   },
   "keywords": [
     "tickets",

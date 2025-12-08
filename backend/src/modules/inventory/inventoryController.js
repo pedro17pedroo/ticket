@@ -45,10 +45,10 @@ export const getAssets = async (req, res, next) => {
     const organizationId = req.user.organizationId;
     const userId = req.user.id;
     const userRole = req.user.role;
-    
-    const { 
-      type, 
-      status, 
+
+    const {
+      type,
+      status,
       search,
       page = 1,
       limit = 50
@@ -88,12 +88,12 @@ export const getAssets = async (req, res, next) => {
         },
         ...(includeLicenses
           ? [{
-              model: SoftwareLicense,
-              as: 'licenses',
-              attributes: ['id', 'softwareName', 'vendor', 'licenseType'],
-              through: { attributes: [] },
-              required: false
-            }]
+            model: SoftwareLicense,
+            as: 'licenses',
+            attributes: ['id', 'name', 'vendor', 'licenseType'],
+            through: { attributes: [] },
+            required: false
+          }]
           : [])
       ],
       limit: parseInt(limit),
@@ -143,7 +143,7 @@ export const getAssetById = async (req, res, next) => {
     const userRole = req.user.role;
 
     const where = { id, organizationId };
-    
+
     // Se for cliente, verificar se o asset pertence a ele
     if (userRole && userRole.startsWith('client')) {
       where.userId = userId;
@@ -161,7 +161,7 @@ export const getAssetById = async (req, res, next) => {
         {
           model: SoftwareLicense,
           as: 'licenses',
-          attributes: ['id', 'softwareName', 'vendor', 'licenseType', 'expiryDate'],
+          attributes: ['id', 'name', 'vendor', 'licenseType', 'expiryDate'],
           through: { attributes: [] },
           required: false
         }
@@ -420,7 +420,7 @@ export const getLicenses = async (req, res, next) => {
     if (expiringDays) {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + parseInt(expiringDays));
-      
+
       where.expiryDate = {
         [Op.lte]: futureDate,
         [Op.gte]: new Date()
@@ -438,7 +438,7 @@ export const getLicenses = async (req, res, next) => {
         {
           model: Asset,
           as: 'assets',
-          through: { 
+          through: {
             attributes: ['assignedDate', 'isActive'],
             where: { isActive: true }
           },
@@ -725,7 +725,7 @@ export const getStatistics = async (req, res, next) => {
     const userRole = req.user.role;
 
     const where = { organizationId };
-    
+
     // Se for cliente, mostrar apenas seus equipamentos
     if (userRole && userRole.startsWith('client')) {
       where.userId = userId;
@@ -733,7 +733,7 @@ export const getStatistics = async (req, res, next) => {
 
     const totalAssetsPromise = Asset.count({ where });
     const activeAssetsPromise = Asset.count({ where: { ...where, status: 'active' } });
-    const totalSoftwarePromise = Software.count({ 
+    const totalSoftwarePromise = Software.count({
       include: [{
         model: Asset,
         as: 'asset',
@@ -860,14 +860,14 @@ export const browserCollect = async (req, res, next) => {
       // Buscar clientId do usuário (se for cliente)
       logger.info('Fetching user data for clientId:', userId);
       const userData = await findUserAnyTable(userId);
-      
+
       if (!userData) {
         logger.error('User not found:', userId);
         return res.status(404).json({ error: 'Usuário não encontrado' });
       }
 
       logger.info('User found:', { userId, clientId: userData.clientId, userType: userData.userType });
-      
+
       // Criar novo asset com todos os dados
       const newAssetData = {
         organizationId,
@@ -880,7 +880,7 @@ export const browserCollect = async (req, res, next) => {
       };
 
       logger.info('Creating asset with data');
-      
+
       asset = await Asset.create(newAssetData);
 
       logger.info(`Novo asset criado via navegador: ${asset.assetTag}`);
@@ -905,7 +905,7 @@ export const browserCollect = async (req, res, next) => {
       sql: error.sql,
       original: error.original?.message
     });
-    
+
     // Retornar erro detalhado para debug
     res.status(500).json({
       error: 'Erro ao processar inventário',
@@ -918,6 +918,13 @@ export const browserCollect = async (req, res, next) => {
 /**
  * POST /api/inventory/agent-collect
  * Receber dados coletados pelo Desktop Agent
+ * 
+ * LÓGICA DE ASSOCIAÇÃO:
+ * - Um usuário pode ter vários assets (várias máquinas)
+ * - Uma máquina pode ser usada por vários usuários (cada um tem seu próprio registro)
+ * - Chave única: machineId + userId (não duplica a mesma máquina para o mesmo usuário)
+ * - Se o usuário já tem esta máquina registrada, apenas atualiza as informações
+ * - Se é uma nova máquina para o usuário, cria um novo registro
  */
 export const agentCollect = async (req, res, next) => {
   try {
@@ -931,22 +938,55 @@ export const agentCollect = async (req, res, next) => {
       return res.status(400).json({ error: 'Dados de inventário não fornecidos' });
     }
 
-    // Verificar se já existe um asset com este machineId
+    // Gerar assetTag único por máquina + usuário
+    // Formato: machineId-userId (primeiros 8 caracteres do userId para manter legível)
+    const userIdShort = userId.substring(0, 8);
+    const assetTag = `${inventory.machineId}-${userIdShort}`;
+
+    // Verificar se já existe um asset com este machineId PARA ESTE USUÁRIO
     let asset = await Asset.findOne({
       where: {
         organizationId,
-        assetTag: inventory.machineId
+        userId,
+        assetTag: assetTag
       }
     });
 
+    // Se não encontrou com o novo formato, tentar encontrar com formato antigo (só machineId)
+    // e migrar para o novo formato
+    if (!asset) {
+      const legacyAsset = await Asset.findOne({
+        where: {
+          organizationId,
+          userId,
+          assetTag: inventory.machineId
+        }
+      });
+
+      if (legacyAsset) {
+        // Migrar para novo formato
+        logger.info(`Migrando asset ${legacyAsset.id} para novo formato de assetTag`);
+        await legacyAsset.update({ assetTag });
+        asset = legacyAsset;
+      }
+    }
+
     // Buscar usuário para obter clientId
     const userData = await findUserAnyTable(userId);
-    
+
     if (!userData) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
 
     const user = userData.user;
+
+    logger.info('Asset lookup:', {
+      found: !!asset,
+      assetTag,
+      userId,
+      userType: userData.userType,
+      clientId: userData.clientId
+    });
 
     // Preparar dados do asset
     const assetData = {
@@ -958,9 +998,9 @@ export const agentCollect = async (req, res, next) => {
       os: inventory.os,
       osVersion: inventory.osVersion,
       osBuild: inventory.osBuild,
-      osArchitecture: inventory.osArchitecture?.toLowerCase() === 'arm64' ? 'ARM64' : 
-                       inventory.osArchitecture?.toLowerCase() === 'arm' ? 'ARM' :
-                       inventory.osArchitecture?.toLowerCase() === 'x64' ? 'x64' : 'x86',
+      osArchitecture: inventory.osArchitecture?.toLowerCase() === 'arm64' ? 'ARM64' :
+        inventory.osArchitecture?.toLowerCase() === 'arm' ? 'ARM' :
+          inventory.osArchitecture?.toLowerCase() === 'x64' ? 'x64' : 'x86',
       processor: inventory.processor,
       processorCores: inventory.processorCores,
       ram: inventory.ram,
@@ -993,18 +1033,19 @@ export const agentCollect = async (req, res, next) => {
       await asset.update(assetData);
       logger.info(`Asset atualizado via desktop agent: ${asset.assetTag}`);
     } else {
-      // Criar novo asset
+      // Criar novo asset para este usuário
+      // Cada usuário tem seu próprio registro da máquina
       const newAssetData = {
         organizationId,
-        clientId: user.clientId || null,
+        clientId: userData.clientId || null, // Usar clientId do userData
         userId,
-        assetTag: inventory.machineId,
+        assetTag: assetTag, // Formato: machineId-userIdShort
         status: 'active',
         ...assetData
       };
 
       asset = await Asset.create(newAssetData);
-      logger.info(`Novo asset criado via desktop agent: ${asset.assetTag}`);
+      logger.info(`Novo asset criado via desktop agent: ${asset.assetTag} para usuário ${userId}`);
     }
 
     // Processar software instalado
@@ -1047,7 +1088,7 @@ export const agentCollect = async (req, res, next) => {
       message: error.message,
       stack: error.stack
     });
-    
+
     res.status(500).json({
       error: 'Erro ao processar inventário',
       message: error.message
@@ -1066,7 +1107,7 @@ export const getOrganizationUsers = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     const users = await OrganizationUser.findAll({
-      where: { 
+      where: {
         organizationId
       },
       attributes: ['id', 'name', 'email', 'role', 'isActive'],
@@ -1117,14 +1158,14 @@ export const getOrganizationInventoryStats = async (req, res, next) => {
     const organizationId = req.user.organizationId;
 
     const [totalUsers, totalAssets, onlineUsers] = await Promise.all([
-      OrganizationUser.count({ 
-        where: { 
+      OrganizationUser.count({
+        where: {
           organizationId
         }
       }),
-      Asset.count({ where: { organizationId } }),
-      OrganizationUser.count({ 
-        where: { 
+      Asset.count({ where: { organizationId, clientId: null } }),
+      OrganizationUser.count({
+        where: {
           organizationId
           // Adicionar lógica de online se tiver campo lastSeen
         }
@@ -1157,7 +1198,7 @@ export const getClientsWithInventory = async (req, res, next) => {
 
     // Buscar empresas clientes da tabela clients
     const clients = await Client.findAll({
-      where: { 
+      where: {
         organizationId
       },
       attributes: ['id', 'name', 'tradeName', 'isActive'],
@@ -1225,20 +1266,20 @@ export const getClientsInventoryStats = async (req, res, next) => {
 
     const [totalClients, totalClientUsers, totalClientAssets] = await Promise.all([
       // Total de empresas clientes
-      Client.count({ 
-        where: { 
+      Client.count({
+        where: {
           organizationId
         }
       }),
       // Total de usuários de empresas clientes
-      ClientUser.count({ 
-        where: { 
+      ClientUser.count({
+        where: {
           organizationId
         }
       }),
       // Assets das empresas clientes
-      Asset.count({ 
-        where: { 
+      Asset.count({
+        where: {
           organizationId,
           clientId: { [Op.ne]: null }
         }
@@ -1281,7 +1322,7 @@ export const getUserInventory = async (req, res, next) => {
     const user = userData.user;
 
     const assets = await Asset.findAll({
-      where: { 
+      where: {
         organizationId,
         [Op.or]: [
           { userId },
@@ -1320,8 +1361,8 @@ export const getClientInventory = async (req, res, next) => {
 
     // Buscar empresa cliente
     const client = await Client.findOne({
-      where: { 
-        id: clientId, 
+      where: {
+        id: clientId,
         organizationId
       },
       attributes: ['id', 'name', 'tradeName', 'isActive'],
@@ -1352,7 +1393,7 @@ export const getClientInventory = async (req, res, next) => {
 
     // Buscar usuários da empresa cliente
     const users = await ClientUser.findAll({
-      where: { 
+      where: {
         organizationId,
         clientId
       },
@@ -1416,8 +1457,8 @@ export const getClientInventory = async (req, res, next) => {
         // Software dos assets do cliente master
         (client.clientAssets?.reduce((acc, asset) => acc + (asset.software?.length || 0), 0) || 0) +
         // Software dos assets dos usuários filhos
-        users.reduce((acc, u) => 
-          acc + (u.userAssets?.reduce((assetAcc, asset) => 
+        users.reduce((acc, u) =>
+          acc + (u.userAssets?.reduce((assetAcc, asset) =>
             assetAcc + (asset.software?.length || 0), 0) || 0
           ), 0
         )

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { GitMerge, X, AlertTriangle, CheckCircle, Search } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { confirmAction } from '../utils/alerts';
 
 const MergeTicketsModal = ({ ticketId, onClose, onSuccess }) => {
   const [duplicates, setDuplicates] = useState([]);
@@ -29,7 +30,7 @@ const MergeTicketsModal = ({ ticketId, onClose, onSuccess }) => {
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
-    
+
     setSearching(true);
     try {
       const { data } = await api.get('/tickets', {
@@ -61,9 +62,14 @@ const MergeTicketsModal = ({ ticketId, onClose, onSuccess }) => {
       return;
     }
 
-    if (!confirm(`Tem certeza que deseja mesclar ${selectedTickets.length} ticket(s)? Esta ação não pode ser desfeita.`)) {
-      return;
-    }
+    const confirmed = await confirmAction(
+      'Mesclar tickets?',
+      `Tem certeza que deseja mesclar ${selectedTickets.length} ticket(s)? Esta ação não pode ser desfeita.`,
+      'Sim, mesclar!',
+      'Cancelar'
+    )
+
+    if (!confirmed) return;
 
     setMerging(true);
     try {
@@ -91,7 +97,7 @@ const MergeTicketsModal = ({ ticketId, onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div 
+      <div
         className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
@@ -125,7 +131,7 @@ const MergeTicketsModal = ({ ticketId, onClose, onSuccess }) => {
                 Atenção! Ação Irreversível
               </h3>
               <p className="text-sm text-orange-700 dark:text-orange-300">
-                Os tickets selecionados serão fechados e todo seu conteúdo (comentários, anexos, tags, tempo rastreado) 
+                Os tickets selecionados serão fechados e todo seu conteúdo (comentários, anexos, tags, tempo rastreado)
                 será movido para este ticket. Esta ação não pode ser desfeita.
               </p>
             </div>
@@ -193,13 +199,12 @@ const MergeTicketsModal = ({ ticketId, onClose, onSuccess }) => {
                     <span className="text-sm font-medium text-primary-600">
                       {ticket.ticketNumber}
                     </span>
-                    <span className={`px-2 py-0.5 text-xs rounded-full ${
-                      ticket.status === 'aberto' 
+                    <span className={`px-2 py-0.5 text-xs rounded-full ${ticket.status === 'aberto'
                         ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                         : ticket.status === 'em-progresso'
-                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                    }`}>
+                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                      }`}>
                       {ticket.status}
                     </span>
                   </div>

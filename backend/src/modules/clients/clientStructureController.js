@@ -149,6 +149,43 @@ export const deleteDirection = async (req, res, next) => {
   }
 };
 
+// PUT /api/client/directions/:id/activate - Reativar direção
+export const reactivateDirection = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organizationId;
+    const clientId = req.user.clientId || req.user.id;
+
+    if (req.user.role !== 'client-admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas administradores do cliente podem reativar direções'
+      });
+    }
+
+    const direction = await Direction.findOne({
+      where: { id, organizationId, clientId }
+    });
+
+    if (!direction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Direção não encontrada'
+      });
+    }
+
+    await direction.update({ isActive: true });
+
+    res.json({
+      success: true,
+      message: 'Direção reativada com sucesso',
+      direction
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ==================== DEPARTMENTS ====================
 
 // GET /api/client/departments - Listar departamentos do cliente
@@ -300,6 +337,43 @@ export const deleteDepartment = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Departamento desativado com sucesso'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/client/departments/:id/activate - Reativar departamento
+export const reactivateDepartment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organizationId;
+    const clientId = req.user.clientId || req.user.id;
+
+    if (req.user.role !== 'client-admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas administradores do cliente podem reativar departamentos'
+      });
+    }
+
+    const department = await Department.findOne({
+      where: { id, organizationId, clientId }
+    });
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        error: 'Departamento não encontrado'
+      });
+    }
+
+    await department.update({ isActive: true });
+
+    res.json({
+      success: true,
+      message: 'Departamento reativado com sucesso',
+      department
     });
   } catch (error) {
     next(error);
@@ -462,6 +536,43 @@ export const deleteSection = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Secção desativada com sucesso'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/client/sections/:id/activate - Reativar secção
+export const reactivateSection = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organizationId;
+    const clientId = req.user.clientId || req.user.id;
+
+    if (req.user.role !== 'client-admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas administradores do cliente podem reativar secções'
+      });
+    }
+
+    const section = await Section.findOne({
+      where: { id, organizationId, clientId }
+    });
+
+    if (!section) {
+      return res.status(404).json({
+        success: false,
+        error: 'Secção não encontrada'
+      });
+    }
+
+    await section.update({ isActive: true });
+
+    res.json({
+      success: true,
+      message: 'Secção reativada com sucesso',
+      section
     });
   } catch (error) {
     next(error);

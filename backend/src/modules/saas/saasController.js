@@ -4,13 +4,14 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendEmailVerification, sendWelcomeEmail } from '../../services/emailService.js';
+import organizationSeedService from '../../services/organizationSeedService.js';
 
 // POST /api/saas/onboarding - Criar nova organização tenant com usuário admin
 export const createTenantOrganization = async (req, res, next) => {
   try {
     console.log('🚀 ===== INÍCIO CRIAÇÃO ORGANIZAÇÃO TENANT =====');
     console.log('📥 POST /api/saas/onboarding - Body:', JSON.stringify(req.body, null, 2));
-    
+
     let {
       // Dados da organização
       companyName,
@@ -50,7 +51,7 @@ export const createTenantOrganization = async (req, res, next) => {
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
-      
+
       // Adicionar timestamp para garantir unicidade
       slug = `${generatedSlug}-${Date.now()}`;
       console.log('🏷️ Slug gerado automaticamente:', slug);
@@ -99,11 +100,11 @@ export const createTenantOrganization = async (req, res, next) => {
     if (plan) {
       selectedPlan = await Plan.findOne({ where: { name: plan, isActive: true } });
     }
-    
+
     if (!selectedPlan) {
       selectedPlan = await Plan.findOne({ where: { isDefault: true, isActive: true } });
     }
-    
+
     if (!selectedPlan) {
       return res.status(500).json({
         success: false,
@@ -154,7 +155,7 @@ export const createTenantOrganization = async (req, res, next) => {
 
     // Criar subscription da organização
     const trialEndsAt = new Date(Date.now() + selectedPlan.trialDays * 24 * 60 * 60 * 1000);
-    
+
     const subscription = await Subscription.create({
       organizationId: organization.id,
       planId: selectedPlan.id,
@@ -181,7 +182,7 @@ export const createTenantOrganization = async (req, res, next) => {
 
     // Gerar token de validação de email
     const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-    
+
     // Criar usuário admin da organização
     console.log('🔄 Criando usuário admin...');
     console.log('📋 Dados do usuário:', {
@@ -233,7 +234,7 @@ export const createTenantOrganization = async (req, res, next) => {
         message: userError.message,
         errors: userError.errors
       });
-      
+
       return res.status(500).json({
         success: false,
         error: 'Erro ao criar usuário administrador',
@@ -260,19 +261,30 @@ export const createTenantOrganization = async (req, res, next) => {
 
     // URL do portal da organização (configurável via .env)
     const portalUrl = process.env.ORGANIZATION_PORTAL_URL || 'http://localhost:5173';
-    
+
     // Enviar email de boas-vindas
     try {
       await sendWelcomeEmail(
-        adminEmail, 
-        adminName, 
-        companyName, 
+        adminEmail,
+        adminName,
+        companyName,
         portalUrl
       );
       console.log(`📧 Email de boas-vindas enviado para: ${adminEmail}`);
     } catch (emailError) {
       console.error('⚠️ Erro ao enviar email de boas-vindas:', emailError);
       // Não falhamos a criação se o email não for enviado
+    }
+
+    // Seed default data (priorities, types, categories, SLAs, catalog categories)
+    let seedStats = null;
+    try {
+      console.log('🌱 Iniciando seed de dados padrão...');
+      seedStats = await organizationSeedService.seedOrganizationDefaults(organization.id);
+      console.log('✅ Seed de dados padrão concluído:', seedStats);
+    } catch (seedError) {
+      console.error('⚠️ Erro no seed de dados padrão (não crítico):', seedError);
+      // Não falhamos a criação se o seed não funcionar
     }
 
     console.log(`✅ Organização criada: ${organization.name} (${organization.slug})`);
@@ -365,7 +377,7 @@ export const sendVerificationEmail = async (req, res, next) => {
 
     // Gerar token de 6 dígitos
     const emailVerificationToken = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // Salvar token temporariamente (expira em 10 minutos)
     emailVerificationTokens.set(adminEmail, {
       token: emailVerificationToken,
@@ -381,12 +393,12 @@ export const sendVerificationEmail = async (req, res, next) => {
         }
       }
     }, 11 * 60 * 1000);
-    
+
     // Enviar email de verificação
     const emailResult = await sendEmailVerification(
-      adminEmail, 
-      adminName, 
-      emailVerificationToken, 
+      adminEmail,
+      adminName,
+      emailVerificationToken,
       companyName
     );
 
@@ -428,7 +440,7 @@ export const verifyEmail = async (req, res, next) => {
 
     // Verificar token armazenado temporariamente
     const storedData = emailVerificationTokens.get(email);
-    
+
     if (!storedData) {
       return res.status(400).json({
         success: false,

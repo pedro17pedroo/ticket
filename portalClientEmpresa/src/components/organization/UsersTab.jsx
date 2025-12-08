@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit, Trash2, X, Save } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, X, Save, UserPlus, Mail, Phone, Shield } from 'lucide-react'
+import { confirmDelete, showSuccess, showError } from '../../utils/alerts'
 import organizationService from '../../services/organizationService'
 import toast from 'react-hot-toast'
 
@@ -19,7 +20,7 @@ const UsersTab = () => {
     sectionId: ''
   })
   const [saving, setSaving] = useState(false)
-  
+
   // Organizational data
   const [directions, setDirections] = useState([])
   const [departments, setDepartments] = useState([])
@@ -73,7 +74,7 @@ const UsersTab = () => {
         sectionId: user.sectionId || ''
       }
       setFormData(userData)
-      
+
       // Load dependent dropdowns
       if (userData.directionId) {
         filterDepartmentsByDirection(userData.directionId)
@@ -187,9 +188,12 @@ const UsersTab = () => {
   }
 
   const handleDelete = async (user) => {
-    if (!confirm(`Tem certeza que deseja desativar o utilizador ${user.name}?`)) {
-      return
-    }
+    const confirmed = await confirmDelete(
+      'Desativar utilizador?',
+      `Tem certeza que deseja desativar o utilizador ${user.name}?`
+    )
+
+    if (!confirmed) return
 
     try {
       await organizationService.deleteClientUser(user.id)
@@ -224,7 +228,7 @@ const UsersTab = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
           />
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="ml-4 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
         >
@@ -272,24 +276,23 @@ const UsersTab = () => {
                     {!user.direction && !user.department && !user.section && '-'}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      user.role === 'client-admin'
+                    <span className={`px-2 py-1 text-xs rounded-full ${user.role === 'client-admin'
                         ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
                         : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                    }`}>
+                      }`}>
                       {user.role === 'client-admin' ? 'Administrador' : 'Utilizador'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <button 
+                      <button
                         onClick={() => handleOpenModal(user)}
                         className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
                         title="Editar"
                       >
                         <Edit className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDelete(user)}
                         className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
                         title="Desativar"
@@ -374,7 +377,7 @@ const UsersTab = () => {
 
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
                 <h3 className="text-sm font-semibold mb-3">Organização</h3>
-                
+
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium mb-2">Direção</label>

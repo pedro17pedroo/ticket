@@ -42,7 +42,7 @@ router.get('/workspaces/:id',
 // Criar workspace
 router.post('/workspaces',
   authMiddleware,
-  requireRole(['admin', 'admin-org', 'tecnico']),
+  requireRole(['admin', 'org-admin', 'tecnico']),
   collaborationController.createTeamWorkspace.bind(collaborationController)
 );
 

@@ -4,13 +4,19 @@ import { useForm } from 'react-hook-form'
 import { authService } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
-import { LogIn, Mail, Lock } from 'lucide-react'
+import { LogIn, Mail, Lock, ArrowLeft } from 'lucide-react'
 
 const Login = () => {
   const navigate = useNavigate()
   const { setAuth, token } = useAuthStore()
   const [loading, setLoading] = useState(false)
-  const { register, handleSubmit, formState: { errors } } = useForm()
+  const { register: registerLogin, handleSubmit: handleSubmitLogin, formState: { errors: loginErrors } } = useForm()
+  const { register: registerRecoveryEmail, handleSubmit: handleSubmitRecoveryEmail, formState: { errors: recoveryErrors }, reset: resetRecoveryForm } = useForm()
+  const { register: registerResetPassword, handleSubmit: handleSubmitResetPassword, formState: { errors: resetErrors }, reset: resetResetForm } = useForm()
+  const [showRecovery, setShowRecovery] = useState(false)
+  const [recoveryStep, setRecoveryStep] = useState(1)
+  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [recoveryLoading, setRecoveryLoading] = useState(false)
   
   console.log('🔄 Login component renderizado, token:', token ? 'presente' : 'ausente')
   
@@ -65,6 +71,55 @@ const Login = () => {
     }
   }
 
+  const handleRequestReset = async ({ email }) => {
+    try {
+      setRecoveryLoading(true)
+      await authService.requestPasswordReset(email, 'organization')
+      toast.success('Se o email existir, enviámos um token de recuperação')
+      setRecoveryEmail(email)
+      setRecoveryStep(2)
+    } catch (error) {
+      const message = error.response?.data?.error || error.message || 'Erro ao solicitar recuperação'
+      toast.error(message)
+    } finally {
+      setRecoveryLoading(false)
+    }
+  }
+
+  const handleResetPassword = async ({ token, newPassword, confirmPassword }) => {
+    if (!recoveryEmail) {
+      toast.error('Solicite o token primeiro')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('As senhas não coincidem')
+      return
+    }
+
+    try {
+      setRecoveryLoading(true)
+      await authService.validatePasswordResetToken(recoveryEmail, token, 'organization')
+      await authService.resetPasswordWithToken(recoveryEmail, token, newPassword, 'organization')
+      toast.success('Senha redefinida com sucesso! Faça login novamente.')
+      handleCloseRecovery()
+    } catch (error) {
+      const message = error.response?.data?.error || error.message || 'Erro ao redefinir senha'
+      toast.error(message)
+    } finally {
+      setRecoveryLoading(false)
+    }
+  }
+
+  const handleCloseRecovery = () => {
+    setShowRecovery(false)
+    setRecoveryStep(1)
+    setRecoveryEmail('')
+    resetRecoveryForm()
+    resetResetForm()
+    setRecoveryLoading(false)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -86,69 +141,179 @@ const Login = () => {
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-center mb-6">Iniciar Sessão</h2>
+          {!showRecovery ? (
+            <>
+              <h2 className="text-2xl font-bold text-center mb-6">Iniciar Sessão</h2>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="email"
-                  {...register('email', { 
-                    required: 'Email é obrigatório',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Email inválido'
-                    }
-                  })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700"
-                  placeholder="seu@email.com"
-                />
+              <form onSubmit={handleSubmitLogin(onSubmit)} className="space-y-4">
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="email"
+                      {...registerLogin('email', { 
+                        required: 'Email é obrigatório',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'Email inválido'
+                        }
+                      })}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700"
+                      placeholder="seu@email.com"
+                    />
+                  </div>
+                  {loginErrors.email && (
+                    <p className="text-red-500 text-sm mt-1">{loginErrors.email.message}</p>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Senha</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="password"
+                      {...registerLogin('password', { required: 'Senha é obrigatória' })}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  {loginErrors.password && (
+                    <p className="text-red-500 text-sm mt-1">{loginErrors.password.message}</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <button
+                    type="button"
+                    className="text-primary-600 hover:underline font-medium"
+                    onClick={() => setShowRecovery(true)}
+                  >
+                    Esqueceu a sua senha?
+                  </button>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'A entrar...' : 'Entrar'}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold">Recuperar Senha</h2>
+                <button
+                  type="button"
+                  onClick={handleCloseRecovery}
+                  className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Voltar ao login
+                </button>
               </div>
-              {errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+
+              {recoveryStep === 1 ? (
+                <form onSubmit={handleSubmitRecoveryEmail(handleRequestReset)} className="space-y-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Insira o email associado à sua conta. Enviaremos um token para validar a redefinição.
+                  </p>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="email"
+                        {...registerRecoveryEmail('email', {
+                          required: 'Email é obrigatório',
+                          pattern: {
+                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                            message: 'Email inválido'
+                          }
+                        })}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700"
+                        placeholder="seu@email.com"
+                      />
+                    </div>
+                    {recoveryErrors.email && (
+                      <p className="text-red-500 text-sm mt-1">{recoveryErrors.email.message}</p>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={recoveryLoading}
+                    className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {recoveryLoading ? 'A enviar...' : 'Enviar token'}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleSubmitResetPassword(handleResetPassword)} className="space-y-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Introduza o token recebido em <strong>{recoveryEmail}</strong> e defina uma nova senha.
+                  </p>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Token</label>
+                    <input
+                      type="text"
+                      {...registerResetPassword('token', {
+                        required: 'Token é obrigatório',
+                        minLength: { value: 6, message: 'Token deve ter 6 caracteres' },
+                        maxLength: { value: 6, message: 'Token deve ter 6 caracteres' }
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 uppercase"
+                      placeholder="EX1234"
+                    />
+                    {resetErrors.token && (
+                      <p className="text-red-500 text-sm mt-1">{resetErrors.token.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Nova senha</label>
+                    <input
+                      type="password"
+                      {...registerResetPassword('newPassword', { required: 'Senha é obrigatória', minLength: { value: 6, message: 'Mínimo 6 caracteres' } })}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700"
+                      placeholder="••••••••"
+                    />
+                    {resetErrors.newPassword && (
+                      <p className="text-red-500 text-sm mt-1">{resetErrors.newPassword.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Confirmar senha</label>
+                    <input
+                      type="password"
+                      {...registerResetPassword('confirmPassword', { required: 'Confirmação obrigatória' })}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700"
+                      placeholder="••••••••"
+                    />
+                    {resetErrors.confirmPassword && (
+                      <p className="text-red-500 text-sm mt-1">{resetErrors.confirmPassword.message}</p>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={recoveryLoading}
+                    className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {recoveryLoading ? 'Validando...' : 'Redefinir senha'}
+                  </button>
+                </form>
               )}
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Senha</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="password"
-                  {...register('password', { required: 'Senha é obrigatória' })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700"
-                  placeholder="••••••••"
-                />
-              </div>
-              {errors.password && (
-                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
-              )}
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'A entrar...' : 'Entrar'}
-            </button>
-          </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-2">
-              Credenciais de teste:
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-500">
-              <strong>Admin:</strong> admin@empresademo.com / Admin@123<br />
-              <strong>Agente:</strong> agente@empresademo.com / Agente@123
-            </p>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -210,7 +210,7 @@ export const requireLevel = (...levels) => {
 
       // Mapear roles para níveis
       const roleLevelMap = {
-        'admin-org': 'organization',
+        'org-admin': 'organization',
         'gerente': 'organization',
         'supervisor': 'organization',
         'agente': 'organization',

@@ -1,9 +1,30 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
-import { ShoppingBag, Clock, CheckCircle, Plus, AlertCircle, XCircle } from 'lucide-react'
+import {
+  ShoppingBag, Clock, CheckCircle, Plus, AlertCircle, XCircle,
+  Box, Printer, Monitor, Wifi, Database, Server, HardDrive, Cpu,
+  Laptop, Smartphone, Package, FileText, Settings, Wrench,
+  Users, UserPlus, Key, Lock, Shield, Mail, MessageSquare,
+  Headphones, HelpCircle, Clipboard, Eye
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
+
+// Icon mapping for catalog items
+const iconMap = {
+  Box, Printer, Monitor, Wifi, Database, Server, HardDrive, Cpu,
+  Laptop, Smartphone, Package, FileText, Settings, Wrench,
+  Users, UserPlus, Key, Lock, Shield, Mail, MessageSquare,
+  Headphones, HelpCircle, Clipboard, ShoppingBag, Clock, CheckCircle,
+  XCircle, AlertCircle, Eye
+};
+
+// Helper function to get icon component from name
+const getIconComponent = (iconName) => {
+  if (!iconName) return null;
+  return iconMap[iconName] || Package;
+};
 
 const Dashboard = () => {
   const navigate = useNavigate()
@@ -121,7 +142,7 @@ const Dashboard = () => {
               Fazer uma solicitação através do catálogo de serviços
             </p>
           </button>
-          
+
           <button
             onClick={() => navigate('/knowledge')}
             className="p-6 text-left border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
@@ -172,34 +193,49 @@ const Dashboard = () => {
                 cancelled: { label: 'Cancelado', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300' },
               };
               const status = statusConfig[request.status] || statusConfig.in_progress;
-              
+              const CatalogIcon = getIconComponent(request.catalogItem?.icon);
+
+              // Navigate to ticket if exists, otherwise to request details
+              const handleClick = () => {
+                if (request.ticketId) {
+                  navigate(`/tickets/${request.ticketId}`);
+                } else {
+                  navigate(`/my-requests/${request.id}`);
+                }
+              };
+
               return (
-              <button
-                key={request.id}
-                onClick={() => navigate('/my-requests')}
-                className="w-full p-6 text-left hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
-                        {status.label}
-                      </span>
+                <button
+                  key={request.id}
+                  onClick={handleClick}
+                  className="w-full p-6 text-left hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
+                          {status.label}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold mb-1 truncate">{request.catalogItem?.name || 'Solicitação'}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {request.createdAt
+                          ? `Criado em ${format(new Date(request.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}`
+                          : 'Data não disponível'
+                        }
+                      </p>
                     </div>
-                    <h3 className="font-semibold mb-1 truncate">{request.catalogItem?.name || 'Solicitação'}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {request.createdAt 
-                        ? `Criado em ${format(new Date(request.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}`
-                        : 'Data não disponível'
-                      }
-                    </p>
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                      {CatalogIcon ? (
+                        <CatalogIcon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                      ) : (
+                        <Package className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">{request.catalogItem?.icon || '📋'}</span>
-                  </div>
-                </div>
-              </button>
-            )})}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>

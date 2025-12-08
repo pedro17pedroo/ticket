@@ -19,6 +19,7 @@ import ServiceCatalog from './pages/ServiceCatalog'
 import ServiceCatalogEnhanced from './pages/ServiceCatalogEnhanced'
 import ServiceCatalogHierarchical from './pages/ServiceCatalogHierarchical'
 import MyRequests from './pages/MyRequests'
+import RequestDetail from './pages/RequestDetail'
 import MyAssets from './pages/MyAssets'
 import MyAssetDetail from './pages/MyAssetDetail'
 import Organization from './pages/Organization'
@@ -38,61 +39,65 @@ function App() {
     >
       <SocketProvider>
         <NotificationProvider>
-          <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            iconTheme: {
-              primary: '#0ea5e9',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
-            },
-          },
-        }}
-      />
-      
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        
-        <Route
-          path="/*"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/tickets/:id" element={<TicketDetail />} />
-                  <Route path="/knowledge" element={<KnowledgeBase />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/users" element={<Users />} />
-                  <Route path="/directions" element={<Directions />} />
-                  <Route path="/departments" element={<Departments />} />
-                  <Route path="/sections" element={<Sections />} />
-                  <Route path="/hours-bank" element={<HoursBank />} />
-                  <Route path="/catalog" element={<ServiceCatalog />} />
-                  <Route path="/service-catalog" element={<ServiceCatalogHierarchical />} />
-                  <Route path="/my-requests" element={<MyRequests />} />
-                  <Route path="/my-assets" element={<MyAssets />} />
-                  <Route path="/my-assets/:id" element={<MyAssetDetail />} />
-                  <Route path="/organization" element={<Organization />} />
-                  <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-              </Layout>
-            </PrivateRoute>
-          }
-        />
-      </Routes>
+          <Toaster
+            position="top-right"
+            containerStyle={{
+              zIndex: 99999,
+            }}
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#0ea5e9',
+                  secondary: '#fff',
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: '#ef4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+
+            <Route
+              path="/*"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/tickets/:id" element={<TicketDetail />} />
+                      <Route path="/knowledge" element={<KnowledgeBase />} />
+                      <Route path="/profile" element={<Profile />} />
+                      <Route path="/users" element={<Users />} />
+                      <Route path="/directions" element={<Directions />} />
+                      <Route path="/departments" element={<Departments />} />
+                      <Route path="/sections" element={<Sections />} />
+                      <Route path="/hours-bank" element={<HoursBank />} />
+                      <Route path="/catalog" element={<ServiceCatalog />} />
+                      <Route path="/service-catalog" element={<ServiceCatalogHierarchical />} />
+                      <Route path="/my-requests" element={<MyRequests />} />
+                      <Route path="/my-requests/:id" element={<RequestDetail />} />
+                      <Route path="/my-assets" element={<MyAssets />} />
+                      <Route path="/my-assets/:id" element={<MyAssetDetail />} />
+                      <Route path="/organization" element={<Organization />} />
+                      <Route path="*" element={<Navigate to="/" />} />
+                    </Routes>
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+          </Routes>
         </NotificationProvider>
       </SocketProvider>
     </Router>

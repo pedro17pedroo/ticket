@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit, Trash2, X } from 'lucide-react'
+import { Plus, Edit, Layers, Building2, Search, X, Power } from 'lucide-react'
+import { confirmAction, showSuccess, showError } from '../../utils/alerts'
 import organizationService from '../../services/organizationService'
 import toast from 'react-hot-toast'
 
@@ -8,7 +9,7 @@ const SectionsTab = () => {
   const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   // Modal states
   const [showModal, setShowModal] = useState(false)
   const [editingSection, setEditingSection] = useState(null)
@@ -70,7 +71,7 @@ const SectionsTab = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!formData.name.trim()) {
       toast.error('Nome é obrigatório')
       return
@@ -92,20 +93,31 @@ const SectionsTab = () => {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Tem certeza que deseja eliminar esta secção?')) {
-      return
-    }
+  const handleToggleActive = async (section) => {
+    const isActive = section.isActive;
+    const action = isActive ? 'desativar' : 'reativar';
+
+    const confirmed = await confirmAction(
+      `${isActive ? 'Desativar' : 'Reativar'} secção?`,
+      `Tem certeza que deseja ${action} a secção "${section.name}"?`
+    );
+
+    if (!confirmed) return;
 
     try {
-      await organizationService.deleteSection(id)
-      toast.success('Secção eliminada com sucesso')
-      loadSections()
+      if (isActive) {
+        await organizationService.deleteSection(section.id);
+        toast.success('Secção desativada com sucesso');
+      } else {
+        await organizationService.reactivateSection(section.id);
+        toast.success('Secção reativada com sucesso');
+      }
+      loadSections();
     } catch (error) {
-      console.error('Erro ao eliminar secção:', error)
-      toast.error(error.response?.data?.message || 'Erro ao eliminar secção')
+      console.error(`Erro ao ${action} secção:`, error);
+      toast.error(error.response?.data?.message || `Erro ao ${action} secção`);
     }
-  }
+  };
 
   const filteredSections = sections.filter(sec =>
     sec.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -129,7 +141,7 @@ const SectionsTab = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
           />
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="ml-4 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
         >
@@ -145,10 +157,16 @@ const SectionsTab = () => {
           </div>
         ) : (
           filteredSections.map((section) => (
-            <div key={section.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-shadow">
+            <div key={section.id} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-shadow ${!section.isActive ? 'opacity-50' : ''
+              }`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{section.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg">{section.name}</h3>
+                    {!section.isActive && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">Inativo</span>
+                    )}
+                  </div>
                   {section.code && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">Código: {section.code}</p>
                   )}
@@ -162,17 +180,23 @@ const SectionsTab = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => handleOpenModal(section)}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                    title="Editar"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
-                  <button 
-                    onClick={() => handleDelete(section.id)}
-                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                  <button
+                    onClick={() => handleToggleActive(section)}
+                    className={`p-1 rounded ${section.isActive
+                        ? 'hover:bg-red-100 dark:hover:bg-red-900/30'
+                        : 'hover:bg-green-100 dark:hover:bg-green-900/30'
+                      }`}
+                    title={section.isActive ? 'Desativar' : 'Reativar'}
                   >
-                    <Trash2 className="w-4 h-4 text-red-600" />
+                    <Power className={`w-4 h-4 ${section.isActive ? 'text-red-600' : 'text-green-600'
+                      }`} />
                   </button>
                 </div>
               </div>
@@ -197,7 +221,7 @@ const SectionsTab = () => {
               <h2 className="text-xl font-semibold">
                 {editingSection ? 'Editar Secção' : 'Nova Secção'}
               </h2>
-              <button 
+              <button
                 onClick={handleCloseModal}
                 className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
               >

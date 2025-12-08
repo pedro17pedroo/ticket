@@ -347,8 +347,28 @@ export const register = async (req, res, next) => {
 // Obter perfil do usuário logado
 export const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findByPk(req.user.id, {
-      include: [
+    const { id, userType } = req.user;
+
+    // Seleciona dinamicamente o modelo e os relacionamentos conforme o tipo de usuário do token
+    let Model = User;
+    let include = [
+      {
+        model: Organization,
+        as: 'organization',
+        attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
+      },
+      {
+        model: Department,
+        as: 'department',
+        attributes: ['id', 'name']
+      }
+    ];
+
+    // Ajusta include corretamente de acordo com o tipo
+    if (userType === 'provider') {
+      // Provider SaaS User (tabela User)
+      Model = User;
+      include = [
         {
           model: Organization,
           as: 'organization',
@@ -359,24 +379,60 @@ export const getProfile = async (req, res, next) => {
           as: 'department',
           attributes: ['id', 'name']
         }
-      ]
-    });
+      ];
+    } else if (userType === 'organization') {
+      // Staff da organização (tabela OrganizationUser)
+      Model = OrganizationUser;
+      include = [
+        {
+          model: Organization,
+          as: 'organization',
+          attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
+        },
+        {
+          model: Department,
+          as: 'department',
+          attributes: ['id', 'name']
+        }
+      ];
+    } else if (userType === 'client') {
+      // Usuário cliente B2B (tabela ClientUser)
+      Model = ClientUser;
+      include = [
+        {
+          model: Organization,
+          as: 'organization',
+          attributes: ['id', 'name', 'slug', 'logo', 'primaryColor', 'secondaryColor']
+        },
+        {
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'name', 'tradeName']
+        }
+      ];
+    }
 
-    // Carregar permissões do utilizador (se tabelas RBAC existirem)
+    const userRecord = await Model.findByPk(id, { include });
+    if (!userRecord) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    // Carrega permissões (RBAC). Para tipos que não usam RBAC via tabela User, retornará [].
     let permissions = [];
     try {
       const permissionService = (await import('../../services/permissionService.js')).default;
-      permissions = await permissionService.getUserPermissions(req.user.id);
+      permissions = await permissionService.getUserPermissions(id);
     } catch (error) {
-      // Se tabelas RBAC não existirem ainda, ignorar
+      // Ignora se RBAC não estiver inicializado; relança outros erros reais
       if (!error.message?.includes('relation') || !error.message?.includes('does not exist')) {
-        throw error; // Re-lançar se for outro erro
+        throw error;
       }
     }
 
     res.json({
       user: {
-        ...user.toJSON(),
+        ...userRecord.toJSON(),
+        userType,
         permissions
       }
     });
@@ -389,13 +445,29 @@ export const getProfile = async (req, res, next) => {
 export const updateProfile = async (req, res, next) => {
   try {
     const { name, phone, settings } = req.body;
-    const user = await User.findByPk(req.user.id);
+    const { id, userType } = req.user;
 
-    await user.update({
-      name: name || user.name,
-      phone: phone || user.phone,
-      settings: settings ? { ...user.settings, ...settings } : user.settings
-    });
+    // Seleciona a tabela correta para atualização de perfil
+    const Model = userType === 'organization' ? OrganizationUser
+      : userType === 'client' ? ClientUser
+        : User; // provider (default)
+
+    const user = await Model.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    // Monta os dados de atualização; somente provider tem settings aqui
+    const updateData = {
+      name: typeof name === 'string' && name.trim() ? name : user.name,
+      phone: typeof phone === 'string' && phone.trim() ? phone : user.phone
+    };
+
+    if (userType === 'provider' && settings && typeof settings === 'object') {
+      updateData.settings = user.settings ? { ...user.settings, ...settings } : settings;
+    }
+
+    await user.update(updateData);
 
     res.json({
       message: 'Perfil atualizado com sucesso',
@@ -410,21 +482,27 @@ export const updateProfile = async (req, res, next) => {
 export const changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = req.user.id;
+    const { id, userType } = req.user;
 
-    // Buscar usuário com senha
-    const user = await User.scope('withPassword').findByPk(userId);
+    // Determina a tabela correta e garante o escopo com senha
+    const ScopedModel = userType === 'organization'
+      ? OrganizationUser.scope('withPassword')
+      : userType === 'client'
+        ? ClientUser.scope('withPassword')
+        : User.scope('withPassword');
+
+    const user = await ScopedModel.findByPk(id);
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
 
-    // Verificar senha atual
+    // Verifica a senha atual
     const isPasswordValid = await user.comparePassword(currentPassword);
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Senha atual incorreta' });
     }
 
-    // Atualizar senha (será hasheada pelo hook)
+    // Atualiza a senha (hash aplicado via hooks do modelo)
     await user.update({ password: newPassword });
 
     res.json({ message: 'Senha alterada com sucesso' });

@@ -8,7 +8,9 @@ const router = express.Router();
 router.use(authenticate);
 
 // Apenas Provider (super-admin e provider-admin) podem acessar
-router.use(authorize(['super-admin', 'provider-admin']));
+router.use(authorize('super-admin', 'provider-admin'));
+
+// ==================== TENANTS ====================
 
 // Listar tenants
 router.get('/tenants', providerController.getTenants);
@@ -27,6 +29,34 @@ router.put('/tenants/:id/suspend', providerController.suspendTenant);
 
 // Reativar tenant
 router.put('/tenants/:id/activate', providerController.activateTenant);
+
+// ==================== PROVIDER USERS ====================
+
+// Listar usuários provider (super-admin, provider-admin)
+router.get('/users', providerController.getProviderUsers);
+
+// Obter usuário provider por ID
+router.get('/users/:id', providerController.getProviderUserById);
+
+// Criar usuário provider
+router.post('/users', providerController.createProviderUser);
+
+// Atualizar usuário provider
+router.put('/users/:id', providerController.updateProviderUser);
+
+// Deletar usuário provider
+router.delete('/users/:id', providerController.deleteProviderUser);
+
+// Toggle status do usuário
+router.post('/users/:id/toggle-status', providerController.toggleProviderUserStatus);
+
+// Atualizar permissões
+router.put('/users/:id/permissions', providerController.updateProviderUserPermissions);
+
+// Resetar senha
+router.post('/users/:id/reset-password', providerController.resetProviderUserPassword);
+
+// ==================== STATISTICS ====================
 
 // Estatísticas globais
 router.get('/stats', providerController.getGlobalStats);

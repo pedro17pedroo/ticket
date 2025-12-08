@@ -5,7 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showLoginOptions, setShowLoginOptions] = useState(false);
   const location = useLocation();
+
+  const orgPortalUrl = import.meta.env.VITE_ORGANIZATION_PORTAL_URL || 'https://organizacao.tatuticket.com';
+  const clientPortalUrl = import.meta.env.VITE_CLIENT_PORTAL_URL || 'https://cliente.tatuticket.com';
 
   const navigation = [
     { name: 'Início', href: '/' },
@@ -59,8 +63,40 @@ const Header = () => {
             </Link>
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden md:flex items-center">
+          {/* CTA Buttons */}
+          <div className="hidden md:flex items-center gap-3 relative">
+            <div className="relative">
+              <button
+                onClick={() => setShowLoginOptions((prev) => !prev)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:border-gray-300 hover:text-blue-600 transition-colors"
+              >
+                Entrar no Portal
+              </button>
+
+              {showLoginOptions && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
+                  <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Escolher portal</p>
+                  <button
+                    onClick={() => {
+                      setShowLoginOptions(false);
+                      window.location.href = orgPortalUrl;
+                    }}
+                    className="w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                  >
+                    Portal de Organizações
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowLoginOptions(false);
+                      window.location.href = clientPortalUrl;
+                    }}
+                    className="w-full text-left mt-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                  >
+                    Portal de Clientes
+                  </button>
+                </div>
+              )}
+            </div>
             <Link
               to="/onboarding"
               className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
@@ -119,6 +155,27 @@ const Header = () => {
 
                 {/* Mobile CTA */}
                 <div className="pt-4 border-t border-gray-200">
+                  <div className="mb-3 space-y-2">
+                    <p className="text-xs uppercase tracking-wide text-gray-400">Entrar / Login</p>
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        window.location.href = orgPortalUrl;
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-700 border border-gray-200 hover:border-blue-200 hover:text-blue-600"
+                    >
+                      Portal de Organizações
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        window.location.href = clientPortalUrl;
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-700 border border-gray-200 hover:border-indigo-200 hover:text-indigo-600"
+                    >
+                      Portal de Clientes
+                    </button>
+                  </div>
                   <Link
                     to="/onboarding"
                     onClick={() => setIsMenuOpen(false)}

@@ -11,14 +11,14 @@
 
 import { CatalogCategory, CatalogItem, ServiceRequest } from '../modules/catalog/catalogModel.js';
 import Ticket from '../modules/tickets/ticketModel.js';
-import { User, SLA, Department, Category } from '../modules/models/index.js';
+import { User, SLA, Department, Category, ClientUser } from '../modules/models/index.js';
 import logger from '../config/logger.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { notifyTicketWatchers } from './watcherNotificationService.js';
 
 class CatalogService {
-  
+
   /**
    * Obter hierarquia completa de categorias
    * Retorna categorias em estrutura de árvore
@@ -27,7 +27,7 @@ class CatalogService {
     const { includeInactive = false, includeItemCount = true } = options;
 
     const where = { organizationId, parentCategoryId: null };
-    
+
     if (!includeInactive) {
       where.isActive = true;
     }
@@ -36,16 +36,16 @@ class CatalogService {
     const rootCategories = await CatalogCategory.findAll({
       where,
       order: [['order', 'ASC'], ['name', 'ASC']],
-      attributes: includeItemCount 
+      attributes: includeItemCount
         ? { include: [[sequelize.fn('COUNT', sequelize.col('items.id')), 'itemCount']] }
         : undefined,
-      include: includeItemCount 
+      include: includeItemCount
         ? [{
-            model: CatalogItem,
-            as: 'items',
-            attributes: [],
-            required: false
-          }]
+          model: CatalogItem,
+          as: 'items',
+          attributes: [],
+          required: false
+        }]
         : undefined,
       group: includeItemCount ? ['CatalogCategory.id'] : undefined
     });
@@ -85,7 +85,7 @@ class CatalogService {
 
     while (currentCategory) {
       path.unshift(currentCategory.name);
-      
+
       if (currentCategory.parentCategoryId) {
         currentCategory = await CatalogCategory.findByPk(currentCategory.parentCategoryId);
       } else {
@@ -110,25 +110,25 @@ class CatalogService {
       case 'incident':
         // Incidentes sempre alta ou crítica
         return userProvidedPriority === 'critica' ? 'critica' : 'alta';
-      
+
       case 'service':
         // Serviços usam prioridade padrão
         return userProvidedPriority || item.defaultPriority;
-      
+
       case 'support':
         // Suporte normalmente média, mas pode ser alta
         if (userProvidedPriority === 'alta' || userProvidedPriority === 'critica') {
           return userProvidedPriority;
         }
         return 'media';
-      
+
       case 'request':
         // Requisições normalmente baixa/média
         if (userProvidedPriority === 'alta' || userProvidedPriority === 'critica') {
           return 'media'; // downgrade automático
         }
         return userProvidedPriority || 'baixa';
-      
+
       default:
         return item.defaultPriority;
     }
@@ -228,13 +228,14 @@ class CatalogService {
    * Criar Service Request com regras de negócio aplicadas
    */
   async createServiceRequest(catalogItemId, userId, formData, organizationId, options = {}) {
-    const { 
+    const {
       userProvidedPriority = null,
       additionalDetails = '',
       userPriority = '',
       expectedResolutionTime = null,
       attachments = [],
-      clientWatchers = [] // Novos watchers do cliente
+      clientWatchers = [], // Novos watchers do cliente
+      isClientUser = false
     } = options;
 
     // Buscar item do catálogo
@@ -267,7 +268,8 @@ class CatalogService {
     const serviceRequest = await ServiceRequest.create({
       organizationId,
       catalogItemId,
-      userId,
+      userId: isClientUser ? null : userId,
+      clientUserId: isClientUser ? userId : null,
       formData: {
         ...formData,
         additionalDetails,
@@ -328,7 +330,7 @@ class CatalogService {
       logger.info(`👥 Org watchers: ${JSON.stringify(fullTicket.orgWatchers)}`);
       logger.info(`👤 Requester: ${fullTicket.requester?.email || 'N/A'}`);
       logger.info(`🎯 Assignee: ${fullTicket.assignee?.email || 'N/A'}`);
-      
+
       await notifyTicketWatchers(fullTicket, 'created');
       logger.info(`✅ Watchers notificados para ticket ${fullTicket.ticketNumber}`);
     } catch (error) {
@@ -356,7 +358,7 @@ class CatalogService {
     // Extrair número do último ticket (formato: TKT-XXXXXX)
     const lastNumber = parseInt(lastTicket.ticketNumber.split('-')[1] || '0');
     const nextNumber = (lastNumber + 1).toString().padStart(6, '0');
-    
+
     return `TKT-${nextNumber}`;
   }
 
@@ -365,7 +367,13 @@ class CatalogService {
    */
   async createTicketFromRequest(serviceRequest, catalogItem, routing, workflowId, priority, clientData = {}) {
     const { additionalDetails = '', userPriority = '', expectedResolutionTime = null, attachments = [], clientWatchers = [] } = clientData;
-    const requester = await User.findByPk(serviceRequest.userId);
+
+    let requester;
+    if (serviceRequest.clientUserId) {
+      requester = await ClientUser.findByPk(serviceRequest.clientUserId);
+    } else {
+      requester = await User.findByPk(serviceRequest.userId);
+    }
 
     // Descrição: APENAS detalhes adicionais do cliente
     let description = additionalDetails || 'Sem detalhes adicionais fornecidos.';
@@ -376,7 +384,7 @@ class CatalogService {
       for (const [key, value] of Object.entries(serviceRequest.formData)) {
         // Ignorar campos especiais que já são armazenados em metadata
         if (['additionalDetails', 'userPriority', 'expectedResolutionTime', 'attachments'].includes(key)) continue;
-        
+
         const field = catalogItem.customFields?.find(f => f.name === key);
         const label = field ? field.label : key;
         customFields[key] = {
@@ -418,11 +426,11 @@ class CatalogService {
 
     // Determinar SLA (usar do item do catálogo)
     const slaId = catalogItem.slaId || await this.determineSLA(catalogItem, catalogItem.itemType);
-    
+
     // Determinar prioridade (preferir do item do catálogo)
     const priorityId = catalogItem.priorityId;
     const finalPriority = priority || catalogItem.defaultPriority || 'media';
-    
+
     // Determinar tipo (preferir do item do catálogo)
     const typeId = catalogItem.typeId;
 
@@ -433,7 +441,11 @@ class CatalogService {
     const ticket = await Ticket.create({
       ticketNumber,
       organizationId: serviceRequest.organizationId,
-      requesterId: serviceRequest.userId,
+      requesterId: serviceRequest.userId, // Mantido para compatibilidade (pode ser null para clientes)
+      // Campos polimórficos
+      requesterType: serviceRequest.clientUserId ? 'client' : 'provider',
+      requesterClientUserId: serviceRequest.clientUserId,
+      requesterUserId: serviceRequest.userId,
       subject: `[${this.getTypeLabel(catalogItem.itemType)}] ${catalogItem.name}`,
       description,
       // LEGADO: categoria funcional (manter compatibilidade)
@@ -445,7 +457,7 @@ class CatalogService {
       priority: finalPriority,
       priorityId: priorityId,    // Prioridade configurável
       typeId: typeId,            // Tipo configurável
-      status: 'aberto',
+      status: 'novo',
       // Roteamento: SEMPRE usar do catalogItem (obrigatório)
       directionId: catalogItem.defaultDirectionId,
       departmentId: catalogItem.defaultDepartmentId,
@@ -478,18 +490,24 @@ class CatalogService {
       keywords = null,
       minPriority = null,
       requiresApproval = null,
-      includeInactive = false
+      includeInactive = false,
+      recursive = true
     } = filters;
 
     const where = { organizationId };
 
     if (categoryId) {
-      // Buscar também em subcategorias
-      const category = await CatalogCategory.findByPk(categoryId);
-      if (category) {
-        const subcategoryIds = await this.getSubcategoryIds(categoryId);
-        where.categoryId = { [Op.in]: [categoryId, ...subcategoryIds] };
+      if (recursive) {
+        // Buscar também em subcategorias (recursivo)
+        const category = await CatalogCategory.findByPk(categoryId);
+        if (category) {
+          const subcategoryIds = await this.getSubcategoryIds(categoryId);
+          where.categoryId = { [Op.in]: [categoryId, ...subcategoryIds] };
+        } else {
+          where.categoryId = categoryId;
+        }
       } else {
+        // Buscar apenas nesta categoria (não recursivo)
         where.categoryId = categoryId;
       }
     }
@@ -620,7 +638,7 @@ class CatalogService {
    */
   async getMostPopularItems(organizationId, limit = 10, itemType = null) {
     const where = { organizationId, isActive: true };
-    
+
     if (itemType) {
       where.itemType = itemType;
     }

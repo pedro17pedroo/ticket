@@ -21,19 +21,19 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const message = error.response?.data?.error || error.message || 'Erro desconhecido'
-    
+
     // Não redirecionar em caso de erro na rota de login
     const isLoginRequest = error.config?.url?.includes('/auth/login')
-    
+
     if (error.response?.status === 401 && !isLoginRequest) {
       useAuthStore.getState().logout()
       window.location.href = '/login'
       toast.error('Sessão expirada. Faça login novamente.')
     }
-    
+
     // Não mostrar toast automático - deixar componentes tratarem
     // toast.error(message)
-    
+
     return Promise.reject(error)
   }
 )
@@ -42,20 +42,32 @@ export default api
 
 export const authService = {
   login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password })
+    const response = await api.post('/auth/login', { email, password, portalType: 'client' })
     return response.data
   },
-  
+  requestPasswordReset: async (email, portalType = 'client') => {
+    const response = await api.post('/auth/password-reset/request', { email, portalType })
+    return response.data
+  },
+  validatePasswordResetToken: async (email, token, portalType = 'client') => {
+    const response = await api.post('/auth/password-reset/validate', { email, token, portalType })
+    return response.data
+  },
+  resetPasswordWithToken: async (email, token, newPassword, portalType = 'client') => {
+    const response = await api.post('/auth/password-reset/reset', { email, token, newPassword, portalType })
+    return response.data
+  },
+
   register: async (data) => {
     const response = await api.post('/auth/register', data)
     return response.data
   },
-  
+
   getProfile: async () => {
     const response = await api.get('/auth/profile')
     return response.data
   },
-  
+
   updateProfile: async (data) => {
     const response = await api.put('/auth/profile', data)
     return response.data
@@ -67,17 +79,17 @@ export const ticketService = {
     const response = await api.get('/tickets', { params })
     return response.data
   },
-  
+
   getById: async (id) => {
     const response = await api.get(`/tickets/${id}`)
     return response.data
   },
-  
+
   create: async (data) => {
     const response = await api.post('/tickets', data)
     return response.data
   },
-  
+
   addComment: async (id, data) => {
     const response = await api.post(`/tickets/${id}/comments`, data)
     return response.data
@@ -103,7 +115,7 @@ export const ticketService = {
     files.forEach(file => {
       formData.append('files', file)
     })
-    
+
     const response = await api.post(`/tickets/${ticketId}/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'

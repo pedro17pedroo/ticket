@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { authService } from '../services/authService';
 
-export const useAuthStore = create((set) => ({
+const useAuthStore = create((set) => ({
   user: authService.getCurrentUser(),
   isAuthenticated: authService.isAuthenticated(),
   loading: false,
@@ -26,3 +26,6 @@ export const useAuthStore = create((set) => ({
 
   clearError: () => set({ error: null })
 }));
+
+export { useAuthStore };
+export default useAuthStore;

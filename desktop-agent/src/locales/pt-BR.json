@@ -1,0 +1,323 @@
+{
+  "app": {
+    "name": "TatuTicket Agent",
+    "description": "Gestão de TI Simplificada"
+  },
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "close": "Fechar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "add": "Adicionar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "loading": "Carregando...",
+    "error": "Erro",
+    "success": "Sucesso",
+    "warning": "Aviso",
+    "info": "Informação",
+    "yes": "Sim",
+    "no": "Não",
+    "back": "Voltar",
+    "next": "Próximo",
+    "finish": "Concluir",
+    "refresh": "Atualizar",
+    "download": "Baixar",
+    "upload": "Enviar",
+    "remove": "Remover",
+    "clear": "Limpar",
+    "all": "Todos",
+    "none": "Nenhum",
+    "select": "Selecionar",
+    "selected": "Selecionado",
+    "total": "Total",
+    "of": "de"
+  },
+  "menu": {
+    "dashboard": "Dashboard",
+    "tickets": "Tickets",
+    "catalog": "Catálogo",
+    "knowledge": "Base de Conhecimento",
+    "notifications": "Notificações",
+    "system": "Informações do Sistema",
+    "settings": "Configurações"
+  },
+  "login": {
+    "title": "Login",
+    "email": "Email",
+    "password": "Senha",
+    "serverUrl": "URL do Servidor",
+    "rememberMe": "Lembrar-me",
+    "loginButton": "Entrar",
+    "loggingIn": "Entrando...",
+    "errors": {
+      "invalidCredentials": "Email ou senha inválidos",
+      "serverError": "Erro ao conectar ao servidor",
+      "emptyFields": "Preencha todos os campos"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Bem-vindo",
+    "stats": {
+      "openTickets": "Tickets Abertos",
+      "inProgress": "Em Progresso",
+      "resolved": "Resolvidos",
+      "avgResponseTime": "Tempo Médio de Resposta",
+      "avgResolutionTime": "Tempo Médio de Resolução",
+      "slaCompliance": "Cumprimento de SLA"
+    },
+    "charts": {
+      "ticketsByStatus": "Tickets por Status",
+      "ticketsByPriority": "Tickets por Prioridade",
+      "ticketsByCategory": "Tickets por Categoria",
+      "trend30Days": "Tendência (30 dias)"
+    }
+  },
+  "tickets": {
+    "title": "Tickets",
+    "new": "Novo Ticket",
+    "myTickets": "Meus Tickets",
+    "allTickets": "Todos os Tickets",
+    "filters": {
+      "status": "Status",
+      "priority": "Prioridade",
+      "type": "Tipo",
+      "category": "Categoria",
+      "date": "Data",
+      "sla": "SLA",
+      "moreFilters": "Mais Filtros",
+      "lessFilters": "Menos Filtros",
+      "applyFilters": "Aplicar Filtros",
+      "clearFilters": "Limpar Filtros"
+    },
+    "status": {
+      "open": "Aberto",
+      "in_progress": "Em Progresso",
+      "pending": "Pendente",
+      "resolved": "Resolvido",
+      "closed": "Fechado"
+    },
+    "priority": {
+      "low": "Baixa",
+      "normal": "Normal",
+      "high": "Alta",
+      "urgent": "Urgente",
+      "critical": "Crítica"
+    },
+    "form": {
+      "subject": "Assunto",
+      "description": "Descrição",
+      "priority": "Prioridade",
+      "type": "Tipo",
+      "category": "Categoria",
+      "attachments": "Anexos",
+      "create": "Criar Ticket",
+      "creating": "Criando..."
+    },
+    "details": {
+      "id": "ID",
+      "subject": "Assunto",
+      "status": "Status",
+      "priority": "Prioridade",
+      "createdAt": "Criado em",
+      "updatedAt": "Atualizado em",
+      "assignedTo": "Atribuído a",
+      "sla": "SLA",
+      "timeRemaining": "Tempo Restante",
+      "chat": "Chat",
+      "sendMessage": "Enviar Mensagem",
+      "attachments": "Anexos"
+    },
+    "sla": {
+      "expired": "SLA Expirado",
+      "critical": "Crítico",
+      "warning": "Atenção",
+      "ok": "No Prazo"
+    }
+  },
+  "catalog": {
+    "title": "Catálogo de Serviços",
+    "categories": "Categorias",
+    "items": "Itens",
+    "search": "Buscar serviços...",
+    "request": "Solicitar",
+    "requesting": "Solicitando...",
+    "form": {
+      "justification": "Justificativa",
+      "submit": "Enviar Solicitação"
+    },
+    "info": {
+      "estimatedTime": "Tempo Estimado",
+      "requiresApproval": "Requer Aprovação",
+      "yes": "Sim",
+      "no": "Não"
+    }
+  },
+  "knowledge": {
+    "title": "Base de Conhecimento",
+    "articles": "Artigos",
+    "search": "Buscar artigos...",
+    "categories": "Categorias",
+    "allCategories": "Todas as Categorias",
+    "views": "visualizações",
+    "helpful": "Útil",
+    "notHelpful": "Não Útil",
+    "feedback": {
+      "wasHelpful": "Este artigo foi útil?",
+      "thankYou": "Obrigado pelo feedback!"
+    }
+  },
+  "notifications": {
+    "title": "Notificações",
+    "filters": {
+      "all": "Todas",
+      "unread": "Não Lidas",
+      "read": "Lidas"
+    },
+    "markAllRead": "Marcar Todas como Lidas",
+    "markRead": "Marcar como Lida",
+    "empty": "Nenhuma notificação",
+    "types": {
+      "ticket": "Ticket",
+      "message": "Mensagem",
+      "system": "Sistema",
+      "update": "Atualização"
+    }
+  },
+  "connection": {
+    "online": "Online",
+    "offline": "Offline",
+    "checking": "Verificando conexão...",
+    "restored": "Conexão restaurada",
+    "lost": "Conexão perdida",
+    "offlineMode": "Modo Offline",
+    "offlineBanner": {
+      "title": "Modo Offline",
+      "message": "Você está trabalhando offline. Suas ações serão sincronizadas quando a conexão for restaurada.",
+      "checkConnection": "Verificar Conexão",
+      "viewQueue": "Ver Fila"
+    }
+  },
+  "offlineQueue": {
+    "title": "Fila de Sincronização",
+    "stats": {
+      "total": "Total",
+      "pending": "Pendentes",
+      "failed": "Falhados"
+    },
+    "actions": {
+      "syncNow": "Sincronizar Agora",
+      "clearFailed": "Limpar Falhados",
+      "clearAll": "Limpar Tudo"
+    },
+    "empty": {
+      "title": "Fila vazia",
+      "message": "Todas as ações foram sincronizadas"
+    },
+    "item": {
+      "pending": "Pendente",
+      "failed": "Falhado",
+      "retries": "tentativa(s)"
+    },
+    "actionTypes": {
+      "create_ticket": "Criar Ticket",
+      "send_message": "Enviar Mensagem",
+      "update_ticket": "Atualizar Ticket",
+      "request_catalog_item": "Solicitar Item",
+      "mark_notification_read": "Marcar Notificação",
+      "increment_article_views": "Visualizar Artigo"
+    }
+  },
+  "fileUpload": {
+    "title": "Anexos",
+    "dragDrop": "Arraste arquivos aqui ou clique para selecionar",
+    "maxSize": "Máximo 10MB por arquivo",
+    "uploading": "Enviando...",
+    "uploaded": "Enviado",
+    "failed": "Falhou",
+    "remove": "Remover",
+    "download": "Baixar",
+    "noFiles": "Nenhum arquivo selecionado",
+    "errors": {
+      "tooLarge": "Arquivo muito grande",
+      "invalidType": "Tipo de arquivo não permitido",
+      "uploadFailed": "Erro ao enviar arquivo"
+    }
+  },
+  "settings": {
+    "title": "Configurações",
+    "general": "Geral",
+    "language": "Idioma",
+    "theme": "Tema",
+    "autoLaunch": "Iniciar com o sistema",
+    "minimizeOnStart": "Minimizar ao iniciar",
+    "autoSync": "Sincronização automática",
+    "updates": "Atualizações",
+    "checkForUpdates": "Verificar Atualizações",
+    "autoDownload": "Baixar automaticamente",
+    "updateChannel": "Canal de Atualização",
+    "channels": {
+      "latest": "Estável",
+      "beta": "Beta",
+      "alpha": "Alpha"
+    },
+    "about": "Sobre",
+    "version": "Versão",
+    "logout": "Sair"
+  },
+  "updater": {
+    "checking": "Verificando atualizações...",
+    "available": "Atualização disponível",
+    "notAvailable": "Você está usando a versão mais recente",
+    "downloading": "Baixando atualização...",
+    "downloaded": "Atualização pronta para instalar",
+    "error": "Erro ao verificar atualizações",
+    "dialog": {
+      "available": {
+        "title": "Atualização Disponível",
+        "message": "Nova versão disponível: {version}",
+        "detail": "Versão atual: {currentVersion}\n\nDeseja baixar a atualização agora?",
+        "download": "Baixar Agora",
+        "later": "Depois"
+      },
+      "downloaded": {
+        "title": "Atualização Pronta",
+        "message": "Versão {version} foi baixada!",
+        "detail": "A atualização será instalada quando você fechar o aplicativo.\n\nDeseja reiniciar agora?",
+        "restart": "Reiniciar Agora",
+        "later": "Depois"
+      }
+    }
+  },
+  "system": {
+    "title": "Informações do Sistema",
+    "hardware": "Hardware",
+    "software": "Software",
+    "network": "Rede",
+    "security": "Segurança",
+    "lastSync": "Última Sincronização",
+    "syncNow": "Sincronizar Agora"
+  },
+  "errors": {
+    "generic": "Ocorreu um erro",
+    "network": "Erro de conexão",
+    "timeout": "Tempo esgotado",
+    "unauthorized": "Não autorizado",
+    "notFound": "Não encontrado",
+    "serverError": "Erro no servidor",
+    "validation": "Erro de validação"
+  },
+  "messages": {
+    "saved": "Salvo com sucesso",
+    "deleted": "Excluído com sucesso",
+    "updated": "Atualizado com sucesso",
+    "created": "Criado com sucesso",
+    "sent": "Enviado com sucesso",
+    "synced": "Sincronizado com sucesso",
+    "confirm": "Tem certeza?",
+    "confirmDelete": "Deseja realmente excluir?"
+  }
+}

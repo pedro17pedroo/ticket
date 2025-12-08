@@ -22,21 +22,21 @@ router.get('/categories/:id',
 // Criar categoria (Admin apenas)
 router.post('/categories',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   catalogController.createCategory.bind(catalogController)
 );
 
 // Atualizar categoria (Admin apenas)
 router.put('/categories/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   catalogController.updateCategory.bind(catalogController)
 );
 
 // Deletar categoria (Admin apenas)
 router.delete('/categories/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   catalogController.deleteCategory.bind(catalogController)
 );
 
@@ -57,21 +57,21 @@ router.get('/items/:id',
 // Criar item (Admin apenas)
 router.post('/items',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   catalogController.createItem.bind(catalogController)
 );
 
 // Atualizar item (Admin apenas)
 router.put('/items/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   catalogController.updateItem.bind(catalogController)
 );
 
 // Deletar item (Admin apenas)
 router.delete('/items/:id',
   authMiddleware,
-  requireRole(['admin', 'admin-org']),
+  requireRole(['admin', 'org-admin']),
   catalogController.deleteItem.bind(catalogController)
 );
 

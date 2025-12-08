@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   ShoppingCart,
@@ -46,17 +47,18 @@ import WatchersField from '../components/WatchersField';
 import RichTextEditor from '../components/RichTextEditor';
 
 const ServiceCatalogHierarchical = () => {
+  const navigate = useNavigate();
   // Estados de navegação
   const [navigationLevel, setNavigationLevel] = useState('categories'); // 'categories', 'subcategories', 'items'
   const [rootCategories, setRootCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [items, setItems] = useState([]);
-  
+
   // Estados de seleção
   const [selectedRootCategory, setSelectedRootCategory] = useState(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
-  
+
   // Estados de UI
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,16 +83,16 @@ const ServiceCatalogHierarchical = () => {
     try {
       const response = await api.get('/catalog/portal/categories');
       console.log('📁 Resposta da API:', response.data);
-      
+
       const categories = response.data.categories || [];
-      
+
       // A API retorna estrutura hierárquica com subcategories aninhadas
       // Categorias raiz já são o nível principal
       const roots = categories.map(cat => ({
         ...cat,
         subcategoryCount: cat.subcategories?.length || 0
       }));
-      
+
       console.log('📁 Categorias raiz:', roots);
       setRootCategories(roots);
     } catch (error) {
@@ -106,21 +108,25 @@ const ServiceCatalogHierarchical = () => {
     try {
       // A categoria selecionada já tem as subcategorias aninhadas
       const selectedCategory = rootCategories.find(cat => cat.id === categoryId);
-      
+
       console.log(`🔍 Categoria selecionada:`, selectedCategory);
-      
+
       if (selectedCategory && selectedCategory.subcategories) {
         const subs = selectedCategory.subcategories.map(sub => ({
           ...sub,
           itemCount: 0 // Será preenchido quando carregar itens
         }));
-        
+
         console.log(`📁 Subcategorias encontradas (${subs.length}):`, subs);
         setSubcategories(subs);
       } else {
         console.log('⚠️ Categoria sem subcategorias aninhadas');
         setSubcategories([]);
       }
+
+      // SEMPRE carregar itens da categoria para mostrar junto com subcategorias
+      console.log('📦 Carregando itens da categoria...');
+      await loadItems(categoryId);
     } catch (error) {
       console.error('❌ Erro ao carregar subcategorias:', error);
       toast.error('Erro ao carregar subcategorias');
@@ -161,6 +167,7 @@ const ServiceCatalogHierarchical = () => {
   const handleCategoryClick = async (category) => {
     setSelectedRootCategory(category);
     await loadSubcategories(category.id);
+    // SEMPRE ir para nível 'subcategories' (que agora mostra subcategorias E itens)
     setNavigationLevel('subcategories');
   };
 
@@ -187,13 +194,13 @@ const ServiceCatalogHierarchical = () => {
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
     const maxSize = 10 * 1024 * 1024; // 10MB
-    
+
     for (const file of files) {
       if (file.size > maxSize) {
         toast.error(`Ficheiro ${file.name} excede o tamanho máximo de 10MB`);
         continue;
       }
-      
+
       // Converter para base64
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -220,7 +227,7 @@ const ServiceCatalogHierarchical = () => {
     setFormErrors({});
 
     try {
-      const payload = { 
+      const payload = {
         catalogItemId: selectedItem.id,
         formData,
         additionalDetails,
@@ -234,7 +241,7 @@ const ServiceCatalogHierarchical = () => {
         })),
         clientWatchers: watchers // Incluir emails de observadores
       };
-      
+
       console.log('📤 Enviando solicitação:');
       console.log('  - catalogItemId:', payload.catalogItemId);
       console.log('  - formData:', payload.formData);
@@ -243,7 +250,7 @@ const ServiceCatalogHierarchical = () => {
       console.log('  - expectedResolutionTime:', payload.expectedResolutionTime);
       console.log('  - attachments:', payload.attachments.length);
       console.log('  - payload completo:', JSON.stringify(payload, null, 2));
-      
+
       const response = await api.post(
         `/catalog/requests`,
         payload
@@ -251,8 +258,15 @@ const ServiceCatalogHierarchical = () => {
 
       if (response.data.requiresApproval) {
         toast.success('✅ Solicitação enviada para aprovação!', { duration: 3000, icon: '📋' });
-      } else {
+        // Redirecionar para minhas solicitações se precisar de aprovação
+        setTimeout(() => navigate('/my-requests'), 1500);
+      } else if (response.data.ticket && response.data.ticket.id) {
         toast.success('🎉 Ticket criado automaticamente!', { duration: 3000 });
+        // Redirecionar para o ticket criado
+        setTimeout(() => navigate(`/tickets/${response.data.ticket.id}`), 1500);
+      } else {
+        toast.success('✅ Solicitação enviada!', { duration: 3000 });
+        setTimeout(() => navigate('/my-requests'), 1500);
       }
 
       setShowRequestModal(false);
@@ -265,7 +279,7 @@ const ServiceCatalogHierarchical = () => {
       setWatchers([]); // Limpar watchers
     } catch (error) {
       console.error('❌ Erro ao enviar solicitação:', error);
-      
+
       if (error.response?.data?.errors) {
         setFormErrors(error.response.data.errors);
         toast.error('Por favor, corrija os campos destacados');
@@ -296,7 +310,7 @@ const ServiceCatalogHierarchical = () => {
       // Fallback
       ShoppingCart
     };
-    
+
     // Se não for um ícone válido do lucide-react, assumir que é emoji ou string
     if (!icons[iconName]) {
       // Se tem menos de 5 caracteres, provavelmente é emoji
@@ -312,7 +326,7 @@ const ServiceCatalogHierarchical = () => {
         };
         const textSize = Object.keys(sizeMap).find(key => className.includes(key));
         const textClass = textSize ? sizeMap[textSize] : 'text-xl';
-        
+
         return (
           <span className={`${textClass} flex items-center justify-center leading-none`}>
             {iconName}
@@ -322,7 +336,7 @@ const ServiceCatalogHierarchical = () => {
       // Fallback para ShoppingCart
       return <ShoppingCart className={className} />;
     }
-    
+
     const IconComponent = icons[iconName];
     return <IconComponent className={className} />;
   };
@@ -443,11 +457,10 @@ const ServiceCatalogHierarchical = () => {
             <ChevronRight className="w-4 h-4 text-gray-400" />
             <button
               onClick={navigationLevel === 'items' ? handleBackToSubcategories : null}
-              className={`flex items-center gap-1 ${
-                navigationLevel === 'items'
-                  ? 'text-blue-600 dark:text-blue-400 hover:underline'
-                  : 'text-gray-900 dark:text-white font-medium'
-              }`}
+              className={`flex items-center gap-1 ${navigationLevel === 'items'
+                ? 'text-blue-600 dark:text-blue-400 hover:underline'
+                : 'text-gray-900 dark:text-white font-medium'
+                }`}
             >
               <FolderOpen className="w-4 h-4" />
               {selectedRootCategory.name}
@@ -514,20 +527,19 @@ const ServiceCatalogHierarchical = () => {
                   className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
                 >
                   {/* Background com gradiente ou imagem */}
-                  <div className={`relative ${
-                    category.imageUrl 
-                      ? 'bg-gray-900' 
-                      : `bg-gradient-to-br ${getCategoryColor(category.color)}`
-                  } p-8 text-white min-h-[280px] flex flex-col`}>
-                    
+                  <div className={`relative ${category.imageUrl
+                    ? 'bg-gray-900'
+                    : `bg-gradient-to-br ${getCategoryColor(category.color)}`
+                    } p-8 text-white min-h-[280px] flex flex-col`}>
+
                     {/* Imagem de fundo se existir */}
                     {category.imageUrl && (
-                      <div 
+                      <div
                         className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-40 transition-opacity"
                         style={{ backgroundImage: `url(${category.imageUrl})` }}
                       />
                     )}
-                    
+
                     {/* Conteúdo */}
                     <div className="relative z-10 flex-1 flex flex-col">
                       {/* Header com ícone e seta */}
@@ -539,7 +551,7 @@ const ServiceCatalogHierarchical = () => {
                           <ArrowRight className="w-5 h-5" />
                         </div>
                       </div>
-                      
+
                       {/* Título e descrição */}
                       <div className="flex-1">
                         <h3 className="text-2xl font-bold mb-3 group-hover:scale-105 transition-transform origin-left">
@@ -549,7 +561,7 @@ const ServiceCatalogHierarchical = () => {
                           {category.description || 'Explore os serviços disponíveis nesta categoria'}
                         </p>
                       </div>
-                      
+
                       {/* Footer com badges */}
                       <div className="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
                         <div className="flex gap-2 flex-wrap">
@@ -584,21 +596,30 @@ const ServiceCatalogHierarchical = () => {
           </div>
         )}
 
-        {/* NÍVEL 2: Subcategorias */}
+        {/* NÍVEL 2: Subcategorias E Itens da Categoria */}
         {!loading && navigationLevel === 'subcategories' && (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Renderizar Subcategorias */}
               {subcategories.map((subcategory) => (
                 <button
                   key={subcategory.id}
                   onClick={() => handleSubcategoryClick(subcategory)}
                   className="group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg transition-all transform hover:-translate-y-1 flex flex-col"
                 >
+                  {/* Badge de Subcategoria */}
+                  <div className="absolute top-2 right-2 z-10">
+                    <span className="px-2 py-1 bg-blue-500/90 text-white rounded-md text-xs font-medium flex items-center gap-1">
+                      <FolderOpen className="w-3 h-3" />
+                      Subcategoria
+                    </span>
+                  </div>
+
                   {/* Imagem ou ícone de topo */}
                   {subcategory.imageUrl ? (
                     <div className="relative h-32 bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                      <img 
-                        src={subcategory.imageUrl} 
+                      <img
+                        src={subcategory.imageUrl}
                         alt={subcategory.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
@@ -611,7 +632,7 @@ const ServiceCatalogHierarchical = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Conteúdo */}
                   <div className="p-4 flex-1 flex flex-col justify-between">
                     <div>
@@ -622,7 +643,7 @@ const ServiceCatalogHierarchical = () => {
                         {subcategory.description || '\u00A0'}
                       </p>
                     </div>
-                    
+
                     {/* Badge de itens */}
                     <div className="flex justify-center">
                       {subcategory.itemCount > 0 ? (
@@ -637,13 +658,75 @@ const ServiceCatalogHierarchical = () => {
                   </div>
                 </button>
               ))}
+
+              {/* Renderizar Itens da Categoria */}
+              {items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => loadItemDetails(item.id)}
+                  className="group bg-white dark:bg-gray-800 border-2 border-green-200 dark:border-green-700 rounded-lg overflow-hidden hover:border-green-500 dark:hover:border-green-500 hover:shadow-lg transition-all transform hover:-translate-y-1 flex flex-col"
+                >
+                  {/* Badge de Item/Serviço */}
+                  <div className="absolute top-2 right-2 z-10">
+                    <span className="px-2 py-1 bg-green-500/90 text-white rounded-md text-xs font-medium flex items-center gap-1">
+                      <Package className="w-3 h-3" />
+                      Serviço
+                    </span>
+                  </div>
+
+                  {/* Imagem ou ícone de topo */}
+                  {item.imageUrl ? (
+                    <div className="relative h-32 bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    </div>
+                  ) : (
+                    <div className="h-32 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 flex items-center justify-center">
+                      <div className="p-3 bg-white/50 dark:bg-black/20 rounded-lg">
+                        {renderIcon(item.icon, "w-8 h-8 text-green-600 dark:text-green-400")}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Conteúdo */}
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-gray-900 dark:text-white mb-2 text-center group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                        {item.name}
+                      </h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 text-center mb-3 min-h-[32px]">
+                        {item.shortDescription || '\u00A0'}
+                      </p>
+                    </div>
+
+                    {/* Badges de info */}
+                    <div className="flex justify-center gap-1 flex-wrap">
+                      {item.estimatedDeliveryTime && (
+                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400">
+                          <Clock className="w-3 h-3 inline mr-0.5" />
+                          {Math.floor(item.estimatedDeliveryTime / 24)}d
+                        </span>
+                      )}
+                      {item.requiresApproval && (
+                        <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 rounded text-xs text-orange-600 dark:text-orange-400">
+                          <Shield className="w-3 h-3 inline" />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
 
-            {subcategories.length === 0 && (
+            {subcategories.length === 0 && items.length === 0 && (
               <div className="text-center py-20">
                 <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Esta categoria não possui subcategorias
+                  Esta categoria não possui conteúdo disponível
                 </p>
                 <button
                   onClick={handleBackToCategories}
@@ -668,8 +751,8 @@ const ServiceCatalogHierarchical = () => {
                   {/* Imagem ou header */}
                   {item.imageUrl ? (
                     <div className="relative h-40 bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                      <img 
-                        src={item.imageUrl} 
+                      <img
+                        src={item.imageUrl}
                         alt={item.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
@@ -682,7 +765,7 @@ const ServiceCatalogHierarchical = () => {
                   ) : (
                     <div className="h-3 bg-gradient-to-r from-blue-500 to-blue-600" />
                   )}
-                  
+
                   <div className="p-6">
                     {/* Header com ícone (se não houver imagem) */}
                     {!item.imageUrl && (
@@ -697,14 +780,14 @@ const ServiceCatalogHierarchical = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Título (se houver imagem) */}
                     {item.imageUrl && (
                       <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {item.name}
                       </h3>
                     )}
-                    
+
                     {/* Descrição */}
                     {item.shortDescription && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2 leading-relaxed">
@@ -769,7 +852,7 @@ const ServiceCatalogHierarchical = () => {
       {/* Modal de Solicitação */}
       <Modal isOpen={showRequestModal && selectedItem} onClose={() => setShowRequestModal(false)}>
         {selectedItem && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="bg-blue-600 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white/20 rounded-lg">
@@ -806,188 +889,188 @@ const ServiceCatalogHierarchical = () => {
                   </div>
                 )}
 
-              {(selectedItem.estimatedDeliveryTime || selectedItem.estimatedCost) && (
-                <div className="grid grid-cols-2 gap-4 pl-7">
-                  {selectedItem.estimatedDeliveryTime && (
-                    <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                      <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
-                        <Clock className="w-4 h-4" />
-                        <span className="text-xs font-medium">Prazo de Entrega</span>
+                {(selectedItem.estimatedDeliveryTime || selectedItem.estimatedCost) && (
+                  <div className="grid grid-cols-2 gap-4 pl-7">
+                    {selectedItem.estimatedDeliveryTime && (
+                      <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
+                          <Clock className="w-4 h-4" />
+                          <span className="text-xs font-medium">Prazo de Entrega</span>
+                        </div>
+                        <div className="text-lg font-bold text-gray-900 dark:text-white">
+                          {Math.floor(selectedItem.estimatedDeliveryTime / 24)} dias
+                        </div>
                       </div>
-                      <div className="text-lg font-bold text-gray-900 dark:text-white">
-                        {Math.floor(selectedItem.estimatedDeliveryTime / 24)} dias
-                      </div>
-                    </div>
-                  )}
+                    )}
 
-                  {selectedItem.estimatedCost && (
-                    <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                      <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
-                        <Euro className="w-4 h-4" />
-                        <span className="text-xs font-medium">Custo Estimado</span>
+                    {selectedItem.estimatedCost && (
+                      <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
+                          <Euro className="w-4 h-4" />
+                          <span className="text-xs font-medium">Custo Estimado</span>
+                        </div>
+                        <div className="text-lg font-bold text-gray-900 dark:text-white">
+                          €{selectedItem.estimatedCost.toFixed(2)}
+                        </div>
                       </div>
-                      <div className="text-lg font-bold text-gray-900 dark:text-white">
-                        €{selectedItem.estimatedCost.toFixed(2)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 mb-3">
-                  <Settings className="w-5 h-5" />
-                  <h3 className="font-semibold">
-                    Informações da Solicitação
-                  </h3>
-                </div>
-
-                {selectedItem.customFields && selectedItem.customFields.length > 0 ? (
-                  <div className="space-y-4 pl-7">
-                    {selectedItem.customFields.map((field) => renderFormField(field))}
-                  </div>
-                ) : (
-                  <div className="ml-7 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      ✓ Este serviço não requer informações adicionais
-                    </p>
+                    )}
                   </div>
                 )}
-              </div>
 
-              {/* Detalhes Adicionais */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                  <FileText className="w-5 h-5" />
-                  <h3 className="font-semibold">Detalhes Adicionais</h3>
-                </div>
-                <div className="pl-7">
-                  <RichTextEditor
-                    value={additionalDetails}
-                    onChange={setAdditionalDetails}
-                    placeholder="Descreva detalhadamente a sua necessidade, problemas encontrados, ou qualquer informação adicional relevante..."
-                    className="min-h-[200px]"
-                  />
-                  
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Quanto mais detalhes fornecer, melhor poderemos atendê-lo
-                  </p>
-                </div>
-              </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 mb-3">
+                    <Settings className="w-5 h-5" />
+                    <h3 className="font-semibold">
+                      Informações da Solicitação
+                    </h3>
+                  </div>
 
-              {/* Upload de Ficheiros */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                  <Paperclip className="w-5 h-5" />
-                  <h3 className="font-semibold">Anexos</h3>
-                </div>
-                <div className="pl-7 space-y-3">
-                  <label className="flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 transition-colors cursor-pointer">
-                    <Upload className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Clique para selecionar ficheiros ou arraste aqui
-                    </span>
-                    <input
-                      type="file"
-                      multiple
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                    />
-                  </label>
-                  
-                  {attachments.length > 0 && (
-                    <div className="space-y-2">
-                      {attachments.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                              {file.name}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              ({(file.size / 1024).toFixed(1)} KB)
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeAttachment(index)}
-                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                          >
-                            <X className="w-4 h-4 text-gray-500" />
-                          </button>
-                        </div>
-                      ))}
+                  {selectedItem.customFields && selectedItem.customFields.length > 0 ? (
+                    <div className="space-y-4 pl-7">
+                      {selectedItem.customFields.map((field) => renderFormField(field))}
+                    </div>
+                  ) : (
+                    <div className="ml-7 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        ✓ Este serviço não requer informações adicionais
+                      </p>
                     </div>
                   )}
-                  
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Máximo 10MB por ficheiro. Formatos aceites: imagens, PDF, Word, Excel, texto
-                  </p>
                 </div>
-              </div>
 
-              {/* Prioridade do Cliente */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                  <AlertTriangle className="w-5 h-5" />
-                  <h3 className="font-semibold">Urgência da Solicitação</h3>
-                </div>
-                <div className="pl-7">
-                  <select
-                    value={userPriority}
-                    onChange={(e) => setUserPriority(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  >
-                    <option value="">Selecione a urgência...</option>
-                    <option value="baixa">🟢 Baixa - Pode aguardar alguns dias</option>
-                    <option value="media">🟡 Média - Necessário em breve</option>
-                    <option value="alta">🟠 Alta - Necessário urgentemente</option>
-                    <option value="critica">🔴 Crítica - Bloqueando trabalho</option>
-                  </select>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Esta informação ajuda-nos a priorizar o atendimento
-                  </p>
-                </div>
-              </div>
+                {/* Detalhes Adicionais */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <FileText className="w-5 h-5" />
+                    <h3 className="font-semibold">Detalhes Adicionais</h3>
+                  </div>
+                  <div className="pl-7">
+                    <RichTextEditor
+                      value={additionalDetails}
+                      onChange={setAdditionalDetails}
+                      placeholder="Descreva detalhadamente a sua necessidade, problemas encontrados, ou qualquer informação adicional relevante..."
+                      className="min-h-[200px]"
+                    />
 
-              {/* Prazo Esperado */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                  <Calendar className="w-5 h-5" />
-                  <h3 className="font-semibold">Prazo Esperado</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Quanto mais detalhes fornecer, melhor poderemos atendê-lo
+                    </p>
+                  </div>
                 </div>
-                <div className="pl-7">
-                  <input
-                    type="date"
-                    value={expectedResolutionTime}
-                    onChange={(e) => setExpectedResolutionTime(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+
+                {/* Upload de Ficheiros */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <Paperclip className="w-5 h-5" />
+                    <h3 className="font-semibold">Anexos</h3>
+                  </div>
+                  <div className="pl-7 space-y-3">
+                    <label className="flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 transition-colors cursor-pointer">
+                      <Upload className="w-5 h-5 text-gray-400" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Clique para selecionar ficheiros ou arraste aqui
+                      </span>
+                      <input
+                        type="file"
+                        multiple
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                      />
+                    </label>
+
+                    {attachments.length > 0 && (
+                      <div className="space-y-2">
+                        {attachments.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                {file.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                ({(file.size / 1024).toFixed(1)} KB)
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeAttachment(index)}
+                              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                            >
+                              <X className="w-4 h-4 text-gray-500" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Máximo 10MB por ficheiro. Formatos aceites: imagens, PDF, Word, Excel, texto
+                    </p>
+                  </div>
+                </div>
+
+                {/* Prioridade do Cliente */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <AlertTriangle className="w-5 h-5" />
+                    <h3 className="font-semibold">Urgência da Solicitação</h3>
+                  </div>
+                  <div className="pl-7">
+                    <select
+                      value={userPriority}
+                      onChange={(e) => setUserPriority(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="">Selecione a urgência...</option>
+                      <option value="baixa">🟢 Baixa - Pode aguardar alguns dias</option>
+                      <option value="media">🟡 Média - Necessário em breve</option>
+                      <option value="alta">🟠 Alta - Necessário urgentemente</option>
+                      <option value="critica">🔴 Crítica - Bloqueando trabalho</option>
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Esta informação ajuda-nos a priorizar o atendimento
+                    </p>
+                  </div>
+                </div>
+
+                {/* Prazo Esperado */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <Calendar className="w-5 h-5" />
+                    <h3 className="font-semibold">Prazo Esperado</h3>
+                  </div>
+                  <div className="pl-7">
+                    <input
+                      type="date"
+                      value={expectedResolutionTime}
+                      onChange={(e) => setExpectedResolutionTime(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Quando necessita que esta solicitação seja resolvida?
+                    </p>
+                  </div>
+                </div>
+
+                {/* Campo de Watchers - NOVO RECURSO */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                      <Mail className="w-5 h-5" />
+                      🆕 Notificar Outras Pessoas
+                    </h3>
+                    <p className="text-sm text-blue-600 dark:text-blue-300">
+                      Adicione emails de pessoas que devem receber notificações sobre este ticket
+                    </p>
+                  </div>
+                  <WatchersField
+                    watchers={watchers}
+                    onChange={setWatchers}
+                    placeholder="Digite emails de pessoas que devem ser notificadas..."
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Quando necessita que esta solicitação seja resolvida?
-                  </p>
                 </div>
-              </div>
-
-              {/* Campo de Watchers - NOVO RECURSO */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 flex items-center gap-2">
-                    <Mail className="w-5 h-5" />
-                    🆕 Notificar Outras Pessoas
-                  </h3>
-                  <p className="text-sm text-blue-600 dark:text-blue-300">
-                    Adicione emails de pessoas que devem receber notificações sobre este ticket
-                  </p>
-                </div>
-                <WatchersField
-                  watchers={watchers}
-                  onChange={setWatchers}
-                  placeholder="Digite emails de pessoas que devem ser notificadas..."
-                />
-              </div>
 
               </form>
             </div>
@@ -1001,7 +1084,7 @@ const ServiceCatalogHierarchical = () => {
                   </p>
                 </div>
               )}
-              
+
               <div className="flex gap-3">
                 <button
                   type="button"

@@ -11,21 +11,21 @@ router.use(authenticate);
 router.get('/', getDepartments);
 router.post(
   '/',
-  authorize('admin-org'),
+  authorize('org-admin'),
   validate(schemas.createDepartment),
   auditLog('create', 'department'),
   createDepartment
 );
 router.put(
   '/:id',
-  authorize('admin-org'),
+  authorize('org-admin'),
   validate(schemas.updateDepartment),
   auditLog('update', 'department'),
   updateDepartment
 );
 router.delete(
   '/:id',
-  authorize('admin-org'),
+  authorize('org-admin'),
   auditLog('delete', 'department'),
   deleteDepartment
 );

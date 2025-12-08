@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ShoppingCart,
   Clock,
@@ -8,31 +8,70 @@ import {
   Eye,
   Calendar,
   Loader2,
-  Filter
+  Filter,
+  Box,
+  Printer,
+  Monitor,
+  Wifi,
+  Database,
+  Server,
+  HardDrive,
+  Cpu,
+  Laptop,
+  Smartphone,
+  Package,
+  FileText,
+  Settings,
+  Wrench,
+  Users,
+  UserPlus,
+  Key,
+  Lock,
+  Shield,
+  Mail,
+  MessageSquare,
+  Headphones,
+  HelpCircle,
+  Clipboard
 } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+
+// Icon mapping for catalog items
+const iconMap = {
+  Box, Printer, Monitor, Wifi, Database, Server, HardDrive, Cpu,
+  Laptop, Smartphone, Package, FileText, Settings, Wrench,
+  Users, UserPlus, Key, Lock, Shield, Mail, MessageSquare,
+  Headphones, HelpCircle, Clipboard, ShoppingCart, Clock, CheckCircle,
+  XCircle, AlertCircle, Eye, Calendar
+};
+
+// Helper function to get icon component from name
+const getIconComponent = (iconName) => {
+  if (!iconName) return null;
+  return iconMap[iconName] || Package;
+};
 
 const MyRequests = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
+  const hasFetched = useRef(false);
 
   useEffect(() => {
+    // Prevent duplicate calls in React.StrictMode
+    if (hasFetched.current) return;
+    hasFetched.current = true;
     loadRequests();
-  }, [filterStatus]);
+  }, []);
 
   const loadRequests = async () => {
     setLoading(true);
     try {
-      const params = {};
-      if (filterStatus !== 'all') {
-        params.status = filterStatus;
-      }
-
-      const response = await api.get('/catalog/requests', { params });
+      // Always load all requests without status filter
+      const response = await api.get('/catalog/requests');
       setRequests(response.data.data || []);
     } catch (error) {
       console.error('Erro ao carregar solicitações:', error);
@@ -93,6 +132,11 @@ const MyRequests = () => {
     });
   };
 
+  // Filter requests client-side
+  const filteredRequests = filterStatus === 'all'
+    ? requests
+    : requests.filter(r => r.status === filterStatus);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -125,11 +169,10 @@ const MyRequests = () => {
       <div className="flex gap-3 overflow-x-auto pb-2">
         <button
           onClick={() => setFilterStatus('all')}
-          className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-            filterStatus === 'all'
-              ? 'bg-primary-500 text-white'
-              : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
-          }`}
+          className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${filterStatus === 'all'
+            ? 'bg-primary-500 text-white'
+            : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
         >
           Todas ({requests.length})
         </button>
@@ -140,11 +183,10 @@ const MyRequests = () => {
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 ${
-                filterStatus === status
-                  ? config.color
-                  : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+              className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 ${filterStatus === status
+                ? config.color
+                : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
             >
               <config.icon className="w-4 h-4" />
               {config.label}
@@ -155,12 +197,12 @@ const MyRequests = () => {
       </div>
 
       {/* Requests List */}
-      {requests.length === 0 ? (
+      {filteredRequests.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           <ShoppingCart className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
           <h3 className="text-xl font-semibold mb-2">Nenhuma solicitação encontrada</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-4">
-            {filterStatus !== 'all' 
+            {filterStatus !== 'all'
               ? 'Não há solicitações com este status'
               : 'Você ainda não fez nenhuma solicitação de serviço'
             }
@@ -177,9 +219,10 @@ const MyRequests = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {requests.map((request) => {
+          {filteredRequests.map((request) => {
             const config = statusConfig[request.status] || statusConfig.in_progress;
             const StatusIcon = config.icon;
+            const CatalogIcon = getIconComponent(request.catalogItem?.icon);
 
             return (
               <div
@@ -191,8 +234,12 @@ const MyRequests = () => {
                     {/* Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="text-2xl">
-                          {request.catalogItem?.icon || '📋'}
+                        <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                          {CatalogIcon ? (
+                            <CatalogIcon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                          ) : (
+                            <Package className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                          )}
                         </div>
                         <div>
                           <h3 className="font-semibold text-lg">
@@ -257,13 +304,21 @@ const MyRequests = () => {
 
                   {/* Actions */}
                   <div className="flex gap-3">
-                    {request.ticketId && (
+                    {request.ticketId ? (
                       <button
                         onClick={() => navigate(`/tickets/${request.ticketId}`)}
                         className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-2 transition-colors"
                       >
                         <Eye className="w-4 h-4" />
                         Ver Ticket
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => navigate(`/my-requests/${request.id}`)}
+                        className="px-4 py-2 border border-primary-500 text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg flex items-center gap-2 transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Ver Detalhes
                       </button>
                     )}
                   </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit, Trash2, X } from 'lucide-react'
+import { Plus, Edit, Building, Search, X, Power } from 'lucide-react'
+import { confirmAction, showSuccess, showError } from '../../utils/alerts'
 import organizationService from '../../services/organizationService'
 import toast from 'react-hot-toast'
 
@@ -7,7 +8,7 @@ const DirectionsTab = () => {
   const [directions, setDirections] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   // Modal states
   const [showModal, setShowModal] = useState(false)
   const [editingDirection, setEditingDirection] = useState(null)
@@ -57,7 +58,7 @@ const DirectionsTab = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!formData.name.trim()) {
       toast.error('Nome é obrigatório')
       return
@@ -79,20 +80,31 @@ const DirectionsTab = () => {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Tem certeza que deseja eliminar esta direção?')) {
-      return
-    }
+  const handleToggleActive = async (direction) => {
+    const isActive = direction.isActive;
+    const action = isActive ? 'desativar' : 'reativar';
+
+    const confirmed = await confirmAction(
+      `${isActive ? 'Desativar' : 'Reativar'} direção?`,
+      `Tem certeza que deseja ${action} a direção "${direction.name}"?`
+    );
+
+    if (!confirmed) return;
 
     try {
-      await organizationService.deleteDirection(id)
-      toast.success('Direção eliminada com sucesso')
-      loadDirections()
+      if (isActive) {
+        await organizationService.deleteDirection(direction.id);
+        toast.success('Direção desativada com sucesso');
+      } else {
+        await organizationService.reactivateDirection(direction.id);
+        toast.success('Direção reativada com sucesso');
+      }
+      loadDirections();
     } catch (error) {
-      console.error('Erro ao eliminar direção:', error)
-      toast.error(error.response?.data?.message || 'Erro ao eliminar direção')
+      console.error(`Erro ao ${action} direção:`, error);
+      toast.error(error.response?.data?.message || `Erro ao ${action} direção`);
     }
-  }
+  };
 
   const filteredDirections = directions.filter(dir =>
     dir.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -116,7 +128,7 @@ const DirectionsTab = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
           />
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="ml-4 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
         >
@@ -132,26 +144,38 @@ const DirectionsTab = () => {
           </div>
         ) : (
           filteredDirections.map((direction) => (
-            <div key={direction.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-shadow">
+            <div key={direction.id} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition-shadow ${!direction.isActive ? 'opacity-50' : ''
+              }`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{direction.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg">{direction.name}</h3>
+                    {!direction.isActive && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">Inativo</span>
+                    )}
+                  </div>
                   {direction.code && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">Código: {direction.code}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => handleOpenModal(direction)}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                    title="Editar"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
-                  <button 
-                    onClick={() => handleDelete(direction.id)}
-                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                  <button
+                    onClick={() => handleToggleActive(direction)}
+                    className={`p-1 rounded ${direction.isActive
+                        ? 'hover:bg-red-100 dark:hover:bg-red-900/30'
+                        : 'hover:bg-green-100 dark:hover:bg-green-900/30'
+                      }`}
+                    title={direction.isActive ? 'Desativar' : 'Reativar'}
                   >
-                    <Trash2 className="w-4 h-4 text-red-600" />
+                    <Power className={`w-4 h-4 ${direction.isActive ? 'text-red-600' : 'text-green-600'
+                      }`} />
                   </button>
                 </div>
               </div>
@@ -176,7 +200,7 @@ const DirectionsTab = () => {
               <h2 className="text-xl font-semibold">
                 {editingDirection ? 'Editar Direção' : 'Nova Direção'}
               </h2>
-              <button 
+              <button
                 onClick={handleCloseModal}
                 className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
               >

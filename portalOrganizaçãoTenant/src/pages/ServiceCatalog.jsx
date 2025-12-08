@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, FolderOpen, ShoppingCart, Eye, Settings, TrendingU
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import Modal from '../components/Modal'
+import { confirmDelete } from '../utils/alerts'
 
 const ServiceCatalog = () => {
   const [activeTab, setActiveTab] = useState('items') // items, statistics
@@ -10,17 +11,17 @@ const ServiceCatalog = () => {
   const [items, setItems] = useState([])
   const [statistics, setStatistics] = useState(null)
   const [loading, setLoading] = useState(true)
-  
+
   // Dados configuráveis (SLAs, Prioridades, Tipos)
   const [slas, setSlas] = useState([])
   const [priorities, setPriorities] = useState([])
   const [types, setTypes] = useState([])
-  
+
   // Estrutura organizacional
   const [directions, setDirections] = useState([])
   const [departments, setDepartments] = useState([])
   const [sections, setSections] = useState([])
-  
+
   // Modals
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showItemModal, setShowItemModal] = useState(false)
@@ -191,7 +192,11 @@ const ServiceCatalog = () => {
   }
 
   const handleDeleteCategory = async (id) => {
-    if (!confirm('Deseja realmente eliminar esta categoria?')) return
+    const confirmed = await confirmDelete(
+      'Eliminar categoria?',
+      'Deseja realmente eliminar esta categoria?'
+    )
+    if (!confirmed) return
     try {
       await api.delete(`/catalog/categories/${id}`)
       toast.success('Categoria eliminada!')
@@ -275,7 +280,11 @@ const ServiceCatalog = () => {
   }
 
   const handleDeleteItem = async (id) => {
-    if (!confirm('Deseja realmente eliminar este item?')) return
+    const confirmed = await confirmDelete(
+      'Eliminar item?',
+      'Deseja realmente eliminar este item?'
+    )
+    if (!confirmed) return
     try {
       await api.delete(`/catalog/items/${id}`)
       toast.success('Item eliminado!')
@@ -312,22 +321,20 @@ const ServiceCatalog = () => {
         <nav className="flex space-x-8">
           <button
             onClick={() => setActiveTab('items')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'items'
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'items'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             <ShoppingCart className="w-5 h-5 inline mr-2" />
             Itens do Catálogo
           </button>
           <button
             onClick={() => setActiveTab('statistics')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'statistics'
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'statistics'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             <TrendingUp className="w-5 h-5 inline mr-2" />
             Estatísticas
@@ -396,11 +403,10 @@ const ServiceCatalog = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        item.isActive
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.isActive
                           ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
-                      }`}>
+                        }`}>
                         {item.isActive ? 'Ativo' : 'Inativo'}
                       </span>
                     </td>
@@ -498,53 +504,53 @@ const ServiceCatalog = () => {
               </button>
             </div>
             <form onSubmit={handleSaveCategory} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Nome *</label>
-              <input
-                type="text"
-                value={categoryForm.name}
-                onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Nome *</label>
+                <input
+                  type="text"
+                  value={categoryForm.name}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Descrição</label>
-              <textarea
-                value={categoryForm.description}
-                onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Descrição</label>
+                <textarea
+                  value={categoryForm.description}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Ordem</label>
-              <input
-                type="number"
-                value={categoryForm.order}
-                onChange={(e) => setCategoryForm({ ...categoryForm, order: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Ordem</label>
+                <input
+                  type="number"
+                  value={categoryForm.order}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, order: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
+                />
+              </div>
 
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowCategoryModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg"
-              >
-                {editingCategory ? 'Atualizar' : 'Criar'}
-              </button>
-            </div>
-          </form>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg"
+                >
+                  {editingCategory ? 'Atualizar' : 'Criar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -564,7 +570,7 @@ const ServiceCatalog = () => {
                     {editingItem ? 'Editar Item' : 'Novo Item'}
                   </h2>
                   <p className="text-blue-100 text-sm mt-0.5">
-                    {editingItem 
+                    {editingItem
                       ? 'Atualize as informações do item do catálogo'
                       : 'Crie um novo item/serviço no catálogo'
                     }
@@ -580,7 +586,7 @@ const ServiceCatalog = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Scrollable Content */}
           <div className="overflow-y-auto max-h-[calc(90vh-220px)]">
             <div className="bg-gray-50 dark:bg-gray-900 p-6">
@@ -591,7 +597,7 @@ const ServiceCatalog = () => {
                     <FileText className="w-5 h-5" />
                     Informações Básicas
                   </h3>
-                  
+
                   {/* Categoria */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -665,7 +671,7 @@ const ServiceCatalog = () => {
                     <Settings className="w-5 h-5" />
                     Configurações
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Prioridade */}
                     <div>

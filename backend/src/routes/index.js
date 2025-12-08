@@ -44,8 +44,8 @@ const router = express.Router();
 
 // Health check
 router.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     service: 'TatuTicket Backend'
   });
@@ -53,6 +53,7 @@ router.get('/health', (req, res) => {
 
 // ==================== SETUP ====================
 router.post('/setup/defaults', authenticate, setupController.setupDefaults);
+router.get('/setup/status', authenticate, setupController.checkSetupStatus);
 
 // ==================== AUTH ====================
 router.post('/auth/register', validate(schemas.register), authController.register);
@@ -225,16 +226,19 @@ router.get('/client/directions', authenticate, requirePermission('directions', '
 router.post('/client/directions', authenticate, requirePermission('directions', 'create'), auditLog('create', 'client_direction'), clientStructureController.createDirection);
 router.put('/client/directions/:id', authenticate, requirePermission('directions', 'update'), auditLog('update', 'client_direction'), clientStructureController.updateDirection);
 router.delete('/client/directions/:id', authenticate, requirePermission('directions', 'delete'), auditLog('delete', 'client_direction'), clientStructureController.deleteDirection);
+router.put('/client/directions/:id/activate', authenticate, requirePermission('directions', 'update'), auditLog('activate', 'client_direction'), clientStructureController.reactivateDirection);
 // Departments
 router.get('/client/departments', authenticate, requirePermission('departments', 'read'), clientStructureController.getDepartments);
 router.post('/client/departments', authenticate, requirePermission('departments', 'create'), auditLog('create', 'client_department'), clientStructureController.createDepartment);
 router.put('/client/departments/:id', authenticate, requirePermission('departments', 'update'), auditLog('update', 'client_department'), clientStructureController.updateDepartment);
 router.delete('/client/departments/:id', authenticate, requirePermission('departments', 'delete'), auditLog('delete', 'client_department'), clientStructureController.deleteDepartment);
+router.put('/client/departments/:id/activate', authenticate, requirePermission('departments', 'update'), auditLog('activate', 'client_department'), clientStructureController.reactivateDepartment);
 // Sections
 router.get('/client/sections', authenticate, requirePermission('sections', 'read'), clientStructureController.getSections);
 router.post('/client/sections', authenticate, requirePermission('sections', 'create'), auditLog('create', 'client_section'), clientStructureController.createSection);
 router.put('/client/sections/:id', authenticate, requirePermission('sections', 'update'), auditLog('update', 'client_section'), clientStructureController.updateSection);
 router.delete('/client/sections/:id', authenticate, requirePermission('sections', 'delete'), auditLog('delete', 'client_section'), clientStructureController.deleteSection);
+router.put('/client/sections/:id/activate', authenticate, requirePermission('sections', 'update'), auditLog('activate', 'client_section'), clientStructureController.reactivateSection);
 // Users
 router.get('/client/users', authenticate, requirePermission('client_users', 'read'), clientStructureController.getClientUsers);
 router.post('/client/users', authenticate, requirePermission('client_users', 'create'), auditLog('create', 'client_user'), clientStructureController.createClientUser);

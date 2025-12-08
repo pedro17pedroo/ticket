@@ -15,15 +15,15 @@ export const validateAssignment = async (req, res, next) => {
     }
 
     // Admin e Super Admin podem atribuir para qualquer um
-    if (currentUser.role === 'admin-org' || currentUser.role === 'super-admin') {
+    if (currentUser.role === 'org-admin' || currentUser.role === 'super-admin') {
       return next();
     }
 
     // Buscar usuário alvo com hierarquia completa
     const targetUser = await User.findOne({
-      where: { 
+      where: {
         id: assigneeId,
-        organizationId: currentUser.organizationId 
+        organizationId: currentUser.organizationId
       },
       include: [
         {
@@ -93,7 +93,7 @@ export const validateAssignment = async (req, res, next) => {
  */
 function checkHierarchyPermission(currentUser, targetUser) {
   // Admin pode atribuir para qualquer um (já verificado acima, mas mantém por segurança)
-  if (currentUser.role === 'admin-org' || currentUser.role === 'super-admin') {
+  if (currentUser.role === 'org-admin' || currentUser.role === 'super-admin') {
     return true;
   }
 
@@ -151,7 +151,7 @@ export const validateUserManagement = async (req, res, next) => {
     const currentUser = req.user;
 
     // Admin e Super Admin podem gerenciar qualquer usuário
-    if (currentUser.role === 'admin-org' || currentUser.role === 'super-admin') {
+    if (currentUser.role === 'org-admin' || currentUser.role === 'super-admin') {
       return next();
     }
 

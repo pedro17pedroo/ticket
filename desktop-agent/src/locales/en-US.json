@@ -1,0 +1,323 @@
+{
+  "app": {
+    "name": "TatuTicket Agent",
+    "description": "Simplified IT Management"
+  },
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "refresh": "Refresh",
+    "download": "Download",
+    "upload": "Upload",
+    "remove": "Remove",
+    "clear": "Clear",
+    "all": "All",
+    "none": "None",
+    "select": "Select",
+    "selected": "Selected",
+    "total": "Total",
+    "of": "of"
+  },
+  "menu": {
+    "dashboard": "Dashboard",
+    "tickets": "Tickets",
+    "catalog": "Catalog",
+    "knowledge": "Knowledge Base",
+    "notifications": "Notifications",
+    "system": "System Information",
+    "settings": "Settings"
+  },
+  "login": {
+    "title": "Login",
+    "email": "Email",
+    "password": "Password",
+    "serverUrl": "Server URL",
+    "rememberMe": "Remember me",
+    "loginButton": "Sign In",
+    "loggingIn": "Signing in...",
+    "errors": {
+      "invalidCredentials": "Invalid email or password",
+      "serverError": "Error connecting to server",
+      "emptyFields": "Please fill all fields"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome",
+    "stats": {
+      "openTickets": "Open Tickets",
+      "inProgress": "In Progress",
+      "resolved": "Resolved",
+      "avgResponseTime": "Avg Response Time",
+      "avgResolutionTime": "Avg Resolution Time",
+      "slaCompliance": "SLA Compliance"
+    },
+    "charts": {
+      "ticketsByStatus": "Tickets by Status",
+      "ticketsByPriority": "Tickets by Priority",
+      "ticketsByCategory": "Tickets by Category",
+      "trend30Days": "Trend (30 days)"
+    }
+  },
+  "tickets": {
+    "title": "Tickets",
+    "new": "New Ticket",
+    "myTickets": "My Tickets",
+    "allTickets": "All Tickets",
+    "filters": {
+      "status": "Status",
+      "priority": "Priority",
+      "type": "Type",
+      "category": "Category",
+      "date": "Date",
+      "sla": "SLA",
+      "moreFilters": "More Filters",
+      "lessFilters": "Less Filters",
+      "applyFilters": "Apply Filters",
+      "clearFilters": "Clear Filters"
+    },
+    "status": {
+      "open": "Open",
+      "in_progress": "In Progress",
+      "pending": "Pending",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "priority": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent",
+      "critical": "Critical"
+    },
+    "form": {
+      "subject": "Subject",
+      "description": "Description",
+      "priority": "Priority",
+      "type": "Type",
+      "category": "Category",
+      "attachments": "Attachments",
+      "create": "Create Ticket",
+      "creating": "Creating..."
+    },
+    "details": {
+      "id": "ID",
+      "subject": "Subject",
+      "status": "Status",
+      "priority": "Priority",
+      "createdAt": "Created at",
+      "updatedAt": "Updated at",
+      "assignedTo": "Assigned to",
+      "sla": "SLA",
+      "timeRemaining": "Time Remaining",
+      "chat": "Chat",
+      "sendMessage": "Send Message",
+      "attachments": "Attachments"
+    },
+    "sla": {
+      "expired": "SLA Expired",
+      "critical": "Critical",
+      "warning": "Warning",
+      "ok": "On Track"
+    }
+  },
+  "catalog": {
+    "title": "Service Catalog",
+    "categories": "Categories",
+    "items": "Items",
+    "search": "Search services...",
+    "request": "Request",
+    "requesting": "Requesting...",
+    "form": {
+      "justification": "Justification",
+      "submit": "Submit Request"
+    },
+    "info": {
+      "estimatedTime": "Estimated Time",
+      "requiresApproval": "Requires Approval",
+      "yes": "Yes",
+      "no": "No"
+    }
+  },
+  "knowledge": {
+    "title": "Knowledge Base",
+    "articles": "Articles",
+    "search": "Search articles...",
+    "categories": "Categories",
+    "allCategories": "All Categories",
+    "views": "views",
+    "helpful": "Helpful",
+    "notHelpful": "Not Helpful",
+    "feedback": {
+      "wasHelpful": "Was this article helpful?",
+      "thankYou": "Thank you for your feedback!"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "filters": {
+      "all": "All",
+      "unread": "Unread",
+      "read": "Read"
+    },
+    "markAllRead": "Mark All as Read",
+    "markRead": "Mark as Read",
+    "empty": "No notifications",
+    "types": {
+      "ticket": "Ticket",
+      "message": "Message",
+      "system": "System",
+      "update": "Update"
+    }
+  },
+  "connection": {
+    "online": "Online",
+    "offline": "Offline",
+    "checking": "Checking connection...",
+    "restored": "Connection restored",
+    "lost": "Connection lost",
+    "offlineMode": "Offline Mode",
+    "offlineBanner": {
+      "title": "Offline Mode",
+      "message": "You are working offline. Your actions will be synced when connection is restored.",
+      "checkConnection": "Check Connection",
+      "viewQueue": "View Queue"
+    }
+  },
+  "offlineQueue": {
+    "title": "Sync Queue",
+    "stats": {
+      "total": "Total",
+      "pending": "Pending",
+      "failed": "Failed"
+    },
+    "actions": {
+      "syncNow": "Sync Now",
+      "clearFailed": "Clear Failed",
+      "clearAll": "Clear All"
+    },
+    "empty": {
+      "title": "Queue empty",
+      "message": "All actions have been synced"
+    },
+    "item": {
+      "pending": "Pending",
+      "failed": "Failed",
+      "retries": "attempt(s)"
+    },
+    "actionTypes": {
+      "create_ticket": "Create Ticket",
+      "send_message": "Send Message",
+      "update_ticket": "Update Ticket",
+      "request_catalog_item": "Request Item",
+      "mark_notification_read": "Mark Notification",
+      "increment_article_views": "View Article"
+    }
+  },
+  "fileUpload": {
+    "title": "Attachments",
+    "dragDrop": "Drag files here or click to select",
+    "maxSize": "Maximum 10MB per file",
+    "uploading": "Uploading...",
+    "uploaded": "Uploaded",
+    "failed": "Failed",
+    "remove": "Remove",
+    "download": "Download",
+    "noFiles": "No files selected",
+    "errors": {
+      "tooLarge": "File too large",
+      "invalidType": "File type not allowed",
+      "uploadFailed": "Error uploading file"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "language": "Language",
+    "theme": "Theme",
+    "autoLaunch": "Launch at startup",
+    "minimizeOnStart": "Minimize on start",
+    "autoSync": "Auto sync",
+    "updates": "Updates",
+    "checkForUpdates": "Check for Updates",
+    "autoDownload": "Auto download",
+    "updateChannel": "Update Channel",
+    "channels": {
+      "latest": "Stable",
+      "beta": "Beta",
+      "alpha": "Alpha"
+    },
+    "about": "About",
+    "version": "Version",
+    "logout": "Logout"
+  },
+  "updater": {
+    "checking": "Checking for updates...",
+    "available": "Update available",
+    "notAvailable": "You are using the latest version",
+    "downloading": "Downloading update...",
+    "downloaded": "Update ready to install",
+    "error": "Error checking for updates",
+    "dialog": {
+      "available": {
+        "title": "Update Available",
+        "message": "New version available: {version}",
+        "detail": "Current version: {currentVersion}\n\nDo you want to download the update now?",
+        "download": "Download Now",
+        "later": "Later"
+      },
+      "downloaded": {
+        "title": "Update Ready",
+        "message": "Version {version} has been downloaded!",
+        "detail": "The update will be installed when you close the application.\n\nDo you want to restart now?",
+        "restart": "Restart Now",
+        "later": "Later"
+      }
+    }
+  },
+  "system": {
+    "title": "System Information",
+    "hardware": "Hardware",
+    "software": "Software",
+    "network": "Network",
+    "security": "Security",
+    "lastSync": "Last Sync",
+    "syncNow": "Sync Now"
+  },
+  "errors": {
+    "generic": "An error occurred",
+    "network": "Connection error",
+    "timeout": "Timeout",
+    "unauthorized": "Unauthorized",
+    "notFound": "Not found",
+    "serverError": "Server error",
+    "validation": "Validation error"
+  },
+  "messages": {
+    "saved": "Saved successfully",
+    "deleted": "Deleted successfully",
+    "updated": "Updated successfully",
+    "created": "Created successfully",
+    "sent": "Sent successfully",
+    "synced": "Synced successfully",
+    "confirm": "Are you sure?",
+    "confirmDelete": "Do you really want to delete?"
+  }
+}

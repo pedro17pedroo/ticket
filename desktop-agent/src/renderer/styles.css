@@ -1395,3 +1395,634 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==================== CONNECTION STATUS & OFFLINE QUEUE ==================== */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.connection-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.connection-status.online {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.connection-status.online .status-dot {
+  background: #10b981;
+}
+
+.connection-status.offline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.connection-status.offline .status-dot {
+  background: #ef4444;
+  animation: none;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.offline-queue-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #92400e;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.offline-queue-indicator:hover {
+  background: #fde68a;
+  transform: translateY(-1px);
+}
+
+.offline-queue-indicator .queue-icon {
+  font-size: 16px;
+}
+
+.offline-queue-indicator .queue-count {
+  background: #f59e0b;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Offline Queue Modal */
+.offline-queue-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.offline-queue-content {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.offline-queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.offline-queue-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #1f2937;
+}
+
+.offline-queue-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.queue-stat {
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.queue-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.queue-stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.queue-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.queue-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.queue-item {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.queue-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.queue-item-action {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 14px;
+}
+
+.queue-item-status {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.queue-item-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.queue-item-status.failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.queue-item-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.queue-item-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.queue-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+
+.queue-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.queue-empty-text {
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+
+.queue-empty-subtext {
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+/* Offline Mode Banner */
+.offline-banner {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-left: 4px solid #f59e0b;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.offline-banner-icon {
+  font-size: 24px;
+}
+
+.offline-banner-content {
+  flex: 1;
+}
+
+.offline-banner-title {
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.offline-banner-text {
+  font-size: 13px;
+  color: #78350f;
+}
+
+.offline-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.offline-banner-actions .btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* ==================== FILE UPLOAD ==================== */
+
+.file-upload-area {
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  background: #f9fafb;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  margin: 20px 0;
+}
+
+.file-upload-area:hover {
+  border-color: #667eea;
+  background: #f3f4f6;
+}
+
+.file-upload-area.drag-over {
+  border-color: #667eea;
+  background: #eef2ff;
+  border-style: solid;
+}
+
+.file-upload-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.file-upload-text {
+  font-size: 16px;
+  color: #1f2937;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.file-upload-hint {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.file-upload-button {
+  margin-top: 16px;
+}
+
+/* File List */
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.file-item-preview {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+}
+
+.file-item-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.file-item-preview-icon {
+  font-size: 24px;
+}
+
+.file-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-item-name {
+  font-weight: 500;
+  color: #1f2937;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.file-item-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.file-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.file-item-action {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.file-item-action:hover {
+  background: #e5e7eb;
+}
+
+.file-item-action.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.file-item-action.danger:hover {
+  background: #fecaca;
+}
+
+/* Upload Progress */
+.file-upload-progress {
+  margin-top: 8px;
+}
+
+.file-upload-progress-bar {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.file-upload-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.file-upload-progress-text {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* File Status */
+.file-status {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.file-status.uploading {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.file-status.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.file-status.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Attachment Modal */
+.attachment-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.attachment-modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 800px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.attachment-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.attachment-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #1f2937;
+}
+
+.attachment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.attachment-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.attachment-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.attachment-card-preview {
+  width: 100%;
+  height: 120px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.attachment-card-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attachment-card-preview-icon {
+  font-size: 48px;
+}
+
+.attachment-card-info {
+  padding: 12px;
+  background: white;
+}
+
+.attachment-card-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.attachment-card-size {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.attachment-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+
+.attachment-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.attachment-empty-text {
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+
+/* Drag and Drop Overlay */
+.drag-drop-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(102, 126, 234, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.drag-drop-overlay-content {
+  text-align: center;
+  color: white;
+}
+
+.drag-drop-overlay-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.drag-drop-overlay-text {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.drag-drop-overlay-hint {
+  font-size: 16px;
+  opacity: 0.9;
+}

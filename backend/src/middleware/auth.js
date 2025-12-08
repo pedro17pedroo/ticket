@@ -83,8 +83,8 @@ export const authorize = (...roles) => {
 };
 
 // Middlewares de autorização específicos
-export const requireAdminOrg = authorize('admin-org');
-export const requireAgent = authorize('admin-org', 'agente');
+export const requireAdminOrg = authorize('org-admin');
+export const requireAgent = authorize('org-admin', 'agente');
 
 // Middleware para verificar se o usuário pertence à mesma organização
 export const requireSameOrganization = (req, res, next) => {
@@ -110,7 +110,7 @@ export const requireSameOrganization = (req, res, next) => {
 export const requireOwnerOrAdmin = (req, res, next) => {
   const resourceUserId = req.params.userId || req.params.id;
   
-  if (req.user.role === 'admin-org') {
+  if (req.user.role === 'org-admin') {
     return next();
   }
 
