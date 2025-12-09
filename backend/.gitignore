@@ -7,3 +7,5 @@ logs/
 coverage/
 .nyc_output/
 dist/
+backups/
+
