@@ -1,11 +1,11 @@
-import { Organization, User, Client, ClientUser, Ticket } from '../models/index.js';
+import { Organization, User, OrganizationUser, Client, ClientUser, Ticket, Subscription, Plan } from '../models/index.js';
 import { Op } from 'sequelize';
 
 // GET /api/provider/tenants - Listar organizações tenant (apenas Provider)
 export const getTenants = async (req, res, next) => {
   try {
     // Apenas super-admin e provider-admin podem acessar
-    if (!['super-admin', 'provider-admin'].includes(req.user.role)) {
+    if (!['super-admin', 'provider-admin', 'provider-support'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado. Apenas Provider pode acessar esta funcionalidade.'
@@ -47,13 +47,17 @@ export const getTenants = async (req, res, next) => {
       offset: parseInt(offset)
     });
 
-    // Buscar estatísticas para cada tenant
+    // Buscar estatísticas e subscrição para cada tenant
     const tenantsWithStats = await Promise.all(
       tenants.map(async (tenant) => {
-        const [userCount, clientCount, ticketCount] = await Promise.all([
+        const [userCount, clientCount, ticketCount, subscription] = await Promise.all([
           User.count({ where: { organizationId: tenant.id, isActive: true } }),
           Client.count({ where: { organizationId: tenant.id, isActive: true } }),
-          Ticket.count({ where: { organizationId: tenant.id } })
+          Ticket.count({ where: { organizationId: tenant.id } }),
+          Subscription.findOne({
+            where: { organizationId: tenant.id },
+            include: [{ model: Plan, as: 'plan', attributes: ['id', 'name', 'displayName'] }]
+          })
         ]);
 
         return {
@@ -62,14 +66,23 @@ export const getTenants = async (req, res, next) => {
             totalUsers: userCount,
             totalClients: clientCount,
             totalTickets: ticketCount
-          }
+          },
+          subscription: subscription ? {
+            id: subscription.id,
+            plan: subscription.plan?.displayName || subscription.plan?.name || 'N/A',
+            planId: subscription.planId,
+            status: subscription.status,
+            trialEndsAt: subscription.trialEndsAt,
+            currentPeriodEnd: subscription.currentPeriodEnd
+          } : null
         };
       })
     );
 
     res.json({
       success: true,
-      tenants: tenantsWithStats,
+      organizations: tenantsWithStats,
+      tenants: tenantsWithStats, // Manter compatibilidade
       total: count,
       page: parseInt(page),
       totalPages: Math.ceil(count / limit)
@@ -82,7 +95,7 @@ export const getTenants = async (req, res, next) => {
 // GET /api/provider/tenants/:id - Obter tenant específico
 export const getTenantById = async (req, res, next) => {
   try {
-    if (!['super-admin', 'provider-admin'].includes(req.user.role)) {
+    if (!['super-admin', 'provider-admin', 'provider-support'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado'
@@ -109,47 +122,93 @@ export const getTenantById = async (req, res, next) => {
       });
     }
 
-    // Estatísticas detalhadas
+    // Buscar subscrição com plano
+    const subscription = await Subscription.findOne({
+      where: { organizationId: id },
+      include: [{ model: Plan, as: 'plan', attributes: ['id', 'name', 'displayName'] }]
+    });
+
+    // Estatísticas detalhadas - usar OrganizationUser para tenants
+    const [totalUsers, activeUsers, totalClients, activeClients, totalClientUsers, activeClientUsers, totalTickets, openTickets, resolvedTickets] = await Promise.all([
+      OrganizationUser.count({ where: { organizationId: id } }),
+      OrganizationUser.count({ where: { organizationId: id, isActive: true } }),
+      Client.count({ where: { organizationId: id } }),
+      Client.count({ where: { organizationId: id, isActive: true } }),
+      ClientUser.count({ where: { organizationId: id } }),
+      ClientUser.count({ where: { organizationId: id, isActive: true } }),
+      Ticket.count({ where: { organizationId: id } }),
+      Ticket.count({
+        where: { 
+          organizationId: id,
+          status: { [Op.in]: ['novo', 'em_progresso', 'aguardando_cliente'] }
+        }
+      }),
+      Ticket.count({
+        where: { 
+          organizationId: id,
+          status: { [Op.in]: ['resolvido', 'fechado'] }
+        }
+      })
+    ]);
+
+    // Contagem por role de OrganizationUser
+    const [orgAdminCount, agentCount, technicianCount] = await Promise.all([
+      OrganizationUser.count({ where: { organizationId: id, role: 'org-admin' } }),
+      OrganizationUser.count({ where: { organizationId: id, role: 'agent' } }),
+      OrganizationUser.count({ where: { organizationId: id, role: 'technician' } })
+    ]);
+
     const stats = {
+      totalUsers,
+      totalClients,
+      totalTickets,
       users: {
-        total: await User.count({ where: { organizationId: id } }),
-        active: await User.count({ where: { organizationId: id, isActive: true } }),
+        total: totalUsers,
+        active: activeUsers,
         byRole: {
-          'tenant-admin': await User.count({ where: { organizationId: id, role: 'tenant-admin' } }),
-          'agent': await User.count({ where: { organizationId: id, role: 'agent' } }),
-          'tenant-manager': await User.count({ where: { organizationId: id, role: 'tenant-manager' } })
+          'org-admin': orgAdminCount,
+          'agent': agentCount,
+          'technician': technicianCount
         }
       },
       clients: {
-        total: await Client.count({ where: { organizationId: id } }),
-        active: await Client.count({ where: { organizationId: id, isActive: true } })
+        total: totalClients,
+        active: activeClients
       },
       clientUsers: {
-        total: await ClientUser.count({ where: { organizationId: id } }),
-        active: await ClientUser.count({ where: { organizationId: id, isActive: true } })
+        total: totalClientUsers,
+        active: activeClientUsers
       },
       tickets: {
-        total: await Ticket.count({ where: { organizationId: id } }),
-        open: await Ticket.count({
-          where: { 
-            organizationId: id,
-            status: { [Op.in]: ['novo', 'em_progresso', 'aguardando_cliente'] }
-          }
-        }),
-        resolved: await Ticket.count({
-          where: { 
-            organizationId: id,
-            status: { [Op.in]: ['resolvido', 'fechado'] }
-          }
-        })
+        total: totalTickets,
+        open: openTickets,
+        resolved: resolvedTickets
       }
     };
 
+    // Formatar dados para o frontend
+    const tenantData = tenant.toJSON();
+    
     res.json({
       success: true,
       tenant: {
-        ...tenant.toJSON(),
-        stats
+        ...tenantData,
+        // Campos esperados pelo frontend
+        name: tenantData.name,
+        email: tenantData.email,
+        phone: tenantData.phone,
+        address: tenantData.address,
+        isActive: tenantData.isActive,
+        createdAt: tenantData.createdAt,
+        stats,
+        subscription: subscription ? {
+          id: subscription.id,
+          plan: subscription.plan?.displayName || subscription.plan?.name || 'N/A',
+          planId: subscription.planId,
+          status: subscription.status,
+          trialEndsAt: subscription.trialEndsAt,
+          currentPeriodEnd: subscription.currentPeriodEnd
+        } : null
       }
     });
   } catch (error) {
@@ -160,7 +219,7 @@ export const getTenantById = async (req, res, next) => {
 // POST /api/provider/tenants - Criar novo tenant
 export const createTenant = async (req, res, next) => {
   try {
-    if (!['super-admin', 'provider-admin'].includes(req.user.role)) {
+    if (!['super-admin', 'provider-admin', 'provider-support'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado'
@@ -259,7 +318,7 @@ export const createTenant = async (req, res, next) => {
 // PUT /api/provider/tenants/:id - Atualizar tenant
 export const updateTenant = async (req, res, next) => {
   try {
-    if (!['super-admin', 'provider-admin'].includes(req.user.role)) {
+    if (!['super-admin', 'provider-admin', 'provider-support'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado'
@@ -342,7 +401,7 @@ export const updateTenant = async (req, res, next) => {
 // PUT /api/provider/tenants/:id/suspend - Suspender tenant
 export const suspendTenant = async (req, res, next) => {
   try {
-    if (!['super-admin', 'provider-admin'].includes(req.user.role)) {
+    if (!['super-admin', 'provider-admin', 'provider-support'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado'
@@ -381,7 +440,7 @@ export const suspendTenant = async (req, res, next) => {
 // PUT /api/provider/tenants/:id/activate - Reativar tenant
 export const activateTenant = async (req, res, next) => {
   try {
-    if (!['super-admin', 'provider-admin'].includes(req.user.role)) {
+    if (!['super-admin', 'provider-admin', 'provider-support'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado'
@@ -419,7 +478,7 @@ export const activateTenant = async (req, res, next) => {
 // GET /api/provider/stats - Estatísticas globais do Provider
 export const getGlobalStats = async (req, res, next) => {
   try {
-    if (!['super-admin', 'provider-admin'].includes(req.user.role)) {
+    if (!['super-admin', 'provider-admin', 'provider-support'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado'
@@ -478,7 +537,7 @@ export const getProviderUsers = async (req, res, next) => {
     const { search, isActive, role, page = 1, limit = 20 } = req.query;
 
     const where = {
-      role: { [Op.in]: ['super-admin', 'provider-admin'] }
+      role: { [Op.in]: ['super-admin', 'provider-admin', 'provider-support'] }
     };
 
     if (isActive !== undefined) {
@@ -526,7 +585,7 @@ export const getProviderUserById = async (req, res, next) => {
     const user = await User.findOne({
       where: { 
         id,
-        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+        role: { [Op.in]: ['super-admin', 'provider-admin', 'provider-support'] }
       },
       attributes: { exclude: ['password'] }
     });
@@ -577,13 +636,42 @@ export const createProviderUser = async (req, res, next) => {
       });
     }
 
+    // Buscar organização Provider para associar o usuário
+    const providerOrg = await Organization.findOne({ where: { type: 'provider' } });
+    if (!providerOrg) {
+      return res.status(500).json({
+        success: false,
+        error: 'Organização Provider não encontrada no sistema'
+      });
+    }
+
+    // Validar e mapear role - apenas roles de provider são permitidos
+    const roleMapping = {
+      'super-admin': 'super-admin',
+      'provider-admin': 'provider-admin',
+      'provider-support': 'provider-support',
+      'support': 'provider-support' // Mapear 'support' para 'provider-support'
+    };
+    
+    const validProviderRoles = ['super-admin', 'provider-admin', 'provider-support', 'support'];
+    const inputRole = role || 'provider-admin';
+    if (!validProviderRoles.includes(inputRole)) {
+      return res.status(400).json({
+        success: false,
+        error: `Role inválido. Roles permitidos: super-admin, provider-admin, provider-support`
+      });
+    }
+    
+    const userRole = roleMapping[inputRole] || 'provider-admin';
+
     const user = await User.create({
       name,
       email,
       password, // O model deve fazer o hash
-      role: role || 'provider-admin',
+      role: userRole,
       phone,
       department,
+      organizationId: providerOrg.id,
       isActive: true
     });
 
@@ -608,7 +696,7 @@ export const updateProviderUser = async (req, res, next) => {
     const user = await User.findOne({
       where: { 
         id,
-        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+        role: { [Op.in]: ['super-admin', 'provider-admin', 'provider-support'] }
       }
     });
 
@@ -681,7 +769,7 @@ export const deleteProviderUser = async (req, res, next) => {
     const user = await User.findOne({
       where: { 
         id,
-        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+        role: { [Op.in]: ['super-admin', 'provider-admin', 'provider-support'] }
       }
     });
 
@@ -727,7 +815,7 @@ export const toggleProviderUserStatus = async (req, res, next) => {
     const user = await User.findOne({
       where: { 
         id,
-        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+        role: { [Op.in]: ['super-admin', 'provider-admin', 'provider-support'] }
       }
     });
 
@@ -759,7 +847,7 @@ export const updateProviderUserPermissions = async (req, res, next) => {
     const user = await User.findOne({
       where: { 
         id,
-        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+        role: { [Op.in]: ['super-admin', 'provider-admin', 'provider-support'] }
       }
     });
 
@@ -789,7 +877,7 @@ export const resetProviderUserPassword = async (req, res, next) => {
     const user = await User.findOne({
       where: { 
         id,
-        role: { [Op.in]: ['super-admin', 'provider-admin'] }
+        role: { [Op.in]: ['super-admin', 'provider-admin', 'provider-support'] }
       }
     });
 
@@ -811,6 +899,89 @@ export const resetProviderUserPassword = async (req, res, next) => {
       success: true,
       message: 'Senha resetada com sucesso',
       tempPassword // Em produção, enviar por email e não retornar aqui
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// GET /api/organizations/:id/users - Listar usuários de uma organização (OrganizationUser)
+export const getOrganizationUsers = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20, search, isActive } = req.query;
+
+    const where = { organizationId: id };
+    
+    if (isActive !== undefined) {
+      where.isActive = isActive === 'true';
+    }
+
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+
+    // Usar OrganizationUser para organizações tenant (não User)
+    const { count, rows: users } = await OrganizationUser.findAndCountAll({
+      where,
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json({
+      success: true,
+      users,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/organizations/:id/clients - Listar clientes de uma organização
+export const getOrganizationClients = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20, search, isActive } = req.query;
+
+    const where = { organizationId: id };
+    
+    if (isActive !== undefined) {
+      where.isActive = isActive === 'true';
+    }
+
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows: clients } = await Client.findAndCountAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json({
+      success: true,
+      clients,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil(count / limit)
     });
   } catch (error) {
     next(error);

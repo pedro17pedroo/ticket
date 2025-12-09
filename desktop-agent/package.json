@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "description": "TatuTicket Desktop Agent - Inventário e Acesso Remoto",
   "main": "src/main/main.js",
-  "author": "TatuTicket",
+  "author": {
+    "name": "TatuTicket",
+    "email": "suporte@tatuticket.com"
+  },
+  "homepage": "https://tatuticket.com",
   "license": "MIT",
   "scripts": {
     "start": "electron .",

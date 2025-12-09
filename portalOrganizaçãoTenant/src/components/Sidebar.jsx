@@ -31,6 +31,8 @@ import {
   Package,
   Shield,
   Cog,
+  Monitor,
+  Download,
 } from 'lucide-react'
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -95,6 +97,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/reports', icon: BarChart3, label: 'Relatórios Avançados' },
     { path: '/tags', icon: TagsIcon, label: 'Tags' },
     { path: '/templates', icon: FileText, label: 'Templates' },
+    { path: '/desktop-agent', icon: Monitor, label: 'Desktop Agent' },
   ]
 
   // Menu inferior (removido Configurações)

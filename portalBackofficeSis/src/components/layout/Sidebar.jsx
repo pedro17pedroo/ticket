@@ -14,7 +14,11 @@ import {
   Globe,
   Mail,
   Lock,
-  Plug
+  Plug,
+  Receipt,
+  Clock,
+  Download,
+  Monitor
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import useAuthStore from '../../store/authStore';
@@ -29,9 +33,12 @@ const Sidebar = () => {
     { name: 'Organizações', href: '/organizations', icon: Building2 },
     { name: 'Usuários', href: '/users', icon: Users },
     { name: 'Planos', href: '/plans', icon: CreditCard },
+    { name: 'Subscrições', href: '/subscriptions', icon: Receipt },
+    { name: 'Aprovações', href: '/subscriptions/pending', icon: Clock },
     { name: 'Monitoramento', href: '/monitoring', icon: Activity },
     { name: 'Relatórios', href: '/reports', icon: FileText },
     { name: 'Auditoria', href: '/audit', icon: Shield },
+    { name: 'Desktop Agent', href: '/downloads/desktop-agent', icon: Monitor },
   ];
 
   const settingsSubmenu = [

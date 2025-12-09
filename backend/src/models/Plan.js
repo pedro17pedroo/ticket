@@ -40,7 +40,13 @@ const Plan = sequelize.define('Plan', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,
     field: 'yearly_price',
-    comment: 'Preço anual em euros (com desconto)'
+    comment: 'Preço anual (com desconto)'
+  },
+  currency: {
+    type: DataTypes.STRING(3),
+    allowNull: false,
+    defaultValue: 'EUR',
+    comment: 'Moeda do preço (EUR, USD, BRL, AOA, etc.)'
   },
   // Limites de recursos
   maxUsers: {
@@ -77,7 +83,7 @@ const Plan = sequelize.define('Plan', {
     field: 'max_attachment_size_mb',
     comment: 'Tamanho máximo de anexos em MB'
   },
-  // Features disponíveis
+  // Features disponíveis (flags booleanas)
   features: {
     type: DataTypes.JSONB,
     defaultValue: {
@@ -94,7 +100,14 @@ const Plan = sequelize.define('Plan', {
       workflows: false,
       integrations: false
     },
-    comment: 'Features habilitadas no plano'
+    comment: 'Features habilitadas no plano (flags)'
+  },
+  // Features em texto livre (para exibição na landing page)
+  featuresText: {
+    type: DataTypes.JSONB,
+    defaultValue: [],
+    field: 'features_text',
+    comment: 'Lista de funcionalidades em texto para exibição'
   },
   // Trial
   trialDays: {

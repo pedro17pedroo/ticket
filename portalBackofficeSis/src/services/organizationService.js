@@ -10,7 +10,9 @@ export const organizationService = {
   // Obter organização por ID
   async getById(id) {
     const response = await api.get(`/organizations/${id}`);
-    return response.data;
+    // A API retorna { success: true, tenant: {...} } ou { success: true, organization: {...} }
+    const data = response.data;
+    return data.tenant || data.organization || data;
   },
 
   // Criar nova organização

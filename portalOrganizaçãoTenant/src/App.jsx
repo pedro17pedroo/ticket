@@ -41,6 +41,7 @@ import UserInventoryDetail from './pages/UserInventoryDetail'
 import ClientInventoryDetail from './pages/ClientInventoryDetail'
 import Reports from './pages/Reports'
 import RoleManagement from './pages/Settings/RoleManagement'
+import DesktopAgent from './pages/DesktopAgent'
 
 // Componente de rota protegida
 const PrivateRoute = ({ children }) => {
@@ -139,6 +140,7 @@ function App() {
                       <Route path="/inventory/:id/edit" element={<AssetForm />} />
                       <Route path="/settings" element={<Settings />} />
                       <Route path="/profile" element={<Profile />} />
+                      <Route path="/desktop-agent" element={<DesktopAgent />} />
                       <Route path="*" element={<Navigate to="/" />} />
                     </Routes>
                   </Layout>

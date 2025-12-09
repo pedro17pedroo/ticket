@@ -13,6 +13,8 @@ import {
   ShoppingBag,
   HardDrive,
   X,
+  Monitor,
+  Download,
 } from 'lucide-react'
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -27,6 +29,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento' },
     { path: '/my-assets', icon: HardDrive, label: 'Meus Equipamentos' },
     { path: '/hours-bank', icon: Clock, label: 'Bolsa de Horas' },
+    { path: '/desktop-agent', icon: Monitor, label: 'Desktop Agent' },
     ...(isClientAdmin ? [
       { path: '/organization', icon: Building2, label: 'Organização' },
     ] : []),

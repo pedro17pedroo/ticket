@@ -27,6 +27,9 @@ import IntegrationSettings from './pages/Settings/IntegrationSettings';
 import LandingPage from './pages/Settings/LandingPage';
 import AuditLogs from './pages/Audit/AuditLogs';
 import ChangeHistory from './pages/Audit/ChangeHistory';
+import SubscriptionsList from './pages/Subscriptions/SubscriptionsList';
+import PendingApprovals from './pages/Subscriptions/PendingApprovals';
+import DesktopAgentDownload from './pages/Downloads/DesktopAgentDownload';
 
 function App() {
   return (
@@ -70,6 +73,12 @@ function App() {
             <Route path=":id/edit" element={<EditPlan />} />
           </Route>
 
+          {/* Subscriptions */}
+          <Route path="subscriptions">
+            <Route index element={<SubscriptionsList />} />
+            <Route path="pending" element={<PendingApprovals />} />
+          </Route>
+
           {/* Monitoring */}
           <Route path="monitoring">
             <Route index element={<SystemStatus />} />
@@ -97,6 +106,11 @@ function App() {
           <Route path="audit">
             <Route index element={<AuditLogs />} />
             <Route path="history" element={<ChangeHistory />} />
+          </Route>
+
+          {/* Downloads */}
+          <Route path="downloads">
+            <Route path="desktop-agent" element={<DesktopAgentDownload />} />
           </Route>
         </Route>
 

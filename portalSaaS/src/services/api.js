@@ -30,6 +30,17 @@ export const getLandingPageConfig = async () => {
   }
 };
 
+// Obter planos públicos (para landing page)
+export const getPublicPlans = async () => {
+  try {
+    const response = await api.get('/plans/public');
+    return response.data.plans || [];
+  } catch (error) {
+    console.error('Erro ao carregar planos:', error);
+    return null;
+  }
+};
+
 // SaaS API - Onboarding
 export const saasAPI = {
   // Verificar disponibilidade do slug
@@ -63,9 +74,9 @@ export const saasAPI = {
     return response;
   },
 
-  // Obter planos disponíveis
+  // Obter planos disponíveis (usa o endpoint público)
   getPlans: async () => {
-    const response = await api.get('/saas/plans');
+    const response = await api.get('/plans/public');
     return response.data;
   }
 };

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams, Link } from 'react-router-dom';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -12,7 +13,10 @@ import {
   AlertCircle,
   Loader2,
   Copy,
-  ExternalLink
+  ExternalLink,
+  CreditCard,
+  ArrowLeft,
+  Ticket
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
@@ -368,13 +372,39 @@ const CompanyStepComponent = memo(({
 });
 
 const OnboardingNew = () => {
+  const [searchParams] = useSearchParams();
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [organizationData, setOrganizationData] = useState(null);
   const [emailToken, setEmailToken] = useState('');
+  const [plans, setPlans] = useState([]);
+  const [selectedPlanData, setSelectedPlanData] = useState(null);
+  
+  // Obter plano da URL (ex: /onboarding?plan=professional)
+  const selectedPlan = searchParams.get('plan') || 'starter';
   
   // Usar useRef para controlar envio de email globalmente
   const emailSentRef = useRef(false);
+
+  // Carregar planos da API ao montar
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const response = await saasAPI.getPlans();
+        if (response.plans && response.plans.length > 0) {
+          setPlans(response.plans);
+          // Encontrar o plano selecionado
+          const planData = response.plans.find(p => p.planId === selectedPlan || p.name?.toLowerCase() === selectedPlan);
+          if (planData) {
+            setSelectedPlanData(planData);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar planos:', error);
+      }
+    };
+    loadPlans();
+  }, [selectedPlan]);
 
   // Controlar mudanças de step para email
   useEffect(() => {
@@ -421,6 +451,23 @@ const OnboardingNew = () => {
   const adminForm = useForm();
   const passwordForm = useForm();
 
+  // Função para obter nome do plano formatado com preço e moeda
+  const getPlanDisplayName = () => {
+    if (selectedPlanData) {
+      const { name, price, currencySymbol, priceValue } = selectedPlanData;
+      if (priceValue === 0) return `${name} - Grátis`;
+      if (priceValue === -1) return `${name} - Contacte-nos`;
+      return `${name} - ${currencySymbol || '€'}${priceValue}/mês`;
+    }
+    // Fallback se não tiver dados do plano
+    const fallbackNames = {
+      'starter': 'Starter',
+      'professional': 'Professional',
+      'enterprise': 'Enterprise'
+    };
+    return fallbackNames[selectedPlan] || selectedPlan;
+  };
+
   // Step 0: Company Information
   const CompanyStep = () => {
     const { register, handleSubmit, setValue, clearErrors, setError, formState: { errors } } = companyForm;
@@ -433,6 +480,25 @@ const OnboardingNew = () => {
 
     return (
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Plano Selecionado */}
+        {selectedPlan && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <CreditCard className="h-5 w-5 text-blue-600 mr-2" />
+                <div>
+                  <p className="text-sm text-blue-800">
+                    Plano selecionado: <strong className="text-blue-900">{getPlanDisplayName()}</strong>
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    O plano será associado à sua organização após o cadastro
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -827,7 +893,7 @@ const OnboardingNew = () => {
           ...companyData,
           ...adminData,
           adminPassword: data.password,
-          plan: 'professional'
+          plan: selectedPlan // Usar plano selecionado da URL
         };
         
         const result = await saasAPI.createOrganization(payload);
@@ -843,6 +909,18 @@ const OnboardingNew = () => {
 
     return (
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Plano Selecionado */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <CreditCard className="h-5 w-5 text-blue-600 mr-2" />
+              <p className="text-sm text-blue-800">
+                Plano selecionado: <strong className="text-blue-900">{getPlanDisplayName()}</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
           <div className="flex items-center">
             <Key className="h-5 w-5 text-amber-600 mr-2" />
@@ -1042,7 +1120,31 @@ const OnboardingNew = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header com link de volta */}
+      <div className="bg-white border-b border-gray-200 py-4">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-center space-x-2 group">
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-2 rounded-xl shadow-lg">
+                <Ticket className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                TatuTicket
+              </span>
+            </Link>
+            <Link 
+              to="/" 
+              className="flex items-center text-sm text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Voltar ao início
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Progress Steps */}
         <div className="mb-8">
@@ -1117,6 +1219,7 @@ const OnboardingNew = () => {
             </motion.div>
           </AnimatePresence>
         </div>
+      </div>
       </div>
     </div>
   );

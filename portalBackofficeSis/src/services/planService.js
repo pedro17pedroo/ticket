@@ -31,6 +31,18 @@ export const planService = {
     return response.data;
   },
 
+  // Ativar plano
+  async activate(id) {
+    const response = await api.put(`/plans/${id}/activate`);
+    return response.data;
+  },
+
+  // Desativar plano
+  async deactivate(id) {
+    const response = await api.put(`/plans/${id}/deactivate`);
+    return response.data;
+  },
+
   // Obter assinaturas do plano
   async getSubscriptions(id, params = {}) {
     const response = await api.get(`/plans/${id}/subscriptions`, { params });

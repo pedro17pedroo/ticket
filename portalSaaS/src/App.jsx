@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useEffect } from 'react';
 
@@ -10,7 +10,6 @@ import Home from './pages/Home';
 import Features from './pages/Features';
 import Pricing from './pages/Pricing';
 import Products from './pages/Products';
-import Trial from './pages/Trial';
 import OnboardingNew from './pages/OnboardingNew';
 import About from './pages/About';
 import Contact from './pages/Contact';
@@ -42,8 +41,10 @@ function App() {
             <Route path="produtos" element={<Products />} />
             <Route path="about" element={<About />} />
             <Route path="contact" element={<Contact />} />
-            <Route path="trial" element={<Trial />} />
           </Route>
+
+          {/* Trial redirects to Onboarding */}
+          <Route path="/trial" element={<Navigate to="/onboarding" replace />} />
 
           {/* Onboarding without Layout */}
           <Route path="/onboarding" element={<OnboardingNew />} />

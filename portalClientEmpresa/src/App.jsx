@@ -23,6 +23,7 @@ import RequestDetail from './pages/RequestDetail'
 import MyAssets from './pages/MyAssets'
 import MyAssetDetail from './pages/MyAssetDetail'
 import Organization from './pages/Organization'
+import DesktopAgent from './pages/DesktopAgent'
 
 const PrivateRoute = ({ children }) => {
   const { token } = useAuthStore()
@@ -91,6 +92,7 @@ function App() {
                       <Route path="/my-assets" element={<MyAssets />} />
                       <Route path="/my-assets/:id" element={<MyAssetDetail />} />
                       <Route path="/organization" element={<Organization />} />
+                      <Route path="/desktop-agent" element={<DesktopAgent />} />
                       <Route path="*" element={<Navigate to="/" />} />
                     </Routes>
                   </Layout>

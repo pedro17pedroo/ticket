@@ -40,6 +40,7 @@ import * as setupController from '../modules/setup/setupController.js';
 import commentRoutes from './commentRoutes.js';
 import saasRoutes from './saasRoutes.js';
 import * as landingPageController from '../modules/landingPage/landingPageController.js';
+import * as downloadController from '../modules/downloads/downloadController.js';
 
 const router = express.Router();
 
@@ -199,8 +200,51 @@ router.delete('/types/:id', authenticate, authorize('org-admin'), auditLog('dele
 import providerRoutes from './providerRoutes.js';
 router.use('/provider', providerRoutes);
 
+// ==================== ORGANIZATIONS (Alias para Provider/Tenants - Compatibilidade Backoffice) ====================
+import * as providerController from '../modules/organizations/providerController.js';
+
+// Rotas de organizações (alias para tenants)
+router.get('/organizations', authenticate, authorize('super-admin', 'provider-admin'), providerController.getTenants);
+router.get('/organizations/:id', authenticate, authorize('super-admin', 'provider-admin'), providerController.getTenantById);
+router.post('/organizations', authenticate, authorize('super-admin', 'provider-admin'), auditLog('create', 'organization'), providerController.createTenant);
+router.put('/organizations/:id', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'organization'), providerController.updateTenant);
+router.post('/organizations/:id/suspend', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'organization'), providerController.suspendTenant);
+router.post('/organizations/:id/activate', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'organization'), providerController.activateTenant);
+router.get('/organizations/:id/users', authenticate, authorize('super-admin', 'provider-admin'), providerController.getOrganizationUsers);
+router.get('/organizations/:id/clients', authenticate, authorize('super-admin', 'provider-admin'), providerController.getOrganizationClients);
+
 // ==================== SAAS (Onboarding & Plan Management) ====================
 router.use('/saas', saasRoutes);
+
+// ==================== PLANS (Gestão de Planos SaaS) ====================
+import * as planController from '../modules/plans/planController.js';
+
+// Rota pública - planos para landing page
+router.get('/plans/public', planController.getPublicPlans);
+
+// Rotas admin - requer autenticação
+router.get('/plans', authenticate, authorize('super-admin', 'provider-admin'), planController.getPlans);
+router.get('/plans/:id', authenticate, authorize('super-admin', 'provider-admin'), planController.getPlanById);
+router.post('/plans', authenticate, authorize('super-admin', 'provider-admin'), auditLog('create', 'plan'), planController.createPlan);
+router.put('/plans/:id', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'plan'), planController.updatePlan);
+router.delete('/plans/:id', authenticate, authorize('super-admin', 'provider-admin'), auditLog('delete', 'plan'), planController.deletePlan);
+router.put('/plans/:id/activate', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'plan'), planController.activatePlan);
+router.put('/plans/:id/deactivate', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'plan'), planController.deactivatePlan);
+router.get('/plans/:id/subscriptions', authenticate, authorize('super-admin', 'provider-admin'), planController.getPlanSubscriptions);
+
+// ==================== SUBSCRIPTIONS (Gestão de Subscrições) ====================
+import * as subscriptionController from '../modules/subscriptions/subscriptionController.js';
+
+router.get('/subscriptions', authenticate, authorize('super-admin', 'provider-admin'), subscriptionController.getSubscriptions);
+router.get('/subscriptions/pending', authenticate, authorize('super-admin', 'provider-admin'), subscriptionController.getPendingSubscriptions);
+router.get('/subscriptions/stats', authenticate, authorize('super-admin', 'provider-admin'), subscriptionController.getSubscriptionStats);
+router.get('/subscriptions/:id', authenticate, authorize('super-admin', 'provider-admin'), subscriptionController.getSubscriptionById);
+router.put('/subscriptions/:id/plan', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'subscription'), subscriptionController.changePlan);
+router.put('/subscriptions/:id/approve', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'subscription'), subscriptionController.approveSubscription);
+router.put('/subscriptions/:id/reject', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'subscription'), subscriptionController.rejectSubscription);
+router.put('/subscriptions/:id/cancel', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'subscription'), subscriptionController.cancelSubscription);
+router.put('/subscriptions/:id/reactivate', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'subscription'), subscriptionController.reactivateSubscription);
+router.put('/subscriptions/:id/extend-trial', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'subscription'), subscriptionController.extendTrial);
 
 // ==================== LANDING PAGE (CMS) ====================
 // Rota pública - não requer autenticação
@@ -422,5 +466,11 @@ router.use('/', emailTestRoutes);
 
 // ==================== DEBUG ROUTES ====================
 router.use('/', debugRoutes);
+
+// ==================== DOWNLOADS (Desktop Agent) ====================
+router.get('/downloads/agent/info', downloadController.getAgentInfo);
+router.get('/downloads/agent/:platform', downloadController.downloadAgent);
+router.post('/downloads/agent/upload', authenticate, downloadController.uploadAgent);
+router.delete('/downloads/agent/:filename', authenticate, downloadController.deleteAgent);
 
 export default router;

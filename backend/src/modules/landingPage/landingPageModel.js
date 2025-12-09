@@ -30,7 +30,7 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
   },
   heroCta1Link: {
     type: DataTypes.STRING,
-    defaultValue: '/trial'
+    defaultValue: '/onboarding'
   },
   heroCta2Text: {
     type: DataTypes.STRING,
@@ -78,9 +78,62 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
   pricingPlans: {
     type: DataTypes.JSONB,
     defaultValue: [
-      { name: 'Starter', price: '€49', features: ['Até 10 usuários', '1000 tickets/mês', 'Suporte por email'], highlighted: false },
-      { name: 'Professional', price: '€149', features: ['Até 50 usuários', '10000 tickets/mês', 'Suporte 24/7', 'API access'], highlighted: true },
-      { name: 'Enterprise', price: 'Contacte-nos', features: ['Usuários ilimitados', 'Tickets ilimitados', 'Suporte dedicado', 'White-label'], highlighted: false }
+      { name: 'Starter', price: '€29', features: ['Até 10 usuários', '500 tickets/mês', 'Suporte por email', 'Base de conhecimento'], highlighted: false },
+      { name: 'Professional', price: '€79', features: ['Até 50 usuários', '2000 tickets/mês', 'Suporte 24/7', 'SLA', 'Automações', 'API'], highlighted: true },
+      { name: 'Enterprise', price: '€199', features: ['Até 200 usuários', '10000 tickets/mês', 'Suporte dedicado', 'White-label', 'Integrações avançadas'], highlighted: false }
+    ]
+  },
+  // Clients Section (Logos)
+  clientsTitle: {
+    type: DataTypes.STRING,
+    defaultValue: 'Empresas que confiam em nós'
+  },
+  clientsLogos: {
+    type: DataTypes.JSONB,
+    defaultValue: [
+      { name: 'Empresa 1', logoUrl: '/logos/empresa1.png' },
+      { name: 'Empresa 2', logoUrl: '/logos/empresa2.png' },
+      { name: 'Empresa 3', logoUrl: '/logos/empresa3.png' },
+      { name: 'Empresa 4', logoUrl: '/logos/empresa4.png' },
+      { name: 'Empresa 5', logoUrl: '/logos/empresa5.png' }
+    ]
+  },
+  // Testimonials Section
+  testimonialsTitle: {
+    type: DataTypes.STRING,
+    defaultValue: 'O que nossos clientes dizem'
+  },
+  testimonialsSubtitle: {
+    type: DataTypes.STRING,
+    defaultValue: 'Veja como o TatuTicket transformou o atendimento dessas empresas'
+  },
+  testimonials: {
+    type: DataTypes.JSONB,
+    defaultValue: [
+      { 
+        name: 'João Silva', 
+        role: 'Diretor de TI', 
+        company: 'TechCorp', 
+        avatar: '/avatars/avatar1.jpg',
+        text: 'O TatuTicket revolucionou nosso atendimento. Reduzimos o tempo de resposta em 60% e a satisfação dos clientes aumentou significativamente.',
+        rating: 5
+      },
+      { 
+        name: 'Maria Santos', 
+        role: 'Gerente de Suporte', 
+        company: 'InnovaSoft', 
+        avatar: '/avatars/avatar2.jpg',
+        text: 'A melhor plataforma de tickets que já utilizamos. Interface intuitiva e funcionalidades completas para nossa equipe.',
+        rating: 5
+      },
+      { 
+        name: 'Pedro Costa', 
+        role: 'CEO', 
+        company: 'StartupXYZ', 
+        avatar: '/avatars/avatar3.jpg',
+        text: 'Excelente custo-benefício. O suporte é excepcional e a plataforma atende todas as nossas necessidades.',
+        rating: 5
+      }
     ]
   },
   // CTA Section
@@ -98,12 +151,85 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
   },
   ctaButtonLink: {
     type: DataTypes.STRING,
-    defaultValue: '/trial'
+    defaultValue: '/onboarding'
   },
   // Footer
   footerText: {
     type: DataTypes.STRING,
     defaultValue: '© 2025 TatuTicket. Todos os direitos reservados.'
+  },
+  footerDescription: {
+    type: DataTypes.TEXT,
+    defaultValue: 'A plataforma de gestão de tickets mais completa do mercado. Simplifique o atendimento, automatize processos e encante seus clientes.'
+  },
+  footerEmail: {
+    type: DataTypes.STRING,
+    defaultValue: 'contato@tatuticket.com'
+  },
+  footerPhone: {
+    type: DataTypes.STRING,
+    defaultValue: '+55 (11) 99999-9999'
+  },
+  footerAddress: {
+    type: DataTypes.STRING,
+    defaultValue: 'São Paulo, Brasil'
+  },
+  footerLinks: {
+    type: DataTypes.JSONB,
+    defaultValue: {
+      produto: [
+        { label: 'Funcionalidades', url: '/features' },
+        { label: 'Preços', url: '/pricing' },
+        { label: 'Desktop Agent', url: '/desktop-agent' },
+        { label: 'Integrações', url: '/integrations' },
+        { label: 'API', url: '/api' }
+      ],
+      empresa: [
+        { label: 'Sobre Nós', url: '/about' },
+        { label: 'Blog', url: '/blog' },
+        { label: 'Carreiras', url: '/careers' },
+        { label: 'Parceiros', url: '/partners' },
+        { label: 'Imprensa', url: '/press' }
+      ],
+      recursos: [
+        { label: 'Documentação', url: '/docs' },
+        { label: 'Tutoriais', url: '/tutorials' },
+        { label: 'Status', url: '/status' },
+        { label: 'Webinars', url: '/webinars' },
+        { label: 'Templates', url: '/templates' }
+      ],
+      suporte: [
+        { label: 'Central de Ajuda', url: '/help' },
+        { label: 'Fale Conosco', url: '/contact' },
+        { label: 'Comunidade', url: '/community' },
+        { label: 'Segurança', url: '/security' },
+        { label: 'Compliance', url: '/compliance' }
+      ]
+    }
+  },
+  footerSocial: {
+    type: DataTypes.JSONB,
+    defaultValue: {
+      twitter: 'https://twitter.com/tatuticket',
+      linkedin: 'https://linkedin.com/company/tatuticket',
+      github: 'https://github.com/tatuticket'
+    }
+  },
+  footerLegal: {
+    type: DataTypes.JSONB,
+    defaultValue: [
+      { label: 'Privacidade', url: '/privacy' },
+      { label: 'Termos', url: '/terms' },
+      { label: 'Cookies', url: '/cookies' }
+    ]
+  },
+  newsletterTitle: {
+    type: DataTypes.STRING,
+    defaultValue: 'Newsletter'
+  },
+  newsletterDescription: {
+    type: DataTypes.STRING,
+    defaultValue: 'Receba as últimas novidades sobre gestão de tickets e tecnologia.'
   },
   // Branding
   logoUrl: {

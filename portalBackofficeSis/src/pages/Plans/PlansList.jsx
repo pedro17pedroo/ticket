@@ -46,11 +46,19 @@ const PlansList = () => {
     }
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
+  // Mapeamento de símbolos de moeda
+  const currencySymbols = {
+    EUR: '€',
+    USD: '$',
+    BRL: 'R$',
+    AOA: 'Kz',
+    GBP: '£',
+    CHF: 'CHF'
+  };
+
+  const formatCurrency = (value, currency = 'EUR') => {
+    const symbol = currencySymbols[currency] || currency;
+    return `${symbol} ${parseFloat(value).toFixed(2)}`;
   };
 
   const columns = [
@@ -69,8 +77,8 @@ const PlansList = () => {
       accessor: 'price',
       render: (plan) => (
         <div>
-          <div className="font-semibold text-gray-900">{formatCurrency(plan.price)}</div>
-          <div className="text-sm text-gray-500">/{plan.billingCycle}</div>
+          <div className="font-semibold text-gray-900">{plan.priceFormatted || formatCurrency(plan.price || plan.monthlyPrice, plan.currency)}</div>
+          <div className="text-sm text-gray-500">/{plan.billingCycle || 'month'}</div>
         </div>
       )
     },
