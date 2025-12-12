@@ -1017,7 +1017,7 @@ const OnboardingNew = () => {
           </p>
         </div>
 
-        {organizationData && (
+        {organizationData && organizationData.portalUrl && organizationData.user && (
           <div className="bg-gray-50 rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">URL de Acesso:</span>
@@ -1092,7 +1092,7 @@ const OnboardingNew = () => {
         </div>
 
         <div className="flex justify-center">
-          {organizationData && (
+          {organizationData && organizationData.portalUrl && (
             <a
               href={organizationData.portalUrl}
               target="_blank" 
@@ -1192,7 +1192,7 @@ const OnboardingNew = () => {
             </p>
           </div>
 
-          {organizationData && (
+          {organizationData && organizationData.organization && organizationData.user && (
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Informações da Organização

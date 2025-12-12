@@ -52,8 +52,8 @@ export const saasAPI = {
   // Enviar email de verificação
   sendVerificationEmail: async (email, name, companyName) => {
     const response = await api.post('/saas/send-verification', {
-      email,
-      name,
+      adminEmail: email,
+      adminName: name,
       companyName
     });
     return response;
@@ -63,7 +63,7 @@ export const saasAPI = {
   verifyEmail: async (email, code) => {
     const response = await api.post('/saas/verify-email', {
       email,
-      code
+      token: code
     });
     return response.data;
   },
