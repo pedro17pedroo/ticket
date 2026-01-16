@@ -35,11 +35,11 @@ export const ResponseTemplate = sequelize.define('ResponseTemplate', {
     type: DataTypes.TEXT,
     allowNull: false
   },
-  categoryId: {
+  catalogCategoryId: {
     type: DataTypes.UUID,
     allowNull: true,
     references: {
-      model: 'categories',
+      model: 'catalog_categories',
       key: 'id'
     }
   },

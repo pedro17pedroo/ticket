@@ -115,8 +115,8 @@ export const createSection = async (req, res, next) => {
 
     const section = await Section.create({
       name,
-      description,
-      code,
+      description: description && description.trim() !== '' ? description : null,
+      code: code && code.trim() !== '' ? code : null,
       departmentId,
       managerId: managerId && managerId.trim() !== '' ? managerId : null,
       organizationId,
@@ -183,8 +183,8 @@ export const updateSection = async (req, res, next) => {
 
     await section.update({
       name,
-      description,
-      code,
+      description: description !== undefined ? (description && description.trim() !== '' ? description : null) : undefined,
+      code: code !== undefined ? (code && code.trim() !== '' ? code : null) : undefined,
       departmentId,
       managerId: managerId !== undefined ? (managerId && managerId.trim() !== '' ? managerId : null) : undefined,
       isActive

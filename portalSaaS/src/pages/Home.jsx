@@ -194,6 +194,7 @@ export default function Home() {
                 features={plan.features}
                 highlighted={plan.highlighted}
                 planId={plan.planId || plan.name.toLowerCase().replace(/\s+/g, '-')}
+                trialDays={plan.trialDays || 0}
               />
             ))}
           </div>
@@ -234,7 +235,10 @@ export default function Home() {
             {c.ctaTitle}
           </h2>
           <p className="text-xl text-blue-100 mb-10">
-            {c.ctaDescription}
+            {plans && plans.some(p => p.trialDays > 0) 
+              ? `Experimente gratuitamente por ${Math.max(...plans.map(p => p.trialDays || 0))} dias. Sem cartão de crédito.`
+              : c.ctaDescription
+            }
           </p>
           <Link
             to={c.ctaButtonLink}
@@ -370,7 +374,7 @@ function FeatureCard({ icon, title, description }) {
   );
 }
 
-function PricingCard({ name, price, features, highlighted, planId }) {
+function PricingCard({ name, price, features, highlighted, planId, trialDays }) {
   // Verificar se é preço especial (Contacte-nos, Grátis)
   const isSpecialPrice = price === 'Contacte-nos' || price === 'Grátis';
   
@@ -381,10 +385,19 @@ function PricingCard({ name, price, features, highlighted, planId }) {
         : 'bg-white text-gray-900 shadow-lg'
     }`}>
       <h3 className="text-2xl font-bold mb-2">{name}</h3>
-      <p className={`text-4xl font-bold mb-6 ${highlighted ? 'text-white' : 'text-blue-600'}`}>
+      <p className={`text-4xl font-bold mb-2 ${highlighted ? 'text-white' : 'text-blue-600'}`}>
         {price}
         {!isSpecialPrice && <span className="text-lg">/mês</span>}
       </p>
+      {trialDays > 0 && (
+        <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-4 ${
+          highlighted 
+            ? 'bg-green-400 text-green-900' 
+            : 'bg-green-100 text-green-700'
+        }`}>
+          {trialDays} dias grátis
+        </div>
+      )}
       <ul className="space-y-3 mb-8">
         {features.map((feature, i) => (
           <li key={i} className="flex items-center gap-2">

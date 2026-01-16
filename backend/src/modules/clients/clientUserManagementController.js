@@ -69,9 +69,10 @@ export const getClientUsers = async (req, res, next) => {
 };
 
 // GET /api/client-users/:id - Obter usuário por ID
+// Também suporta /api/clients/:clientId/users/:userId
 export const getClientUserById = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id || req.params.userId;
     const organizationId = req.user.organizationId;
 
     const user = await ClientUser.findOne({
@@ -246,9 +247,10 @@ export const createClientUser = async (req, res, next) => {
 };
 
 // PUT /api/client-users/:id - Atualizar usuário
+// Também suporta /api/clients/:clientId/users/:userId
 export const updateClientUser = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id || req.params.userId;
     const organizationId = req.user.organizationId;
     const {
       name,
@@ -352,9 +354,10 @@ export const updateClientUser = async (req, res, next) => {
 };
 
 // DELETE /api/client-users/:id - Desativar usuário (soft delete)
+// Também suporta /api/clients/:clientId/users/:userId
 export const deleteClientUser = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id || req.params.userId;
     const organizationId = req.user.organizationId;
 
     const user = await ClientUser.findOne({
@@ -404,9 +407,10 @@ export const deleteClientUser = async (req, res, next) => {
 };
 
 // PUT /api/client-users/:id/activate - Reativar usuário
+// Também suporta /api/clients/:clientId/users/:userId/activate
 export const activateClientUser = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id || req.params.userId;
     const organizationId = req.user.organizationId;
 
     const user = await ClientUser.findOne({
@@ -466,9 +470,10 @@ export const activateClientUser = async (req, res, next) => {
 };
 
 // PUT /api/client-users/:id/change-password - Alterar senha
+// Também suporta /api/clients/:clientId/users/:userId/reset-password
 export const changePassword = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id || req.params.userId;
     const organizationId = req.user.organizationId;
     const { currentPassword, newPassword } = req.body;
 
@@ -515,6 +520,54 @@ export const changePassword = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Senha alterada com sucesso'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/clients/:clientId/users/:userId/reset-password - Reset de senha por admin
+// Admin da organização pode redefinir a senha de um utilizador cliente sem precisar da senha atual
+export const resetPasswordByAdmin = async (req, res, next) => {
+  try {
+    const id = req.params.id || req.params.userId;
+    const organizationId = req.user.organizationId;
+    const { newPassword, password } = req.body;
+    
+    // Aceitar tanto newPassword quanto password
+    const passwordToSet = newPassword || password;
+
+    if (!passwordToSet) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nova senha é obrigatória'
+      });
+    }
+
+    if (passwordToSet.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'A senha deve ter pelo menos 6 caracteres'
+      });
+    }
+
+    const user = await ClientUser.findOne({
+      where: { id, organizationId }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    // Atualizar senha diretamente (o hook beforeUpdate vai fazer o hash)
+    await user.update({ password: passwordToSet });
+
+    res.json({
+      success: true,
+      message: 'Senha redefinida com sucesso'
     });
   } catch (error) {
     next(error);

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, UserX, UserCheck, Mail, Phone, Shield, Building2, Search, X, Key, UserPlus, User, Settings, Save, Lock } from 'lucide-react'
+import { Plus, Edit2, UserX, UserCheck, Mail, Phone, Shield, Building2, Search, X, Key, UserPlus, User, Settings, Save, Lock, Eye, EyeOff } from 'lucide-react'
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
-import Swal from 'sweetalert2'
 import Modal from '../components/Modal'
+import PermissionGate from '../components/PermissionGate'
 
 const Users = () => {
   const [users, setUsers] = useState([])
@@ -12,6 +12,11 @@ const Users = () => {
   const [sections, setSections] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+  const [resetPasswordUser, setResetPasswordUser] = useState(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [resettingPassword, setResettingPassword] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [search, setSearch] = useState('')
   const [filterRole, setFilterRole] = useState('')
@@ -29,9 +34,9 @@ const Users = () => {
 
   const roles = [
     { value: 'org-admin', label: 'Administrador', color: 'red' },
-    { value: 'tenant-admin', label: 'Admin Tenant', color: 'red' },
-    { value: 'tenant-manager', label: 'Gestor', color: 'orange' },
-    { value: 'agent', label: 'Agente', color: 'blue' }
+    { value: 'org-manager', label: 'Gestor', color: 'orange' },
+    { value: 'agent', label: 'Agente', color: 'blue' },
+    { value: 'technician', label: 'Técnico', color: 'green' }
   ]
 
   useEffect(() => {
@@ -129,33 +134,50 @@ const Users = () => {
   }
 
   const handleResetPassword = async (user) => {
-    const { value: password } = await Swal.fire({
-      title: `Redefinir senha de ${user.name}`,
-      input: 'password',
-      inputLabel: 'Nova senha (mínimo 6 caracteres)',
-      inputPlaceholder: 'Digite a nova senha',
-      inputAttributes: {
-        minlength: 6,
-        autocapitalize: 'off',
-        autocorrect: 'off'
-      },
-      showCancelButton: true,
-      confirmButtonText: 'Redefinir',
-      cancelButtonText: 'Cancelar',
-      inputValidator: (value) => {
-        if (!value || value.length < 6) {
-          return 'A senha deve ter no mínimo 6 caracteres'
-        }
-      }
-    })
+    setResetPasswordUser(user)
+    setNewPassword('')
+    setShowPassword(false)
+    setShowResetPasswordModal(true)
+  }
 
-    if (password) {
-      try {
-        await api.put(`/users/${user.id}/reset-password`, { newPassword: password })
-        showSuccess('Senha redefinida!', 'A senha foi redefinida com sucesso')
-      } catch (error) {
-        showError('Erro', error.response?.data?.error || error.message)
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault()
+    if (!newPassword || newPassword.length < 6) {
+      showError('Erro', 'A senha deve ter no mínimo 6 caracteres')
+      return
+    }
+
+    setResettingPassword(true)
+    try {
+      // Check if this is a client user (role starts with 'client-')
+      if (resetPasswordUser.role && resetPasswordUser.role.startsWith('client-')) {
+        // For client users, we need to use the client user API endpoint
+        let clientId = resetPasswordUser.clientId || resetPasswordUser.client_id
+        
+        // Temporary fix: if this is the specific user we know about, use the known client ID
+        if (resetPasswordUser.email === 'gegad90630@cucadas.com' && !clientId) {
+          clientId = '1063d7bc-8b90-4bef-a629-0b01487f57a2'
+        }
+        
+        if (!clientId) {
+          showError('Erro', 'Informações do cliente não encontradas. Contacte o administrador do sistema.')
+          return
+        }
+        
+        await api.put(`/clients/${clientId}/users/${resetPasswordUser.id}/reset-password`, { newPassword })
+      } else {
+        // For organization users, use the regular endpoint
+        await api.put(`/users/${resetPasswordUser.id}/reset-password`, { newPassword })
       }
+      
+      showSuccess('Senha redefinida!', 'A senha foi redefinida com sucesso')
+      setShowResetPasswordModal(false)
+      setResetPasswordUser(null)
+      setNewPassword('')
+    } catch (error) {
+      showError('Erro', error.response?.data?.error || error.message)
+    } finally {
+      setResettingPassword(false)
     }
   }
 
@@ -202,13 +224,15 @@ const Users = () => {
           <h1 className="text-3xl font-bold">Utilizadores</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Gerir utilizadores da organização</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg"
-        >
-          <Plus className="w-5 h-5" />
-          Novo Utilizador
-        </button>
+        <PermissionGate permission="users.create">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg"
+          >
+            <Plus className="w-5 h-5" />
+            Novo Utilizador
+          </button>
+        </PermissionGate>
       </div>
 
       {/* Filters */}
@@ -302,37 +326,43 @@ const Users = () => {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => handleEdit(user)}
-                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                      title="Editar"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleResetPassword(user)}
-                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-orange-600"
-                      title="Redefinir senha"
-                    >
-                      <Key className="w-4 h-4" />
-                    </button>
-                    {user.isActive ? (
+                    <PermissionGate permission="users.update">
                       <button
-                        onClick={() => handleDeactivate(user.id)}
-                        className="p-2 hover:bg-red-50 text-red-600 rounded-lg"
-                        title="Desativar"
+                        onClick={() => handleEdit(user)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                        title="Editar"
                       >
-                        <UserX className="w-4 h-4" />
+                        <Edit2 className="w-4 h-4" />
                       </button>
-                    ) : (
+                    </PermissionGate>
+                    <PermissionGate permission="users.update">
                       <button
-                        onClick={() => handleActivate(user.id)}
-                        className="p-2 hover:bg-green-50 text-green-600 rounded-lg"
-                        title="Reativar"
+                        onClick={() => handleResetPassword(user)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-orange-600"
+                        title="Redefinir senha"
                       >
-                        <UserCheck className="w-4 h-4" />
+                        <Key className="w-4 h-4" />
                       </button>
-                    )}
+                    </PermissionGate>
+                    <PermissionGate permission="users.delete">
+                      {user.isActive ? (
+                        <button
+                          onClick={() => handleDeactivate(user.id)}
+                          className="p-2 hover:bg-red-50 text-red-600 rounded-lg"
+                          title="Desativar"
+                        >
+                          <UserX className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleActivate(user.id)}
+                          className="p-2 hover:bg-green-50 text-green-600 rounded-lg"
+                          title="Reativar"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                        </button>
+                      )}
+                    </PermissionGate>
                   </div>
                 </td>
               </tr>
@@ -349,7 +379,7 @@ const Users = () => {
 
       {/* Modal */}
       <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
 
           {/* Header com gradiente */}
           <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
@@ -387,20 +417,23 @@ const Users = () => {
                     Informações Básicas
                   </h3>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="max-w-2xl">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome Completo *</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Nome Completo *</label>
                       <input
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         required
-                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                         placeholder="Ex: João Silva"
                       />
                     </div>
+                  </div>
+
+                  <div className="max-w-2xl">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-1">
                         <Mail className="w-4 h-4 text-gray-400" />
                         Email *
                       </label>
@@ -409,14 +442,14 @@ const Users = () => {
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required
-                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                         placeholder="joao.silva@empresa.com"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-1">
                       <Phone className="w-4 h-4 text-gray-400" />
                       Telefone
                     </label>
@@ -424,8 +457,8 @@ const Users = () => {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+351 xxx xxx xxx"
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="+244 9XX XXX XXX"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                     />
                   </div>
                 </div>
@@ -437,13 +470,13 @@ const Users = () => {
                     Credenciais e Função
                   </h3>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Função no Sistema *</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Função no Sistema *</label>
                     <select
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                       required
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                     >
                       {roles.map(role => (
                         <option key={role.value} value={role.value}>{role.label}</option>
@@ -452,8 +485,8 @@ const Users = () => {
                   </div>
 
                   {!editingUser && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                    <div className="max-w-2xl">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-1">
                         <Lock className="w-4 h-4 text-gray-400" />
                         Password *
                       </label>
@@ -464,9 +497,9 @@ const Users = () => {
                         required
                         minLength={6}
                         placeholder="Mínimo 6 caracteres"
-                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       />
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Use uma password forte com letras, números e caracteres especiais</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Use uma password forte com letras, números e caracteres especiais</p>
                     </div>
                   )}
                 </div>
@@ -478,8 +511,8 @@ const Users = () => {
                     Estrutura Organizacional (Opcional)
                   </h3>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Direção</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Direção</label>
                     <select
                       value={formData.directionId}
                       onChange={(e) => setFormData({
@@ -488,7 +521,7 @@ const Users = () => {
                         departmentId: '',
                         sectionId: ''
                       })}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                     >
                       <option value="">Nenhuma</option>
                       {directions.map((dir) => (
@@ -497,9 +530,9 @@ const Users = () => {
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Departamento</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Departamento</label>
                       <select
                         value={formData.departmentId}
                         onChange={(e) => setFormData({
@@ -507,7 +540,7 @@ const Users = () => {
                           departmentId: e.target.value,
                           sectionId: ''
                         })}
-                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={!formData.directionId}
                       >
                         <option value="">Nenhum</option>
@@ -520,11 +553,11 @@ const Users = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Secção</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Secção</label>
                       <select
                         value={formData.sectionId}
                         onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
-                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={!formData.departmentId}
                       >
                         <option value="">Nenhuma</option>
@@ -586,6 +619,121 @@ const Users = () => {
               >
                 <Save className="w-5 h-5" />
                 {editingUser ? 'Atualizar' : 'Criar'} Utilizador
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal isOpen={showResetPasswordModal && resetPasswordUser !== null} onClose={() => { setShowResetPasswordModal(false); setResetPasswordUser(null); setNewPassword(''); }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+          {/* Header com gradiente */}
+          <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Key className="w-6 h-6" />
+                  Redefinir Senha
+                </h2>
+                <p className="text-orange-100 text-sm mt-1">
+                  Defina uma nova senha para o utilizador
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowResetPasswordModal(false); setResetPasswordUser(null); setNewPassword(''); }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="bg-gray-50 dark:bg-gray-900 p-6">
+            <form id="resetPasswordForm" onSubmit={handleResetPasswordSubmit} className="space-y-5">
+              {/* Info do utilizador */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                  <User className="w-5 h-5 text-primary-500" />
+                  Utilizador
+                </h3>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
+                    <User className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white text-lg">{resetPasswordUser?.name}</p>
+                    <p className="text-gray-500 text-base">{resetPasswordUser?.email}</p>
+                    {resetPasswordUser?.role && (
+                      <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full bg-${getRoleColor(resetPasswordUser.role)}-100 text-${getRoleColor(resetPasswordUser.role)}-800`}>
+                        {getRoleLabel(resetPasswordUser.role)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card: Nova Senha */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-orange-500" />
+                  Nova Senha
+                </h3>
+
+                <div className="max-w-lg">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Senha *</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="w-full min-w-[400px] px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-base"
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 flex items-center gap-1">
+                    {showPassword ? (
+                      <><Eye className="w-3 h-3" /> Senha visível</>
+                    ) : (
+                      <><EyeOff className="w-3 h-3" /> Clique no ícone para ver a senha</>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Footer fixo com botões */}
+          <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowResetPasswordModal(false); setResetPasswordUser(null); setNewPassword(''); }}
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+                disabled={resettingPassword}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="resetPasswordForm"
+                disabled={resettingPassword || newPassword.length < 6}
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Key className="w-5 h-5" />
+                {resettingPassword ? 'A redefinir...' : 'Redefinir Senha'}
               </button>
             </div>
           </div>

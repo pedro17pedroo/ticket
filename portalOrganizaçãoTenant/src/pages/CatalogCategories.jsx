@@ -25,6 +25,8 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
 import { confirmDelete } from '../utils/alerts';
+import DynamicIcon from '../components/DynamicIcon';
+import PermissionGate from '../components/PermissionGate';
 
 const CatalogCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -228,13 +230,15 @@ const CatalogCategories = () => {
             <HelpCircle className="w-5 h-5" />
             Como Funciona?
           </button>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Nova Categoria
-          </button>
+          <PermissionGate permission="catalog.create">
+            <button
+              onClick={handleCreate}
+              className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Nova Categoria
+            </button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -336,10 +340,10 @@ const CatalogCategories = () => {
                           />
                         ) : (
                           <div
-                            className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
+                            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                             style={{ backgroundColor: `${category.color}20`, color: category.color }}
                           >
-                            {category.icon}
+                            <DynamicIcon icon={category.icon} className="w-5 h-5" />
                           </div>
                         )}
                         <div className="min-w-0">
@@ -394,32 +398,38 @@ const CatalogCategories = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleToggleActive(category)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${category.isActive !== false
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
-                          }`}
-                      >
-                        {category.isActive !== false ? 'Ativa' : 'Inativa'}
-                      </button>
+                      <PermissionGate permission="catalog.update">
+                        <button
+                          onClick={() => handleToggleActive(category)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${category.isActive !== false
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                            }`}
+                        >
+                          {category.isActive !== false ? 'Ativa' : 'Inativa'}
+                        </button>
+                      </PermissionGate>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(category)}
-                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(category.id)}
-                          className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 rounded-lg transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <PermissionGate permission="catalog.update">
+                          <button
+                            onClick={() => handleEdit(category)}
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </PermissionGate>
+                        <PermissionGate permission="catalog.delete">
+                          <button
+                            onClick={() => handleDelete(category.id)}
+                            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 rounded-lg transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </PermissionGate>
                       </div>
                     </td>
                   </tr>

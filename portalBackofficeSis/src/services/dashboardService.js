@@ -49,6 +49,18 @@ export const dashboardService = {
     return response.data;
   },
 
+  // Upload de logo
+  async uploadLogo(file) {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const response = await api.post('/provider/settings/logo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  },
+
   // Obter configurações de segurança
   async getSecuritySettings() {
     const response = await api.get('/provider/settings/security');

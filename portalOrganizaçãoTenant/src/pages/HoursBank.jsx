@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import Modal from '../components/Modal'
+import PermissionGate from '../components/PermissionGate'
 
 const HoursBank = () => {
   const [hoursBanks, setHoursBanks] = useState([])
@@ -170,13 +171,15 @@ const HoursBank = () => {
             Gerir pacotes de horas dos clientes
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Nova Bolsa
-        </button>
+        <PermissionGate permission="hours_bank.manage">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Nova Bolsa
+          </button>
+        </PermissionGate>
       </div>
 
       {/* Stats Cards */}
@@ -352,7 +355,7 @@ const HoursBank = () => {
 
       {/* Create Modal */}
       <Modal isOpen={showCreateModal} onClose={() => { setShowCreateModal(false); resetForm(); }}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
           
           {/* Header com gradiente */}
           <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
@@ -381,19 +384,19 @@ const HoursBank = () => {
             <div className="bg-gray-50 dark:bg-gray-900 p-6">
               <form id="hoursBankForm" onSubmit={handleCreateBank} className="space-y-5">
                 {/* Card: Cliente e Pacote */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <User className="w-5 h-5 text-primary-500" />
                     Cliente e Pacote
                   </h3>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cliente *</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Cliente *</label>
                     <select
                       value={formData.clientId}
                       onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
                       required
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                     >
                       <option value="">Selecione um cliente</option>
                       {clients.map(client => (
@@ -402,8 +405,8 @@ const HoursBank = () => {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Total de Horas *</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Total de Horas *</label>
                     <input
                       type="number"
                       step="0.5"
@@ -411,48 +414,48 @@ const HoursBank = () => {
                       value={formData.totalHours}
                       onChange={(e) => setFormData({ ...formData, totalHours: e.target.value })}
                       required
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       placeholder="Ex: 40"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo de Pacote</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Tipo de Pacote</label>
                     <input
                       type="text"
                       value={formData.packageType}
                       onChange={(e) => setFormData({ ...formData, packageType: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       placeholder="Ex: Premium 50h"
                     />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Identificação do tipo de pacote contratado</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Identificação do tipo de pacote contratado</p>
                   </div>
                 </div>
 
                 {/* Card: Período de Validade */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-primary-500" />
                     Período de Validade
                   </h3>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data Início <span className="text-xs text-gray-500">(opcional)</span></label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Data Início <span className="text-xs text-gray-500">(opcional)</span></label>
                       <input
                         type="date"
                         value={formData.startDate}
                         onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data Fim <span className="text-xs text-gray-500">(opcional)</span></label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Data Fim <span className="text-xs text-gray-500">(opcional)</span></label>
                       <input
                         type="date"
                         value={formData.endDate}
                         onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       />
                     </div>
                   </div>
@@ -460,14 +463,14 @@ const HoursBank = () => {
                 </div>
 
                 {/* Card: Configurações Avançadas */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Settings className="w-5 h-5 text-primary-500" />
                     Configurações Avançadas
                   </h3>
                   
-                  <div>
-                    <label className="flex items-center gap-3 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div className="max-w-2xl">
+                    <label className="flex items-center gap-4 px-6 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <input
                         type="checkbox"
                         id="allowNegative"
@@ -476,8 +479,8 @@ const HoursBank = () => {
                         className="w-5 h-5 text-primary-500 rounded focus:ring-2 focus:ring-primary-500"
                       />
                       <div className="flex-1">
-                        <span className="font-medium">Permitir saldo negativo (crédito)</span>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="font-medium text-base">Permitir saldo negativo (crédito)</span>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                           Permite que o cliente consuma mais horas do que possui
                         </p>
                       </div>
@@ -547,7 +550,7 @@ const HoursBank = () => {
       {/* Add Hours Modal */}
       {showAddHoursModal && selectedBank && (
         <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-xl w-full p-6">
             <h2 className="text-xl font-bold mb-4">Adicionar Horas</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Cliente: <strong>{selectedBank.client?.name}</strong>
@@ -605,7 +608,7 @@ const HoursBank = () => {
       {/* Consume Hours Modal */}
       {showConsumeModal && selectedBank && (
         <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-xl w-full p-6">
             <h2 className="text-xl font-bold mb-4">Consumir Horas</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Cliente: <strong>{selectedBank.client?.name}</strong><br />

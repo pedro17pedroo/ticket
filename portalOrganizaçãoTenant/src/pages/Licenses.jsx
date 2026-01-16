@@ -247,7 +247,7 @@ const Licenses = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <Link
-                      to={`/inventory/licenses/${license.id}`}
+                      to={`/inventory/licenses/${license.id}/edit`}
                       className="text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium text-sm"
                     >
                       Ver Detalhes

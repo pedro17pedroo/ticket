@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { sequelize } from '../config/database.js';
-import { Organization, User, Department, Category, SLA } from '../modules/models/index.js';
+import { Organization, User, Department, SLA, CatalogCategory } from '../modules/models/index.js';
 import logger from '../config/logger.js';
 
 const seed = async () => {

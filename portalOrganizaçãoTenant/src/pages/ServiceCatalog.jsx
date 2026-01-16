@@ -4,6 +4,8 @@ import api from '../services/api'
 import toast from 'react-hot-toast'
 import Modal from '../components/Modal'
 import { confirmDelete } from '../utils/alerts'
+import PermissionGate from '../components/PermissionGate'
+import CategoryTreeSelect from '../components/CategoryTreeSelect'
 
 const ServiceCatalog = () => {
   const [activeTab, setActiveTab] = useState('items') // items, statistics
@@ -346,13 +348,15 @@ const ServiceCatalog = () => {
       {activeTab === 'items' && (
         <div className="space-y-4">
           <div className="flex justify-end">
-            <button
-              onClick={handleCreateItem}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg"
-            >
-              <Plus className="w-4 h-4" />
-              Novo Item
-            </button>
+            <PermissionGate permission="catalog.create">
+              <button
+                onClick={handleCreateItem}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg"
+              >
+                <Plus className="w-4 h-4" />
+                Novo Item
+              </button>
+            </PermissionGate>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -411,18 +415,22 @@ const ServiceCatalog = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEditItem(item)}
-                        className="text-primary-600 hover:text-primary-900 mr-3"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <PermissionGate permission="catalog.update">
+                        <button
+                          onClick={() => handleEditItem(item)}
+                          className="text-primary-600 hover:text-primary-900 mr-3"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </PermissionGate>
+                      <PermissionGate permission="catalog.delete">
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </PermissionGate>
                     </td>
                   </tr>
                 ))}
@@ -496,7 +504,7 @@ const ServiceCatalog = () => {
       {/* Modal Categoria */}
       {showCategoryModal && (
         <div className="modal-overlay">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-xl w-full">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">{editingCategory ? 'Editar Categoria' : 'Nova Categoria'}</h2>
               <button onClick={() => setShowCategoryModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
@@ -603,19 +611,13 @@ const ServiceCatalog = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Categoria *
                     </label>
-                    <select
+                    <CategoryTreeSelect
+                      categories={categories}
                       value={itemForm.categoryId}
-                      onChange={(e) => setItemForm({ ...itemForm, categoryId: e.target.value })}
+                      onChange={(categoryId) => setItemForm({ ...itemForm, categoryId })}
+                      placeholder="Selecione uma categoria..."
                       required
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                    >
-                      <option value="">Selecione uma categoria...</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.icon || '📁'} {cat.name}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       Selecione a categoria onde este item será exibido
                     </p>

@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Grid3x3, X, Save, FileText, Building2, User, Setti
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
 import Modal from '../components/Modal'
+import PermissionGate from '../components/PermissionGate'
 
 const Sections = () => {
   const [sections, setSections] = useState([])
@@ -50,10 +51,25 @@ const Sections = () => {
     }
 
     try {
+      // Construir payload apenas com campos preenchidos
       const payload = {
-        ...formData,
-        managerId: formData.managerId || null
+        name: formData.name,
+        departmentId: formData.departmentId,
+        isActive: formData.isActive
       }
+      
+      // Adicionar campos opcionais apenas se preenchidos
+      if (formData.description && formData.description.trim()) {
+        payload.description = formData.description
+      }
+      if (formData.code && formData.code.trim()) {
+        payload.code = formData.code
+      }
+      if (formData.managerId && formData.managerId.trim()) {
+        payload.managerId = formData.managerId
+      }
+
+      console.log('📤 Enviando payload:', payload)
 
       if (editingSection) {
         await api.put(`/sections/${editingSection.id}`, payload)
@@ -66,6 +82,7 @@ const Sections = () => {
       resetForm()
       loadData()
     } catch (error) {
+      console.error('❌ Erro detalhado:', error.response?.data)
       showError('Erro ao salvar', error.response?.data?.error || error.message)
     }
   }
@@ -123,13 +140,15 @@ const Sections = () => {
           <h1 className="text-3xl font-bold">Secções</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Gerir secções e equipas</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg"
-        >
-          <Plus className="w-5 h-5" />
-          Nova Secção
-        </button>
+        <PermissionGate permission="sections.create">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg"
+          >
+            <Plus className="w-5 h-5" />
+            Nova Secção
+          </button>
+        </PermissionGate>
       </div>
 
       {/* Sections Grid */}
@@ -171,20 +190,24 @@ const Sections = () => {
             </div>
 
             <div className="flex gap-2 pt-4 border-t">
-              <button
-                onClick={() => handleEdit(section)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <Edit2 className="w-4 h-4" />
-                Editar
-              </button>
-              <button
-                onClick={() => handleDelete(section.id)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
-              >
-                <Trash2 className="w-4 h-4" />
-                Eliminar
-              </button>
+              <PermissionGate permission="sections.update">
+                <button
+                  onClick={() => handleEdit(section)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Editar
+                </button>
+              </PermissionGate>
+              <PermissionGate permission="sections.delete">
+                <button
+                  onClick={() => handleDelete(section.id)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar
+                </button>
+              </PermissionGate>
             </div>
           </div>
         ))}

@@ -1,5 +1,8 @@
 import { Organization } from '../models/index.js';
 import AuditLog from '../../models/AuditLog.js';
+import fs from 'fs';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 // Configurações padrão do provider
 const defaultSettings = {
@@ -55,7 +58,8 @@ export const getSettings = async (req, res, next) => {
       companyName: provider.name || defaultSettings.companyName,
       companyEmail: provider.email || defaultSettings.companyEmail,
       companyPhone: provider.phone || defaultSettings.companyPhone,
-      companyAddress: provider.address || defaultSettings.companyAddress
+      companyAddress: provider.address || defaultSettings.companyAddress,
+      logo: provider.logo || null
     };
 
     res.json({
@@ -124,6 +128,59 @@ export const updateSettings = async (req, res, next) => {
 
   } catch (error) {
     console.error('Erro ao atualizar configurações:', error);
+    next(error);
+  }
+};
+
+// POST /api/provider/settings/logo - Upload de logo
+export const uploadLogo = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nenhum arquivo enviado'
+      });
+    }
+
+    const provider = await Organization.findOne({
+      where: { type: 'provider' }
+    });
+
+    if (!provider) {
+      // Remover arquivo se provider não existe
+      if (req.file.path) fs.unlinkSync(req.file.path);
+      return res.status(404).json({
+        success: false,
+        error: 'Organização provider não encontrada'
+      });
+    }
+
+    // Remover logo anterior se existir
+    if (provider.logo) {
+      const oldLogoPath = path.join(process.cwd(), 'uploads', 'logos', path.basename(provider.logo));
+      if (fs.existsSync(oldLogoPath)) {
+        fs.unlinkSync(oldLogoPath);
+      }
+    }
+
+    // Gerar URL do logo
+    const logoUrl = `/uploads/logos/${req.file.filename}`;
+
+    // Atualizar organização com novo logo
+    await provider.update({ logo: logoUrl });
+
+    res.json({
+      success: true,
+      message: 'Logo atualizado com sucesso',
+      logo: logoUrl
+    });
+
+  } catch (error) {
+    console.error('Erro ao fazer upload do logo:', error);
+    // Remover arquivo em caso de erro
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
     next(error);
   }
 };
@@ -256,7 +313,7 @@ export const getAuditLogs = async (req, res, next) => {
     }
     
     if (resource) {
-      where.resource = resource;
+      where.entityType = resource; // Use entityType instead of resource
     }
 
     if (startDate || endDate) {

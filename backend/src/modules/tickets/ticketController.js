@@ -1,12 +1,17 @@
 import { Op } from 'sequelize';
-import { Ticket, User, OrganizationUser, Department, Category, Comment, SLA, Direction, Section, Priority, ClientUser } from '../models/index.js';
+import { sequelize } from '../../config/database.js';
+import { Ticket, User, OrganizationUser, Department, CatalogCategory, Comment, SLA, Direction, Section, Priority, ClientUser } from '../models/index.js';
 import { CatalogItem } from '../catalog/catalogModel.js';
 import Attachment from '../attachments/attachmentModel.js';
 import TicketRelationship from './ticketRelationshipModel.js';
 import TicketHistory from './ticketHistoryModel.js';
 import { logTicketChange, trackTicketChanges, getTicketHistory } from './ticketHistoryHelper.js';
 import logger from '../../config/logger.js';
-// ... (keep existing imports)
+import * as notificationService from '../notifications/notificationService.js';
+import fs from 'fs';
+import { ProjectTicket, Project, ProjectTask } from '../projects/index.js';
+import ticketVisibilityService from '../../services/ticketVisibilityService.js';
+import clientTicketVisibilityService from '../../services/clientTicketVisibilityService.js';
 
 // Listar tickets (com filtros e paginação)
 export const getTickets = async (req, res, next) => {
@@ -19,6 +24,11 @@ export const getTickets = async (req, res, next) => {
       type,
       assigneeId,
       departmentId,
+      directionId,
+      sectionId,
+      clientId,
+      source,
+      hasCatalogItem,
       search
     } = req.query;
 
@@ -31,7 +41,18 @@ export const getTickets = async (req, res, next) => {
     if (assigneeId) {
       where.assigneeId = assigneeId === 'null' ? null : assigneeId;
     }
+    if (directionId) where.directionId = directionId;
     if (departmentId) where.departmentId = departmentId;
+    if (sectionId) where.sectionId = sectionId;
+    if (clientId) where.clientId = clientId;
+    if (source) where.source = source;
+    
+    // Filtrar tickets que vieram de solicitações do catálogo
+    if (hasCatalogItem === 'true') {
+      where.catalogItemId = { [Op.ne]: null };
+    } else if (hasCatalogItem === 'false') {
+      where.catalogItemId = null;
+    }
 
     // Busca por texto
     if (search) {
@@ -41,10 +62,48 @@ export const getTickets = async (req, res, next) => {
       ];
     }
 
-    // Clientes só veem seus próprios tickets
+    // Clientes - aplicar filtro de visibilidade estrutural
     const isClientUser = ['client-user', 'client-admin', 'client-manager'].includes(req.user.role);
     if (isClientUser) {
-      where.requesterClientUserId = req.user.id;
+      logger.info(`Usuário cliente detectado: ${req.user.email} (${req.user.id}) com role: ${req.user.role}`);
+      const visibilityFilter = await clientTicketVisibilityService.buildVisibilityFilter(req.user);
+      logger.info(`Filtro de visibilidade gerado:`, JSON.stringify(visibilityFilter));
+      if (visibilityFilter[Op.or]) {
+        // Combinar filtro de visibilidade com outros filtros
+        if (where[Op.or]) {
+          // Se já tem Op.or (busca), criar um Op.and
+          const searchCondition = where[Op.or];
+          delete where[Op.or];
+          where[Op.and] = [
+            { [Op.or]: searchCondition },
+            visibilityFilter
+          ];
+        } else {
+          Object.assign(where, visibilityFilter);
+        }
+      } else {
+        // Se não retornou Op.or, aplicar filtro direto
+        Object.assign(where, visibilityFilter);
+      }
+      logger.info(`Filtro WHERE final:`, JSON.stringify(where));
+    }
+    // Usuários da organização - aplicar filtro de visibilidade estrutural
+    else {
+      const visibilityFilter = ticketVisibilityService.buildVisibilityFilter(req.user);
+      if (visibilityFilter[Op.or]) {
+        // Combinar filtro de visibilidade com outros filtros
+        if (where[Op.or]) {
+          // Se já tem Op.or (busca), criar um Op.and
+          const searchCondition = where[Op.or];
+          delete where[Op.or];
+          where[Op.and] = [
+            { [Op.or]: searchCondition },
+            visibilityFilter
+          ];
+        } else {
+          Object.assign(where, visibilityFilter);
+        }
+      }
     }
 
     const offset = (page - 1) * limit;
@@ -71,7 +130,27 @@ export const getTickets = async (req, res, next) => {
         {
           model: ClientUser,
           as: 'requesterClientUser',
-          attributes: ['id', 'name', 'email', 'avatar'],
+          attributes: ['id', 'name', 'email', 'avatar', 'directionId', 'departmentId', 'sectionId'],
+          include: [
+            {
+              model: Direction,
+              as: 'direction',
+              attributes: ['id', 'name'],
+              required: false
+            },
+            {
+              model: Department,
+              as: 'department',
+              attributes: ['id', 'name'],
+              required: false
+            },
+            {
+              model: Section,
+              as: 'section',
+              attributes: ['id', 'name'],
+              required: false
+            }
+          ],
           required: false
         },
         // Assignee - sempre organization_user
@@ -86,8 +165,8 @@ export const getTickets = async (req, res, next) => {
           attributes: ['id', 'name']
         },
         {
-          model: Category,
-          as: 'category',
+          model: CatalogCategory,
+          as: 'catalogCategory',
           attributes: ['id', 'name', 'color', 'icon']
         },
         {
@@ -160,7 +239,27 @@ export const getTicketById = async (req, res, next) => {
         {
           model: ClientUser,
           as: 'requesterClientUser',
-          attributes: ['id', 'name', 'email', 'avatar', 'phone', 'role'],
+          attributes: ['id', 'name', 'email', 'avatar', 'phone', 'role', 'directionId', 'departmentId', 'sectionId'],
+          include: [
+            {
+              model: Direction,
+              as: 'direction',
+              attributes: ['id', 'name'],
+              required: false
+            },
+            {
+              model: Department,
+              as: 'department',
+              attributes: ['id', 'name'],
+              required: false
+            },
+            {
+              model: Section,
+              as: 'section',
+              attributes: ['id', 'name'],
+              required: false
+            }
+          ],
           required: false
         },
         // Assignee - sempre organization_user
@@ -185,8 +284,8 @@ export const getTicketById = async (req, res, next) => {
           attributes: ['id', 'name', 'description']
         },
         {
-          model: Category,
-          as: 'category',
+          model: CatalogCategory,
+          as: 'catalogCategory',
           attributes: ['id', 'name', 'color', 'icon']
         },
         {
@@ -244,12 +343,24 @@ export const getTicketById = async (req, res, next) => {
       return res.status(404).json({ error: 'Ticket não encontrado' });
     }
 
-    // Clientes só veem seus próprios tickets
+    // Clientes - verificar visibilidade estrutural (usar versão assíncrona para tickets sem clientId)
     const isClientUser = ['client-user', 'client-admin', 'client-manager'].includes(req.user.role);
     if (isClientUser) {
-      // Para clientes, verificar requesterClientUserId em vez de requesterId
-      if (ticket.requesterClientUserId !== req.user.id) {
-        return res.status(403).json({ error: 'Acesso negado' });
+      const canView = await clientTicketVisibilityService.canViewTicketAsync(req.user, ticket);
+      if (!canView) {
+        return res.status(403).json({ 
+          error: 'Acesso negado',
+          message: 'Não tem permissão para ver este ticket.'
+        });
+      }
+    }
+    // Usuários da organização - verificar visibilidade estrutural
+    else {
+      if (!ticketVisibilityService.canViewTicket(req.user, ticket)) {
+        return res.status(403).json({ 
+          error: 'Acesso negado',
+          message: 'Não tem permissão para ver este ticket. O ticket pertence a outra estrutura organizacional.'
+        });
       }
     }
 
@@ -300,10 +411,49 @@ export const getTicketById = async (req, res, next) => {
       });
     }
 
+    // Buscar associação com projeto/tarefa (Requirements: 5.6)
+    let projectInfo = null;
+    const projectTicket = await ProjectTicket.findOne({
+      where: { ticketId: id },
+      include: [
+        {
+          model: ProjectTask,
+          as: 'task',
+          attributes: ['id', 'title', 'status'],
+          required: false
+        }
+      ]
+    });
+
+    if (projectTicket) {
+      const project = await Project.findByPk(projectTicket.projectId, {
+        attributes: ['id', 'code', 'name', 'status', 'methodology']
+      });
+
+      if (project) {
+        projectInfo = {
+          project: {
+            id: project.id,
+            code: project.code,
+            name: project.name,
+            status: project.status,
+            methodology: project.methodology
+          },
+          task: projectTicket.task ? {
+            id: projectTicket.task.id,
+            title: projectTicket.task.title,
+            status: projectTicket.task.status
+          } : null,
+          linkedAt: projectTicket.linkedAt
+        };
+      }
+    }
+
     res.json({
       ticket: {
         ...ticketData,
-        sla: sla || null
+        sla: sla || null,
+        projectInfo: projectInfo
       }
     });
   } catch (error) {
@@ -314,7 +464,9 @@ export const getTicketById = async (req, res, next) => {
 // Criar ticket
 export const createTicket = async (req, res, next) => {
   try {
-    const { subject, description, priority, type, categoryId, departmentId, assigneeId, clientId } = req.body;
+    const { subject, description, priority, type, categoryId, catalogCategoryId, departmentId, assigneeId, clientId } = req.body;
+    // Suportar tanto categoryId (legado) quanto catalogCategoryId (novo)
+    const finalCategoryId = catalogCategoryId || categoryId;
 
     // Gerar número do ticket
     const date = new Date();
@@ -355,7 +507,7 @@ export const createTicket = async (req, res, next) => {
       description,
       priority,
       type,
-      categoryId,
+      catalogCategoryId: finalCategoryId,
       departmentId,
       source: 'portal'
     });
@@ -369,7 +521,7 @@ export const createTicket = async (req, res, next) => {
         { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
         // Assignee
         { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] },
-        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: CatalogCategory, as: 'catalogCategory', attributes: ['id', 'name'] },
         { model: Department, as: 'department', attributes: ['id', 'name'] }
       ]
     });
@@ -433,6 +585,24 @@ export const updateTicket = async (req, res, next) => {
       return res.status(403).json({ error: 'Clientes não podem atualizar tickets diretamente' });
     }
 
+    // Verificar permissão de visualização do ticket
+    if (!ticketVisibilityService.canViewTicket(req.user, ticket)) {
+      return res.status(403).json({ 
+        error: 'Acesso negado',
+        message: 'Não tem permissão para atualizar este ticket.'
+      });
+    }
+
+    // Verificar permissão de atribuição se estiver tentando atribuir
+    if (updates.assigneeId !== undefined && updates.assigneeId !== ticket.assigneeId) {
+      if (!ticketVisibilityService.canAssignTicket(req.user, ticket)) {
+        return res.status(403).json({ 
+          error: 'Sem permissão para atribuir',
+          message: 'Apenas responsáveis da estrutura organizacional podem atribuir tickets.'
+        });
+      }
+    }
+
     // Guardar valores anteriores para histórico
     const oldTicket = { ...ticket.toJSON() };
 
@@ -458,14 +628,19 @@ export const updateTicket = async (req, res, next) => {
       'directionId',
       'departmentId',
       'sectionId',
-      'categoryId',
+      'catalogCategoryId',
       'type'
     ];
 
     // Campos UUID que precisam converter string vazia para null
-    const uuidFields = ['assigneeId', 'directionId', 'departmentId', 'sectionId', 'categoryId'];
+    const uuidFields = ['assigneeId', 'directionId', 'departmentId', 'sectionId', 'catalogCategoryId'];
 
     const updateData = {};
+
+    // Suportar tanto categoryId (legado) quanto catalogCategoryId (novo)
+    if (updates.categoryId !== undefined && updates.catalogCategoryId === undefined) {
+      updates.catalogCategoryId = updates.categoryId;
+    }
 
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) {
@@ -477,6 +652,24 @@ export const updateTicket = async (req, res, next) => {
         }
       }
     });
+
+    // Validação: Status aguardando_aprovacao só para tickets de solicitação com aprovação
+    if (updates.status === 'aguardando_aprovacao') {
+      if (!ticket.catalogItemId) {
+        return res.status(400).json({
+          error: 'Status inválido',
+          message: 'Apenas solicitações de serviço podem ter status "Aguardando Aprovação"'
+        });
+      }
+      // Verificar se o item do catálogo requer aprovação
+      const catalogItem = await CatalogItem.findByPk(ticket.catalogItemId);
+      if (catalogItem && !catalogItem.requiresApproval) {
+        return res.status(400).json({
+          error: 'Aprovação não necessária',
+          message: 'Este serviço não requer aprovação. Use status "Novo" ou "Em Progresso".'
+        });
+      }
+    }
 
     // ✅ Atribuição: Marcar primeira resposta
     if (updates.assigneeId && !oldTicket.assigneeId && !ticket.firstResponseAt) {
@@ -950,12 +1143,9 @@ export const getAttachments = async (req, res, next) => {
   try {
     const { ticketId } = req.params;
 
-    // Verificar acesso ao ticket
+    // Verificar acesso ao ticket (suporta utilizadores da organização e clientes)
     const ticket = await Ticket.findOne({
-      where: {
-        id: ticketId,
-        organizationId: req.user.organizationId
-      }
+      where: { id: ticketId }
     });
 
     if (!ticket) {
@@ -965,14 +1155,22 @@ export const getAttachments = async (req, res, next) => {
       });
     }
 
+    // Verificar permissão de acesso
+    const isOrgUser = req.user.organizationId && ticket.organizationId === req.user.organizationId;
+    const isClientUser = req.user.clientId && ticket.clientId === req.user.clientId;
+    const isRequester = ticket.requesterId === req.user.id || 
+                        ticket.requesterClientUserId === req.user.id ||
+                        ticket.requesterUserId === req.user.id;
+
+    if (!isOrgUser && !isClientUser && !isRequester) {
+      return res.status(403).json({
+        success: false,
+        error: 'Sem permissão para aceder aos anexos deste ticket'
+      });
+    }
+
     const attachments = await Attachment.findAll({
       where: { ticketId },
-      // UPLOADER DESATIVADO TEMPORARIAMENTE
-      // include: [{
-      //   model: User,
-      //   as: 'uploader',
-      //   attributes: ['id', 'name']
-      // }],
       order: [['createdAt', 'DESC']]
     });
 
@@ -996,32 +1194,58 @@ export const downloadAttachment = async (req, res, next) => {
   try {
     const { ticketId, attachmentId } = req.params;
 
+    logger.info(`Download solicitado - ticketId: ${ticketId}, attachmentId: ${attachmentId}, userId: ${req.user.id}`);
+
+    // Primeiro, buscar o anexo
     const attachment = await Attachment.findOne({
       where: { id: attachmentId, ticketId },
       include: [{
         model: Ticket,
-        as: 'ticket',
-        where: { organizationId: req.user.organizationId }
+        as: 'ticket'
       }]
     });
 
     if (!attachment) {
+      logger.warn(`Anexo não encontrado - attachmentId: ${attachmentId}, ticketId: ${ticketId}`);
       return res.status(404).json({
         success: false,
         error: 'Anexo não encontrado'
       });
     }
 
+    logger.info(`Anexo encontrado - path: ${attachment.path}, originalName: ${attachment.originalName}`);
+
+    // Verificar permissão de acesso ao ticket
+    const ticket = attachment.ticket;
+    const isOrgUser = req.user.organizationId && ticket.organizationId === req.user.organizationId;
+    const isClientUser = req.user.clientId && ticket.clientId === req.user.clientId;
+    const isRequester = ticket.requesterId === req.user.id || 
+                        ticket.requesterClientUserId === req.user.id ||
+                        ticket.requesterUserId === req.user.id;
+
+    logger.info(`Verificação de permissão - isOrgUser: ${isOrgUser}, isClientUser: ${isClientUser}, isRequester: ${isRequester}`);
+
+    if (!isOrgUser && !isClientUser && !isRequester) {
+      logger.warn(`Acesso negado ao anexo - userId: ${req.user.id}, ticketId: ${ticketId}`);
+      return res.status(403).json({
+        success: false,
+        error: 'Sem permissão para aceder a este anexo'
+      });
+    }
+
     // Verificar se arquivo existe
     if (!fs.existsSync(attachment.path)) {
+      logger.error(`Arquivo não encontrado no disco - path: ${attachment.path}`);
       return res.status(404).json({
         success: false,
         error: 'Arquivo não encontrado no servidor'
       });
     }
 
+    logger.info(`Enviando arquivo para download - path: ${attachment.path}`);
     res.download(attachment.path, attachment.originalName);
   } catch (error) {
+    logger.error(`Erro no download de anexo:`, error);
     next(error);
   }
 };
@@ -1072,7 +1296,12 @@ export const getClientHistory = async (req, res, next) => {
 
     const where = {
       organizationId: req.user.organizationId,
-      requesterId: userId
+      [Op.or]: [
+        { requesterUserId: userId },
+        { requesterOrgUserId: userId },
+        { requesterClientUserId: userId },
+        { requesterId: userId } // Legado
+      ]
     };
 
     // Excluir ticket atual
@@ -1085,28 +1314,50 @@ export const getClientHistory = async (req, res, next) => {
       include: [
         {
           model: User,
-          as: 'requester',
-          attributes: ['id', 'name', 'email']
+          as: 'requesterUser',
+          attributes: ['id', 'name', 'email'],
+          required: false
         },
         {
-          model: User,
+          model: OrganizationUser,
+          as: 'requesterOrgUser',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        },
+        {
+          model: ClientUser,
+          as: 'requesterClientUser',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        },
+        {
+          model: OrganizationUser,
           as: 'assignee',
-          attributes: ['id', 'name']
+          attributes: ['id', 'name', 'email'],
+          required: false
         },
         {
-          model: Category,
-          as: 'category',
-          attributes: ['id', 'name']
+          model: CatalogCategory,
+          as: 'catalogCategory',
+          attributes: ['id', 'name'],
+          required: false
         }
       ],
       order: [['createdAt', 'DESC']],
       limit: parseInt(limit)
     });
 
+    // Normalizar requester para cada ticket
+    const normalizedTickets = tickets.map(t => {
+      const ticketData = t.toJSON();
+      ticketData.requester = ticketData.requesterUser || ticketData.requesterOrgUser || ticketData.requesterClientUser || null;
+      return ticketData;
+    });
+
     res.json({
       success: true,
-      tickets,
-      total: tickets.length
+      tickets: normalizedTickets,
+      total: normalizedTickets.length
     });
   } catch (error) {
     next(error);
@@ -1193,8 +1444,8 @@ export const getRelatedTickets = async (req, res, next) => {
           attributes: ['id', 'name']
         },
         {
-          model: Category,
-          as: 'category',
+          model: CatalogCategory,
+          as: 'catalogCategory',
           attributes: ['id', 'name']
         }
       ]
@@ -1275,6 +1526,64 @@ export const getHistory = async (req, res, next) => {
   }
 };
 
+// Obter assignees elegíveis para um ticket
+export const getEligibleAssignees = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    const ticket = await Ticket.findOne({
+      where: { id: ticketId, organizationId: req.user.organizationId }
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Verificar se usuário pode atribuir este ticket
+    if (!ticketVisibilityService.canAssignTicket(req.user, ticket)) {
+      return res.status(403).json({ 
+        error: 'Sem permissão',
+        message: 'Não tem permissão para atribuir este ticket.'
+      });
+    }
+
+    // Obter lista de assignees elegíveis
+    const assignees = await ticketVisibilityService.getEligibleAssignees(req.user, ticket);
+
+    res.json({
+      success: true,
+      assignees,
+      total: assignees.length
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Obter permissões do usuário sobre um ticket
+export const getTicketPermissions = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    const ticket = await Ticket.findOne({
+      where: { id: ticketId, organizationId: req.user.organizationId }
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    const permissions = ticketVisibilityService.getTicketPermissions(req.user, ticket);
+
+    res.json({
+      success: true,
+      permissions
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Transferir ticket para outra área
 export const transferTicket = async (req, res, next) => {
   const transaction = await sequelize.transaction();
@@ -1288,8 +1597,11 @@ export const transferTicket = async (req, res, next) => {
       assigneeId,
       reason,
       categoryId,
+      catalogCategoryId,
       type
     } = req.body;
+    // Suportar tanto categoryId (legado) quanto catalogCategoryId (novo)
+    const finalCategoryId = catalogCategoryId !== undefined ? catalogCategoryId : categoryId;
 
     const ticket = await Ticket.findOne({
       where: { id: ticketId, organizationId: req.user.organizationId },
@@ -1307,7 +1619,7 @@ export const transferTicket = async (req, res, next) => {
       departmentId: ticket.departmentId,
       sectionId: ticket.sectionId,
       assigneeId: ticket.assigneeId,
-      categoryId: ticket.categoryId,
+      catalogCategoryId: ticket.catalogCategoryId,
       type: ticket.type
     };
 
@@ -1317,7 +1629,7 @@ export const transferTicket = async (req, res, next) => {
     if (departmentId !== undefined) updates.departmentId = departmentId || null;
     if (sectionId !== undefined) updates.sectionId = sectionId || null;
     if (assigneeId !== undefined) updates.assigneeId = assigneeId || null;
-    if (categoryId !== undefined) updates.categoryId = categoryId || null;
+    if (finalCategoryId !== undefined) updates.catalogCategoryId = finalCategoryId || null;
     if (type !== undefined) updates.type = type || null;
 
     await ticket.update(updates, { transaction });
@@ -1536,7 +1848,7 @@ export const updateTicketWatchers = async (req, res, next) => {
         { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
         { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] },
         { model: Department, as: 'department', attributes: ['id', 'name'] },
-        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: CatalogCategory, as: 'catalogCategory', attributes: ['id', 'name'] },
         { model: Priority, as: 'ticketPriority', attributes: ['id', 'name', 'color'] },
         { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name', 'description'] }
       ]

@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Building2, Users, Search, X, Power } from 'lucide-react'
+import { Plus, Edit, Building2, Users, Search, X, Power, Mail } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import { confirmAction, showSuccess, showError } from '../../utils/alerts'
 import organizationService from '../../services/organizationService'
 import toast from 'react-hot-toast'
@@ -26,6 +27,28 @@ const DepartmentsTab = () => {
     loadDepartments()
     loadDirections()
   }, [])
+
+  // Effect para controlar modal
+  useEffect(() => {
+    if (showModal) {
+      // Prevenir scroll quando modal está aberto
+      document.body.style.overflow = 'hidden'
+      
+      // Handler para ESC
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+          handleCloseModal()
+        }
+      }
+      
+      document.addEventListener('keydown', handleEscape)
+      
+      return () => {
+        document.body.style.overflow = 'unset'
+        document.removeEventListener('keydown', handleEscape)
+      }
+    }
+  }, [showModal])
 
   const loadDepartments = async () => {
     setLoading(true)
@@ -211,109 +234,162 @@ const DepartmentsTab = () => {
       </div>
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">
-                {editingDepartment ? 'Editar Departamento' : 'Novo Departamento'}
-              </h2>
-              <button
-                onClick={handleCloseModal}
-                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {showModal && createPortal(
+        <div 
+          className="fixed bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 animate-in fade-in duration-200" 
+          style={{ 
+            zIndex: 999999,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            margin: 0,
+            padding: '8px'
+          }}
+          onClick={handleCloseModal}
+        >
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-h-[calc(100vh-16px)] overflow-hidden"
+            style={{ maxWidth: '700px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header com gradiente */}
+            <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-2">
+                    {editingDepartment ? <Edit className="w-6 h-6" /> : <Building2 className="w-6 h-6" />}
+                    {editingDepartment ? 'Editar Departamento' : 'Novo Departamento'}
+                  </h2>
+                  <p className="text-primary-100 text-sm mt-1">
+                    {editingDepartment
+                      ? 'Atualize as informações do departamento'
+                      : 'Adicione um novo departamento à organização'
+                    }
+                  </p>
+                </div>
+                <button
+                  onClick={handleCloseModal}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  title="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Nome <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Nome do departamento"
-                  required
-                />
-              </div>
+            {/* Scrollable Content */}
+            <div className="overflow-y-auto max-h-[calc(100vh-200px)]">
+              <div className="p-6">
+                <form id="departmentForm" onSubmit={handleSubmit} className="space-y-5">
+                  {/* Card: Informações Básicas */}
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-5 space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-primary-500" />
+                      Informações do Departamento
+                    </h3>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Direção
-                </label>
-                <select
-                  value={formData.directionId}
-                  onChange={(e) => setFormData({ ...formData, directionId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                >
-                  <option value="">Selecione uma direção</option>
-                  {directions.map(dir => (
-                    <option key={dir.id} value={dir.id}>{dir.name}</option>
-                  ))}
-                </select>
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Nome <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        placeholder="Nome do departamento"
+                        required
+                      />
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Código
-                </label>
-                <input
-                  type="text"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Código do departamento"
-                />
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Direção
+                      </label>
+                      <select
+                        value={formData.directionId}
+                        onChange={(e) => setFormData({ ...formData, directionId: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">Selecione uma direção</option>
+                        {directions.map(dir => (
+                          <option key={dir.id} value={dir.id}>{dir.name}</option>
+                        ))}
+                      </select>
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="email@exemplo.com"
-                />
-              </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Código
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.code}
+                          onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                          placeholder="Código do departamento"
+                        />
+                      </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Descrição
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Descrição do departamento"
-                  rows={3}
-                />
-              </div>
+                      <div>
+                        <label className="flex text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 items-center gap-1">
+                          <Mail className="w-4 h-4 text-gray-400" />
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                          placeholder="email@exemplo.com"
+                        />
+                      </div>
+                    </div>
 
-              <div className="flex items-center gap-2 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-lg font-medium"
-                >
-                  {editingDepartment ? 'Atualizar' : 'Criar'}
-                </button>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Descrição
+                      </label>
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                        placeholder="Descrição do departamento"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            {/* Footer fixo com botões */}
+            <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 py-2 rounded-lg font-medium"
+                  className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
                 >
                   Cancelar
                 </button>
+                <button
+                  type="submit"
+                  form="departmentForm"
+                  className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                >
+                  <Building2 className="w-5 h-5" />
+                  {editingDepartment ? 'Atualizar' : 'Criar'} Departamento
+                </button>
               </div>
-            </form>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.getElementById('modal-root') || document.body
       )}
     </div>
   )

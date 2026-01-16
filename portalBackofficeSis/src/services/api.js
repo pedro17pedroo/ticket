@@ -27,11 +27,16 @@ api.interceptors.response.use(
   (error) => {
     // Só fazer logout automático se for erro 401 de autenticação
     // e não for erro de conexão (ECONNREFUSED)
+    // e não for na página de login (para não causar loop)
     if (error.response?.status === 401) {
-      // Token inválido ou expirado
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+      
+      // Se não for uma requisição de login, fazer logout
+      if (!isLoginRequest) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     // Não fazer logout em erros de conexão ou outros erros
     return Promise.reject(error);

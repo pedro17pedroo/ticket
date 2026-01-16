@@ -605,6 +605,24 @@ export const getClientUsers = async (req, res, next) => {
           model: Client,
           as: 'client',
           attributes: ['id', 'name', 'tradeName']
+        },
+        {
+          model: Direction,
+          as: 'direction',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: Department,
+          as: 'department',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: Section,
+          as: 'section',
+          attributes: ['id', 'name'],
+          required: false
         }
       ],
       attributes: { exclude: ['password'] },
@@ -652,6 +670,9 @@ export const createClientUser = async (req, res, next) => {
       clientId,
       position: req.body.position || null,
       departmentName: req.body.departmentName || null,
+      directionId: directionId || null,
+      departmentId: departmentId || null,
+      sectionId: sectionId || null,
       isActive: true,
       settings: {
         ...ClientUser.rawAttributes.settings.defaultValue,
@@ -678,7 +699,7 @@ export const createClientUser = async (req, res, next) => {
 export const updateClientUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, phone, role, position, departmentName, isActive } = req.body;
+    const { name, phone, role, position, departmentName, directionId, departmentId, sectionId, isActive } = req.body;
     const organizationId = req.user.organizationId;
     const clientId = req.user.clientId;
 
@@ -711,6 +732,9 @@ export const updateClientUser = async (req, res, next) => {
       role: role || user.role,
       position: position !== undefined ? position : user.position,
       departmentName: departmentName !== undefined ? departmentName : user.departmentName,
+      directionId: directionId !== undefined ? (directionId || null) : user.directionId,
+      departmentId: departmentId !== undefined ? (departmentId || null) : user.departmentId,
+      sectionId: sectionId !== undefined ? (sectionId || null) : user.sectionId,
       isActive: isActive !== undefined ? isActive : user.isActive
     });
 

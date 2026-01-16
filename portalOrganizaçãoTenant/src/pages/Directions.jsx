@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Building, X, Users, Save, FileText, User, Settings
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
 import Modal from '../components/Modal'
+import PermissionGate from '../components/PermissionGate'
 
 const Directions = () => {
   const [directions, setDirections] = useState([])
@@ -40,17 +41,37 @@ const Directions = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
+      // Construir payload apenas com campos preenchidos
+      const payload = {
+        name: formData.name,
+        isActive: formData.isActive
+      }
+      
+      // Adicionar campos opcionais apenas se preenchidos
+      if (formData.description && formData.description.trim()) {
+        payload.description = formData.description
+      }
+      if (formData.code && formData.code.trim()) {
+        payload.code = formData.code
+      }
+      if (formData.managerId && formData.managerId.trim()) {
+        payload.managerId = formData.managerId
+      }
+
+      console.log('📤 Enviando payload:', payload)
+
       if (editingDirection) {
-        await api.put(`/directions/${editingDirection.id}`, formData)
+        await api.put(`/directions/${editingDirection.id}`, payload)
         showSuccess('Atualizado!', 'Direção atualizada com sucesso')
       } else {
-        await api.post('/directions', formData)
+        await api.post('/directions', payload)
         showSuccess('Criado!', 'Direção criada com sucesso')
       }
       setShowModal(false)
       resetForm()
       loadData()
     } catch (error) {
+      console.error('❌ Erro detalhado:', error.response?.data)
       showError('Erro ao salvar', error.response?.data?.error || error.message)
     }
   }
@@ -106,13 +127,15 @@ const Directions = () => {
           <h1 className="text-3xl font-bold">Direções</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Gerir direções da organização</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg"
-        >
-          <Plus className="w-5 h-5" />
-          Nova Direção
-        </button>
+        <PermissionGate permission="directions.create">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg"
+          >
+            <Plus className="w-5 h-5" />
+            Nova Direção
+          </button>
+        </PermissionGate>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -131,12 +154,16 @@ const Directions = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => handleEdit(direction)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button onClick={() => handleDelete(direction.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 rounded-lg">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <PermissionGate permission="directions.update">
+                  <button onClick={() => handleEdit(direction)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </PermissionGate>
+                <PermissionGate permission="directions.delete">
+                  <button onClick={() => handleDelete(direction.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 rounded-lg">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </PermissionGate>
               </div>
             </div>
             {direction.description && (
@@ -167,7 +194,7 @@ const Directions = () => {
       )}
 
       <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
           
           {/* Header com gradiente */}
           <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
@@ -199,63 +226,63 @@ const Directions = () => {
             <div className="bg-gray-50 dark:bg-gray-900 p-6">
               <form id="directionForm" onSubmit={handleSubmit} className="space-y-5">
                 {/* Card: Informações Básicas */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-primary-500" />
                     Informações Básicas
                   </h3>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome da Direção *</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Nome da Direção *</label>
                     <input 
                       type="text" 
                       value={formData.name} 
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
                       required 
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       placeholder="Ex: Direção de Tecnologia"
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Código/Sigla</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Código/Sigla</label>
                     <input 
                       type="text" 
                       value={formData.code} 
                       onChange={(e) => setFormData({ ...formData, code: e.target.value })} 
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" 
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base" 
                       placeholder="Ex: DIR-TI" 
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Descrição</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Descrição</label>
                     <textarea 
                       value={formData.description} 
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
-                      rows={3} 
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                      rows={4} 
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none text-base"
                       placeholder="Descreva o propósito e responsabilidades desta direção..."
                     />
                   </div>
                 </div>
 
                 {/* Card: Responsável e Configurações */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Settings className="w-5 h-5 text-primary-500" />
                     Responsável e Configurações
                   </h3>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-1">
                       <User className="w-4 h-4 text-gray-400" />
                       Responsável pela Direção
                     </label>
                     <select 
                       value={formData.managerId} 
                       onChange={(e) => setFormData({ ...formData, managerId: e.target.value })} 
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                     >
                       <option value="">Nenhum responsável</option>
                       {users.filter(u => u.role !== 'cliente-org').map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}

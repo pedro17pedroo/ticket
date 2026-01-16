@@ -5,7 +5,7 @@ import api from '../services/api'
 import toast from 'react-hot-toast'
 
 const Profile = () => {
-  const { user, setUser } = useAuthStore()
+  const { user, updateUser } = useAuthStore()
   
   // Profile form
   const [profileForm, setProfileForm] = useState({
@@ -35,7 +35,7 @@ const Profile = () => {
         phone: profileForm.phone
       })
 
-      setUser(response.data.user)
+      updateUser(response.data.user)
       toast.success('Perfil atualizado com sucesso!')
     } catch (error) {
       console.error('Erro ao atualizar perfil:', error)
@@ -136,7 +136,7 @@ const Profile = () => {
               type="tel"
               value={profileForm.phone}
               onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-              placeholder="+351 912 345 678"
+              placeholder="+244 9XX XXX XXX"
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
             />
           </div>

@@ -8,7 +8,6 @@ import ClientUser from '../clients/clientUserModel.js';
 import Direction from '../directions/directionModel.js';
 import Department from '../departments/departmentModel.js';
 import Section from '../sections/sectionModel.js';
-import Category from '../categories/categoryModel.js';
 import Ticket from '../tickets/ticketModel.js';
 import Comment from '../comments/commentModel.js';
 import Attachment from '../attachments/attachmentModel.js';
@@ -20,7 +19,7 @@ import { HoursBank, HoursTransaction } from '../hours/hoursBankModel.js';
 import TimeTracking from '../timeTracking/timeTrackingModel.js';
 import { Tag, TicketTag } from '../tags/tagModel.js';
 import ResponseTemplate from '../templates/templateModel.js';
-import { CatalogCategory, CatalogItem, ServiceRequest } from '../catalog/catalogModel.js';
+import { CatalogCategory, CatalogItem } from '../catalog/catalogModel.js';
 import TicketHistory from '../tickets/ticketHistoryModel.js';
 import Notification from '../notifications/notificationModel.js';
 import Asset from '../inventory/assetModel.js';
@@ -60,6 +59,23 @@ import IPWhitelist from '../../models/IPWhitelist.js';
 import Webhook from '../../models/Webhook.js';
 import WebhookLog from '../../models/WebhookLog.js';
 import Integration from '../../models/Integration.js';
+import { Todo, TodoCollaborator } from '../todos/todoModel.js';
+import {
+  Project,
+  ProjectPhase,
+  ProjectTask,
+  ProjectTaskDependency,
+  ProjectStakeholder,
+  ProjectTaskComment,
+  ProjectTaskAttachment,
+  ProjectTicket,
+  ProjectReport
+} from '../projects/index.js';
+import {
+  ClientCatalogAccess,
+  ClientUserCatalogAccess,
+  CatalogAccessAuditLog
+} from '../catalogAccess/index.js';
 
 // Definir associações entre modelos
 const setupAssociations = () => {
@@ -74,7 +90,6 @@ const setupAssociations = () => {
   Organization.hasMany(Department, { foreignKey: 'organizationId', as: 'departments' });
   Organization.hasMany(Section, { foreignKey: 'organizationId', as: 'sections' });
   Organization.hasMany(Ticket, { foreignKey: 'organizationId', as: 'tickets' });
-  Organization.hasMany(Category, { foreignKey: 'organizationId', as: 'categories' });
   Organization.hasMany(SLA, { foreignKey: 'organizationId', as: 'slas' });
   Organization.hasMany(Priority, { foreignKey: 'organizationId', as: 'priorities' });
   Organization.hasMany(KnowledgeArticle, { foreignKey: 'organizationId', as: 'articles' });
@@ -94,6 +109,9 @@ const setupAssociations = () => {
   // ClientUser associations (Usuários das empresas clientes)
   ClientUser.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   ClientUser.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
+  ClientUser.belongsTo(Direction, { foreignKey: 'directionId', as: 'direction' });
+  ClientUser.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
+  ClientUser.belongsTo(Section, { foreignKey: 'sectionId', as: 'section' });
   ClientUser.hasMany(Ticket, { foreignKey: 'requesterId', as: 'tickets' });
   ClientUser.hasMany(Comment, { foreignKey: 'userId', as: 'comments' });
 
@@ -182,15 +200,9 @@ const setupAssociations = () => {
   Section.belongsTo(User, { foreignKey: 'managerId', as: 'manager' });
   Section.hasMany(User, { foreignKey: 'sectionId', as: 'users' });
 
-  // Category associations
-  Category.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
-  Category.hasMany(Ticket, { foreignKey: 'categoryId', as: 'tickets' });
-  Category.hasMany(KnowledgeArticle, { foreignKey: 'categoryId', as: 'articles' });
-
   // Ticket associations
   Ticket.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Ticket.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
-  Ticket.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
   Ticket.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
   Ticket.belongsTo(Direction, { foreignKey: 'directionId', as: 'direction' });
   Ticket.belongsTo(Section, { foreignKey: 'sectionId', as: 'section' });
@@ -268,7 +280,7 @@ const setupAssociations = () => {
   TicketTemplate.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   TicketTemplate.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
   TicketTemplate.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
-  TicketTemplate.belongsTo(Category, { foreignKey: 'categoryId', as: 'ticketCategory' });
+  TicketTemplate.belongsTo(CatalogCategory, { foreignKey: 'catalogCategoryId', as: 'catalogCategory' });
   Organization.hasMany(TicketTemplate, { foreignKey: 'organizationId', as: 'ticketTemplates' });
 
   Macro.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
@@ -348,10 +360,10 @@ const setupAssociations = () => {
   Organization.hasMany(GamePoints, { foreignKey: 'organizationId', as: 'gamePoints' });
 
   // Security associations
-  AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-  AuditLog.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
-  User.hasMany(AuditLog, { foreignKey: 'userId', as: 'auditLogs' });
-  Organization.hasMany(AuditLog, { foreignKey: 'organizationId', as: 'auditLogs' });
+  // AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+  // AuditLog.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  // User.hasMany(AuditLog, { foreignKey: 'userId', as: 'auditLogs' });
+  // Organization.hasMany(AuditLog, { foreignKey: 'organizationId', as: 'auditLogs' });
 
   IPWhitelist.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   IPWhitelist.belongsTo(User, { foreignKey: 'createdById', as: 'createdBy' });
@@ -375,7 +387,7 @@ const setupAssociations = () => {
 
   // KnowledgeArticle associations
   KnowledgeArticle.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
-  KnowledgeArticle.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
+  KnowledgeArticle.belongsTo(CatalogCategory, { foreignKey: 'catalogCategoryId', as: 'catalogCategory' });
   KnowledgeArticle.belongsTo(User, { foreignKey: 'authorId', as: 'author' });
   KnowledgeArticle.belongsTo(OrganizationUser, { foreignKey: 'authorId', as: 'authorOrgUser' });
 
@@ -412,10 +424,10 @@ const setupAssociations = () => {
   ResponseTemplate.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   ResponseTemplate.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
   ResponseTemplate.belongsTo(OrganizationUser, { foreignKey: 'createdBy', as: 'creatorOrgUser' });
-  ResponseTemplate.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
+  ResponseTemplate.belongsTo(CatalogCategory, { foreignKey: 'catalogCategoryId', as: 'catalogCategory' });
   Organization.hasMany(ResponseTemplate, { foreignKey: 'organizationId', as: 'templates' });
   User.hasMany(ResponseTemplate, { foreignKey: 'createdBy', as: 'templates' });
-  Category.hasMany(ResponseTemplate, { foreignKey: 'categoryId', as: 'templates' });
+  CatalogCategory.hasMany(ResponseTemplate, { foreignKey: 'catalogCategoryId', as: 'templates' });
 
   // Catalog associations
   CatalogCategory.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
@@ -434,19 +446,9 @@ const setupAssociations = () => {
   CatalogItem.belongsTo(SLA, { foreignKey: 'slaId', as: 'sla' });
   CatalogItem.belongsTo(Priority, { foreignKey: 'priorityId', as: 'priority' });
   CatalogItem.belongsTo(Type, { foreignKey: 'typeId', as: 'type' });
-  CatalogItem.belongsTo(Category, { foreignKey: 'defaultTicketCategoryId', as: 'ticketCategory' });
+  CatalogItem.belongsTo(CatalogCategory, { foreignKey: 'defaultTicketCategoryId', as: 'ticketCategory' });
   CatalogItem.belongsTo(User, { foreignKey: 'defaultApproverId', as: 'approver' });
   CatalogItem.belongsTo(Department, { foreignKey: 'assignedDepartmentId', as: 'department' });
-
-  ServiceRequest.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
-  ServiceRequest.belongsTo(CatalogItem, { foreignKey: 'catalogItemId', as: 'catalogItem' });
-  ServiceRequest.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-  ServiceRequest.belongsTo(User, { foreignKey: 'requestedForUserId', as: 'requestedForUser' });
-  ServiceRequest.belongsTo(User, { foreignKey: 'approvedById', as: 'approvedBy' });
-  ServiceRequest.belongsTo(User, { foreignKey: 'rejectedById', as: 'rejectedBy' });
-  ServiceRequest.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
-  CatalogItem.hasMany(ServiceRequest, { foreignKey: 'catalogItemId', as: 'requests' });
-  Ticket.hasOne(ServiceRequest, { foreignKey: 'ticketId', as: 'serviceRequest' });
 
   // Notification associations
   Notification.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
@@ -477,9 +479,9 @@ const setupAssociations = () => {
   Asset.hasMany(Software, { foreignKey: 'assetId', as: 'software' });
 
   License.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
-  License.belongsTo(User, { foreignKey: 'clientId', as: 'client' });
+  License.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
   Organization.hasMany(License, { foreignKey: 'organizationId', as: 'licenses' });
-  User.hasMany(License, { foreignKey: 'clientId', as: 'licenses' });
+  Client.hasMany(License, { foreignKey: 'clientId', as: 'clientLicenses' });
 
   AssetLicense.belongsTo(Asset, { foreignKey: 'assetId', as: 'asset' });
   AssetLicense.belongsTo(License, { foreignKey: 'licenseId', as: 'license' });
@@ -495,6 +497,103 @@ const setupAssociations = () => {
 
   Ticket.hasMany(RemoteAccess, { foreignKey: 'ticketId', as: 'remoteAccesses' });
   User.hasMany(RemoteAccess, { foreignKey: 'clientId', as: 'remoteAccessRequests' });
+
+  // Todo associations (Tarefas do Cliente)
+  Todo.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
+  Todo.belongsTo(ClientUser, { foreignKey: 'ownerId', as: 'owner' });
+  Client.hasMany(Todo, { foreignKey: 'clientId', as: 'todos' });
+  ClientUser.hasMany(Todo, { foreignKey: 'ownerId', as: 'ownedTodos' });
+  
+  TodoCollaborator.belongsTo(ClientUser, { foreignKey: 'userId', as: 'user' });
+  ClientUser.hasMany(TodoCollaborator, { foreignKey: 'userId', as: 'todoCollaborations' });
+
+  // ============================================================================
+  // PROJECT MANAGEMENT ASSOCIATIONS
+  // ============================================================================
+
+  // Project associations
+  Project.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Project.belongsTo(User, { foreignKey: 'createdBy', as: 'creatorUser' });
+  Project.belongsTo(OrganizationUser, { foreignKey: 'createdBy', as: 'creator' });
+  Project.hasMany(ProjectPhase, { foreignKey: 'projectId', as: 'phases' });
+  Project.hasMany(ProjectTask, { foreignKey: 'projectId', as: 'tasks' });
+  Project.hasMany(ProjectStakeholder, { foreignKey: 'projectId', as: 'stakeholders' });
+  Project.hasMany(ProjectTicket, { foreignKey: 'projectId', as: 'projectTickets' });
+  Organization.hasMany(Project, { foreignKey: 'organizationId', as: 'projects' });
+  User.hasMany(Project, { foreignKey: 'createdBy', as: 'createdProjects' });
+  OrganizationUser.hasMany(Project, { foreignKey: 'createdBy', as: 'createdProjects' });
+
+  // ProjectPhase associations
+  ProjectPhase.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+  ProjectPhase.hasMany(ProjectTask, { foreignKey: 'phaseId', as: 'tasks' });
+
+  // ProjectTask associations
+  ProjectTask.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+  ProjectTask.belongsTo(ProjectPhase, { foreignKey: 'phaseId', as: 'phase' });
+  ProjectTask.belongsTo(User, { foreignKey: 'assignedTo', as: 'assigneeUser' });
+  ProjectTask.belongsTo(OrganizationUser, { foreignKey: 'assignedTo', as: 'assignee' });
+  ProjectTask.belongsTo(User, { foreignKey: 'createdBy', as: 'creatorUser' });
+  ProjectTask.belongsTo(OrganizationUser, { foreignKey: 'createdBy', as: 'creator' });
+  ProjectTask.hasMany(ProjectTaskComment, { foreignKey: 'taskId', as: 'comments' });
+  ProjectTask.hasMany(ProjectTaskAttachment, { foreignKey: 'taskId', as: 'attachments' });
+  ProjectTask.hasMany(ProjectTicket, { foreignKey: 'taskId', as: 'linkedTickets' });
+
+  // ProjectTaskDependency associations
+  ProjectTaskDependency.belongsTo(ProjectTask, { foreignKey: 'taskId', as: 'task' });
+  ProjectTaskDependency.belongsTo(ProjectTask, { foreignKey: 'dependsOnTaskId', as: 'dependsOnTask' });
+  ProjectTask.hasMany(ProjectTaskDependency, { foreignKey: 'taskId', as: 'dependencies' });
+  ProjectTask.hasMany(ProjectTaskDependency, { foreignKey: 'dependsOnTaskId', as: 'dependentTasks' });
+
+  // ProjectStakeholder associations
+  ProjectStakeholder.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+  ProjectStakeholder.belongsTo(User, { foreignKey: 'userId', as: 'userLegacy' });
+  ProjectStakeholder.belongsTo(OrganizationUser, { foreignKey: 'userId', as: 'user' });
+
+  // ProjectTaskComment associations
+  ProjectTaskComment.belongsTo(ProjectTask, { foreignKey: 'taskId', as: 'task' });
+  ProjectTaskComment.belongsTo(User, { foreignKey: 'userId', as: 'userLegacy' });
+  ProjectTaskComment.belongsTo(OrganizationUser, { foreignKey: 'userId', as: 'user' });
+
+  // ProjectTaskAttachment associations
+  ProjectTaskAttachment.belongsTo(ProjectTask, { foreignKey: 'taskId', as: 'task' });
+  ProjectTaskAttachment.belongsTo(User, { foreignKey: 'uploadedBy', as: 'uploaderLegacy' });
+  ProjectTaskAttachment.belongsTo(OrganizationUser, { foreignKey: 'uploadedBy', as: 'uploader' });
+
+  // ProjectTicket associations (linking tickets to projects/tasks)
+  ProjectTicket.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+  ProjectTicket.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+  ProjectTicket.belongsTo(ProjectTask, { foreignKey: 'taskId', as: 'task' });
+  ProjectTicket.belongsTo(User, { foreignKey: 'linkedBy', as: 'linkedByUser' });
+  Ticket.hasMany(ProjectTicket, { foreignKey: 'ticketId', as: 'projectLinks' });
+
+  // ProjectReport associations
+  ProjectReport.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+  ProjectReport.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Project.hasMany(ProjectReport, { foreignKey: 'projectId', as: 'reports' });
+
+  // ============================================================================
+  // CATALOG ACCESS CONTROL ASSOCIATIONS
+  // ============================================================================
+
+  // ClientCatalogAccess associations
+  ClientCatalogAccess.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  ClientCatalogAccess.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
+  ClientCatalogAccess.belongsTo(OrganizationUser, { foreignKey: 'modifiedBy', as: 'modifier' });
+  Organization.hasMany(ClientCatalogAccess, { foreignKey: 'organizationId', as: 'clientCatalogAccess' });
+  Client.hasOne(ClientCatalogAccess, { foreignKey: 'clientId', as: 'catalogAccess' });
+
+  // ClientUserCatalogAccess associations
+  ClientUserCatalogAccess.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  ClientUserCatalogAccess.belongsTo(ClientUser, { foreignKey: 'clientUserId', as: 'clientUser' });
+  ClientUserCatalogAccess.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
+  ClientUserCatalogAccess.belongsTo(OrganizationUser, { foreignKey: 'modifiedBy', as: 'modifier' });
+  Organization.hasMany(ClientUserCatalogAccess, { foreignKey: 'organizationId', as: 'clientUserCatalogAccess' });
+  ClientUser.hasOne(ClientUserCatalogAccess, { foreignKey: 'clientUserId', as: 'catalogAccess' });
+  Client.hasMany(ClientUserCatalogAccess, { foreignKey: 'clientId', as: 'userCatalogAccess' });
+
+  // CatalogAccessAuditLog associations
+  CatalogAccessAuditLog.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Organization.hasMany(CatalogAccessAuditLog, { foreignKey: 'organizationId', as: 'catalogAccessAuditLogs' });
 };
 
 export {
@@ -508,7 +607,6 @@ export {
   Direction,
   Department,
   Section,
-  Category,
   Ticket,
   TicketHistory,
   Comment,
@@ -552,7 +650,6 @@ export {
   Integration,
   CatalogCategory,
   CatalogItem,
-  ServiceRequest,
   Notification,
   Asset,
   Software,
@@ -564,5 +661,18 @@ export {
   RolePermission,
   UserPermission,
   LandingPageConfig,
+  Todo,
+  TodoCollaborator,
+  Project,
+  ProjectPhase,
+  ProjectTask,
+  ProjectTaskDependency,
+  ProjectStakeholder,
+  ProjectTaskComment,
+  ProjectTaskAttachment,
+  ProjectTicket,
+  ClientCatalogAccess,
+  ClientUserCatalogAccess,
+  CatalogAccessAuditLog,
   setupAssociations
 };

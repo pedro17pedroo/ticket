@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import request from 'supertest';
 import app from '../../src/app.js';
 import { sequelize } from '../../src/config/database.js';
-import { Organization, User, Category, KnowledgeArticle } from '../../src/modules/models/index.js';
+import { Organization, User, CatalogCategory, KnowledgeArticle } from '../../src/modules/models/index.js';
 import bcrypt from 'bcryptjs';
 
 describe('Knowledge Base API Integration Tests', () => {
@@ -65,7 +65,7 @@ describe('Knowledge Base API Integration Tests', () => {
     clientToken = clientLogin.body.token;
 
     // Criar categoria
-    category = await Category.create({
+    category = await CatalogCategory.create({
       name: 'Tutoriais',
       icon: '📚',
       color: '#3B82F6',

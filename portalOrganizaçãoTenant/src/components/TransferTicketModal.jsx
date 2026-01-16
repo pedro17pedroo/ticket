@@ -40,7 +40,7 @@ const TransferTicketModal = ({ ticketId, currentData, onClose, onSuccess }) => {
 
       // Segunda batch
       const [catsRes, usersRes] = await Promise.all([
-        api.get('/categories'),
+        api.get('/catalog/categories'),
         api.get('/users')
       ]);
 

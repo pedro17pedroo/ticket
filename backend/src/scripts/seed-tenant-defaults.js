@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { sequelize } from '../config/database.js';
-import { Organization, Priority, Type, Category } from '../modules/models/index.js';
+import { Organization, Priority, Type, CatalogCategory } from '../modules/models/index.js';
 import logger from '../config/logger.js';
 
 const seedTenantDefaults = async (organizationId) => {
@@ -140,7 +140,7 @@ const seedTenantDefaults = async (organizationId) => {
     ];
 
     for (const c of categories) {
-      await Category.findOrCreate({
+      await CatalogCategory.findOrCreate({
         where: { name: c.name, organizationId },
         defaults: { ...c, organizationId }
       });

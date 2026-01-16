@@ -1,4 +1,7 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import * as providerController from '../modules/organizations/providerController.js';
 import * as settingsController from '../modules/settings/settingsController.js';
 import * as reportsController from '../modules/reports/reportsController.js';
@@ -6,6 +9,37 @@ import * as monitoringController from '../modules/monitoring/monitoringControlle
 import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Configuração de upload para logos
+const logosDir = path.join(process.cwd(), 'uploads', 'logos');
+if (!fs.existsSync(logosDir)) {
+  fs.mkdirSync(logosDir, { recursive: true });
+}
+
+const logoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, logosDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    const ext = path.extname(file.originalname);
+    cb(null, `logo-${uniqueSuffix}${ext}`);
+  }
+});
+
+const logoUpload = multer({
+  storage: logoStorage,
+  fileFilter: (req, file, cb) => {
+    if (['image/jpeg', 'image/jpg', 'image/png'].includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Formato inválido. Use PNG ou JPG.'), false);
+    }
+  },
+  limits: {
+    fileSize: 2 * 1024 * 1024 // 2MB
+  }
+});
 
 // Todas as rotas precisam de autenticação
 router.use(authenticate);
@@ -69,6 +103,9 @@ router.get('/stats', providerController.getGlobalStats);
 // Configurações gerais
 router.get('/settings', settingsController.getSettings);
 router.put('/settings', settingsController.updateSettings);
+
+// Upload de logo
+router.post('/settings/logo', logoUpload.single('logo'), settingsController.uploadLogo);
 
 // Configurações de segurança
 router.get('/settings/security', settingsController.getSecuritySettings);

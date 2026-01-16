@@ -83,9 +83,9 @@ export const createDepartment = async (req, res, next) => {
       organizationId,
       directionId,
       name,
-      description,
-      code,
-      email,
+      description: description && description.trim() !== '' ? description : null,
+      code: code && code.trim() !== '' ? code : null,
+      email: email && email.trim() !== '' ? email : null,
       managerId: managerId && managerId.trim() !== '' ? managerId : null,
       clientId: null, // Departamento interno do tenant
       isActive: isActive !== undefined ? isActive : true
@@ -167,9 +167,9 @@ export const updateDepartment = async (req, res, next) => {
 
     await department.update({
       name,
-      description,
-      code,
-      email,
+      description: description !== undefined ? (description && description.trim() !== '' ? description : null) : undefined,
+      code: code !== undefined ? (code && code.trim() !== '' ? code : null) : undefined,
+      email: email !== undefined ? (email && email.trim() !== '' ? email : null) : undefined,
       directionId,
       managerId: managerId !== undefined ? (managerId && managerId.trim() !== '' ? managerId : null) : undefined,
       isActive

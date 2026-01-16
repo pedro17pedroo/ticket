@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, UserX, UserCheck, Mail, Phone, Search, X, Key, Building2 } from 'lucide-react'
+import { Plus, Edit2, UserX, UserCheck, Mail, Phone, Search, X, Key, Building2, User, UserPlus, Settings, Save, Lock, Eye, EyeOff } from 'lucide-react'
 import api, { clientUserService } from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
 import { useAuthStore } from '../store/authStore'
-import Swal from 'sweetalert2'
+import Modal from '../components/Modal'
 
 const Users = () => {
   const { user } = useAuthStore()
@@ -15,6 +15,11 @@ const Users = () => {
   const [sections, setSections] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+  const [resetPasswordUser, setResetPasswordUser] = useState(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [resettingPassword, setResettingPassword] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [search, setSearch] = useState('')
   const [formData, setFormData] = useState({
@@ -123,28 +128,31 @@ const Users = () => {
     }
   }
 
-  const handleResetPassword = async (u) => {
-    const { value: password } = await Swal.fire({
-      title: `Redefinir senha de ${u.name}`,
-      input: 'password',
-      inputLabel: 'Nova senha (mínimo 6 caracteres)',
-      inputPlaceholder: 'Digite a nova senha',
-      inputAttributes: { minlength: 6, autocapitalize: 'off', autocorrect: 'off' },
-      showCancelButton: true,
-      confirmButtonText: 'Redefinir',
-      cancelButtonText: 'Cancelar',
-      inputValidator: (value) => {
-        if (!value || value.length < 6) return 'A senha deve ter no mínimo 6 caracteres'
-      }
-    })
+  const handleResetPassword = async (user) => {
+    setResetPasswordUser(user)
+    setNewPassword('')
+    setShowPassword(false)
+    setShowResetPasswordModal(true)
+  }
 
-    if (password) {
-      try {
-        await clientUserService.resetPassword(u.id, password)
-        showSuccess('Senha redefinida!', 'A senha foi redefinida com sucesso')
-      } catch (error) {
-        showError('Erro', error.response?.data?.error || error.message)
-      }
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault()
+    if (!newPassword || newPassword.length < 6) {
+      showError('Erro', 'A senha deve ter no mínimo 6 caracteres')
+      return
+    }
+
+    setResettingPassword(true)
+    try {
+      await clientUserService.resetPassword(resetPasswordUser.id, newPassword)
+      showSuccess('Senha redefinida!', 'A senha foi redefinida com sucesso')
+      setShowResetPasswordModal(false)
+      setResetPasswordUser(null)
+      setNewPassword('')
+    } catch (error) {
+      showError('Erro', error.response?.data?.error || error.message)
+    } finally {
+      setResettingPassword(false)
     }
   }
 
@@ -268,91 +276,349 @@ const Users = () => {
         )}
       </div>
 
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold">{editingUser ? 'Editar Utilizador' : 'Novo Utilizador'}</h2>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+      {/* Modal */}
+      <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+
+          {/* Header com gradiente */}
+          <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  {editingUser ? <User className="w-6 h-6" /> : <UserPlus className="w-6 h-6" />}
+                  {editingUser ? 'Editar Utilizador' : 'Novo Utilizador'}
+                </h2>
+                <p className="text-primary-100 text-sm mt-1">
+                  {editingUser
+                    ? 'Atualize as informações do utilizador do cliente'
+                    : 'Adicione um novo utilizador ao cliente'
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowModal(false); resetForm(); }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
+          </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Nome *</label>
-                  <input type="text" value={formData.name} onChange={(e)=>setFormData({ ...formData, name: e.target.value })} required className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Email *</label>
-                  <input type="email" value={formData.email} onChange={(e)=>setFormData({ ...formData, email: e.target.value })} required className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
-                </div>
-              </div>
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto max-h-[calc(90vh-220px)]">
+            <div className="bg-gray-50 dark:bg-gray-900 p-6">
+              <form id="userForm" onSubmit={handleSubmit} className="space-y-5">
+                {/* Card: Informações Básicas */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <User className="w-5 h-5 text-primary-500" />
+                    Informações Básicas
+                  </h3>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Telefone</label>
-                  <input type="tel" value={formData.phone} onChange={(e)=>setFormData({ ...formData, phone: e.target.value })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
+                  <div className="max-w-2xl">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Nome Completo *</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                        className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
+                        placeholder="Ex: João Silva"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="max-w-2xl">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-1">
+                        <Mail className="w-4 h-4 text-gray-400" />
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        required
+                        className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
+                        placeholder="joao.silva@empresa.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-1">
+                      <Phone className="w-4 h-4 text-gray-400" />
+                      Telefone
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+244 9XX XXX XXX"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
+                    />
+                  </div>
                 </div>
+
+                {/* Card: Credenciais */}
                 {!editingUser && (
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Password *</label>
-                    <input type="password" value={formData.password} onChange={(e)=>setFormData({ ...formData, password: e.target.value })} minLength={6} required className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
+                  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Lock className="w-5 h-5 text-primary-500" />
+                      Credenciais
+                    </h3>
+
+                    <div className="max-w-2xl">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-1">
+                        <Lock className="w-4 h-4 text-gray-400" />
+                        Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required
+                        minLength={6}
+                        placeholder="Mínimo 6 caracteres"
+                        className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Use uma password forte com letras, números e caracteres especiais</p>
+                    </div>
                   </div>
                 )}
-              </div>
 
+                {/* Card: Estrutura Organizacional */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-primary-500" />
+                    Estrutura Organizacional (Opcional)
+                  </h3>
+
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Direção</label>
+                    <select
+                      value={formData.directionId}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        directionId: e.target.value,
+                        departmentId: '',
+                        sectionId: ''
+                      })}
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
+                    >
+                      <option value="">Nenhuma</option>
+                      {directions.map((dir) => (
+                        <option key={dir.id} value={dir.id}>{dir.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Departamento</label>
+                      <select
+                        value={formData.departmentId}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          departmentId: e.target.value,
+                          sectionId: ''
+                        })}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!formData.directionId}
+                      >
+                        <option value="">Nenhum</option>
+                        {departments
+                          .filter(dept => !formData.directionId || dept.directionId === formData.directionId)
+                          .map((dept) => (
+                            <option key={dept.id} value={dept.id}>{dept.name}</option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Secção</label>
+                      <select
+                        value={formData.sectionId}
+                        onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!formData.departmentId}
+                      >
+                        <option value="">Nenhuma</option>
+                        {sections
+                          .filter(s => formData.departmentId && s.departmentId === formData.departmentId)
+                          .map((sect) => (
+                            <option key={sect.id} value={sect.id}>{sect.name}</option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Defina a hierarquia organizacional do utilizador: Direção → Departamento → Secção</p>
+                </div>
+
+                {/* Card: Configurações (apenas ao editar) */}
+                {editingUser && (
+                  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-primary-500" />
+                      Configurações
+                    </h3>
+
+                    <label className="flex items-center gap-3 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                        className="w-5 h-5 text-primary-500 rounded focus:ring-2 focus:ring-primary-500"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium">Utilizador Ativo</span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {formData.isActive ? 'Pode aceder ao sistema' : 'Acesso ao sistema bloqueado'}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+              </form>
+            </div>
+          </div>
+
+          {/* Footer fixo com botões */}
+          <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowModal(false); resetForm(); }}
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="userForm"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Save className="w-5 h-5" />
+                {editingUser ? 'Atualizar' : 'Criar'} Utilizador
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal isOpen={showResetPasswordModal && resetPasswordUser !== null} onClose={() => { setShowResetPasswordModal(false); setResetPasswordUser(null); setNewPassword(''); }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+          {/* Header com gradiente */}
+          <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium mb-2">Direção</label>
-                <select value={formData.directionId} onChange={(e)=>setFormData({ ...formData, directionId: e.target.value, departmentId: '', sectionId: '' })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700">
-                  <option value="">Sem direção</option>
-                  {directions.map((dir) => (
-                    <option key={dir.id} value={dir.id}>{dir.name}</option>
-                  ))}
-                </select>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Key className="w-6 h-6" />
+                  Redefinir Senha
+                </h2>
+                <p className="text-orange-100 text-sm mt-1">
+                  Defina uma nova senha para o utilizador
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowResetPasswordModal(false); setResetPasswordUser(null); setNewPassword(''); }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="bg-gray-50 dark:bg-gray-900 p-6">
+            <form id="resetPasswordForm" onSubmit={handleResetPasswordSubmit} className="space-y-5">
+              {/* Info do utilizador */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                  <User className="w-5 h-5 text-primary-500" />
+                  Utilizador
+                </h3>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
+                    <User className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white text-lg">{resetPasswordUser?.name}</p>
+                    <p className="text-gray-500 text-base">{resetPasswordUser?.email}</p>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Departamento</label>
-                  <select value={formData.departmentId} onChange={(e)=>setFormData({ ...formData, departmentId: e.target.value, sectionId: '' })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" disabled={!formData.directionId}>
-                    <option value="">Sem departamento</option>
-                    {departments
-                      .filter(dept => !formData.directionId || dept.directionId === formData.directionId)
-                      .map((dept) => (
-                        <option key={dept.id} value={dept.id}>{dept.name}</option>
-                      ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Secção</label>
-                  <select value={formData.sectionId} onChange={(e)=>setFormData({ ...formData, sectionId: e.target.value })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" disabled={!formData.departmentId}>
-                    <option value="">Sem secção</option>
-                    {sections
-                      .filter(s => formData.departmentId && s.departmentId === formData.departmentId)
-                      .map((sect) => (
-                        <option key={sect.id} value={sect.id}>{sect.name}</option>
-                      ))}
-                  </select>
-                </div>
-              </div>
+              {/* Card: Nova Senha */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-orange-500" />
+                  Nova Senha
+                </h3>
 
-              {editingUser && (
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" checked={formData.isActive} onChange={(e)=>setFormData({ ...formData, isActive: e.target.checked })} className="rounded" />
-                  <label className="text-sm">Ativo</label>
+                <div className="max-w-lg">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Senha *</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="w-full min-w-[400px] px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-base"
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 flex items-center gap-1">
+                    {showPassword ? (
+                      <><Eye className="w-3 h-3" /> Senha visível</>
+                    ) : (
+                      <><EyeOff className="w-3 h-3" /> Clique no ícone para ver a senha</>
+                    )}
+                  </p>
                 </div>
-              )}
-
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">{editingUser ? 'Atualizar' : 'Criar'}</button>
               </div>
             </form>
           </div>
+
+          {/* Footer fixo com botões */}
+          <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowResetPasswordModal(false); setResetPasswordUser(null); setNewPassword(''); }}
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+                disabled={resettingPassword}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="resetPasswordForm"
+                disabled={resettingPassword || newPassword.length < 6}
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Key className="w-5 h-5" />
+                {resettingPassword ? 'A redefinir...' : 'Redefinir Senha'}
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, User, MessageSquare, Send, Paperclip, Download, FileT
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import Swal from 'sweetalert2'
 import FileUpload from '../components/FileUpload'
 import RichTextEditor from '../components/RichTextEditor'
 import TimeTrackerReadOnly from '../components/TimeTrackerReadOnly'
@@ -30,6 +31,34 @@ const TicketDetail = () => {
       setTicket(data.ticket)
     } catch (error) {
       console.error('Erro ao carregar ticket:', error)
+      
+      // Handle different error types
+      if (error.response?.status === 403) {
+        // Permission denied
+        await Swal.fire({
+          icon: 'error',
+          title: 'Acesso Negado',
+          text: error.response.data?.message || 'Você não tem permissão para ver este ticket.',
+          confirmButtonText: 'Voltar',
+          confirmButtonColor: '#3B82F6'
+        })
+        navigate('/my-requests') // Volta para Minhas Solicitações
+        return
+      } else if (error.response?.status === 404) {
+        // Ticket not found
+        await Swal.fire({
+          icon: 'error',
+          title: 'Ticket Não Encontrado',
+          text: 'O ticket solicitado não foi encontrado ou foi removido.',
+          confirmButtonText: 'Voltar',
+          confirmButtonColor: '#3B82F6'
+        })
+        navigate('/my-requests') // Volta para Minhas Solicitações
+        return
+      } else {
+        // Other errors
+        toast.error('Erro ao carregar ticket. Tente novamente.')
+      }
     } finally {
       setLoading(false)
     }
@@ -133,7 +162,13 @@ const TicketDetail = () => {
   }
 
   if (!ticket) {
-    return <div>Ticket não encontrado</div>
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">Carregando ticket...</p>
+        </div>
+      </div>
+    )
   }
 
   // Filtrar apenas comentários públicos (não mostrar notas internas para clientes)
@@ -152,7 +187,7 @@ const TicketDetail = () => {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold">{ticket.ticketNumber}</h1>
+            <h1 className="text-2xl font-bold">#{ticket.id?.slice(0, 8)}</h1>
             {getStatusBadge(ticket.status)}
           </div>
           <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>
@@ -194,8 +229,10 @@ const TicketDetail = () => {
           )}
 
 
-          {/* Attachments from metadata */}
-          {ticket.metadata?.clientRequest?.attachments && ticket.metadata.clientRequest.attachments.length > 0 && (
+          {/* Attachments from metadata (legacy - para tickets antigos sem ficheiros guardados) */}
+          {ticket.metadata?.clientRequest?.attachments && 
+           ticket.metadata.clientRequest.attachments.length > 0 && 
+           attachments.length === 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="font-semibold mb-4 flex items-center gap-2">
                 <Paperclip className="w-5 h-5" />
@@ -212,9 +249,15 @@ const TicketDetail = () => {
                       <p className="text-sm font-medium truncate">{attachment.name}</p>
                       <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
                     </div>
+                    <span className="text-xs text-gray-400" title="Ficheiro não disponível para download">
+                      (legado)
+                    </span>
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-gray-500 mt-3">
+                ⚠️ Estes anexos foram submetidos antes da atualização do sistema e não estão disponíveis para download.
+              </p>
             </div>
           )}
 

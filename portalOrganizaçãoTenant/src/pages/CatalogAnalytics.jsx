@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import DynamicIcon from '../components/DynamicIcon';
 
 const CatalogAnalytics = () => {
   const [stats, setStats] = useState(null);
@@ -137,7 +138,9 @@ const CatalogAnalytics = () => {
                     <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center font-bold text-primary-600">
                       {index + 1}
                     </div>
-                    <div className="text-2xl">{item.icon}</div>
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <DynamicIcon icon={item.icon} className="w-6 h-6" />
+                    </div>
                     <div className="flex-1">
                       <div className="font-medium">{item.name}</div>
                     </div>

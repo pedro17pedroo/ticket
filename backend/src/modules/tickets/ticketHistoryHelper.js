@@ -1,5 +1,5 @@
 import TicketHistory from './ticketHistoryModel.js';
-import { User, Department, Direction, Section, Category } from '../models/index.js';
+import { User, Department, Direction, Section, CatalogCategory } from '../models/index.js';
 
 /**
  * Registra uma mudança no histórico do ticket
@@ -63,9 +63,9 @@ export const createChangeDescription = async (field, oldValue, newValue, models 
       const newSec = newVal ? await Section.findByPk(newVal, { attributes: ['name'] }) : null;
       return `Seção alterada de "${oldSec?.name || 'Não definida'}" para "${newSec?.name || 'Não definida'}"`;
     },
-    categoryId: async (old, newVal) => {
-      const oldCat = old ? await Category.findByPk(old, { attributes: ['name'] }) : null;
-      const newCat = newVal ? await Category.findByPk(newVal, { attributes: ['name'] }) : null;
+    catalogCategoryId: async (old, newVal) => {
+      const oldCat = old ? await CatalogCategory.findByPk(old, { attributes: ['name'] }) : null;
+      const newCat = newVal ? await CatalogCategory.findByPk(newVal, { attributes: ['name'] }) : null;
       return `Categoria alterada de "${oldCat?.name || 'Não definida'}" para "${newCat?.name || 'Não definida'}"`;
     },
     type: (old, newVal) => `Tipo alterado de "${old}" para "${newVal}"`,
@@ -121,7 +121,7 @@ export const trackTicketChanges = async (oldTicket, newTicket, userId, transacti
     'departmentId',
     'directionId',
     'sectionId',
-    'categoryId',
+    'catalogCategoryId',
     'type',
     'subject',
     'description'

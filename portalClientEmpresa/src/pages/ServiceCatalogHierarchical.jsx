@@ -6,6 +6,9 @@ import {
   Clock,
   Euro,
   ArrowRight,
+  ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   CheckCircle,
   X,
   Loader2,
@@ -21,6 +24,9 @@ import {
   Phone,
   Settings,
   ChevronRight,
+  ChevronLeft,
+  ChevronUp,
+  ChevronDown,
   Home,
   FolderOpen,
   Package,
@@ -36,9 +42,73 @@ import {
   Layers,
   Zap,
   Upload,
+  Download,
   Paperclip,
   AlertTriangle,
-  Calendar
+  Calendar,
+  // Segurança e Acesso
+  Lock,
+  Key,
+  Eye,
+  EyeOff,
+  Unlock,
+  // Outros comuns
+  Globe,
+  XCircle,
+  MessageSquare,
+  Bell,
+  Bookmark,
+  Star,
+  Heart,
+  ThumbsUp,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+  Edit,
+  Plus,
+  Minus,
+  Filter,
+  MoreHorizontal,
+  MoreVertical,
+  User,
+  UserPlus,
+  UserMinus,
+  UserCheck,
+  Folder,
+  File,
+  Image,
+  Video,
+  Music,
+  Camera,
+  Smartphone,
+  Tablet,
+  Laptop,
+  Monitor as Desktop,
+  Tv,
+  Bluetooth,
+  Cast,
+  Radio,
+  Rss,
+  Share2,
+  Link,
+  CreditCard,
+  DollarSign,
+  ShoppingBag,
+  Tag,
+  Gift,
+  Map,
+  MapPin,
+  Navigation,
+  Compass,
+  Sun,
+  Moon,
+  CloudRain,
+  Thermometer,
+  Activity,
+  BarChart2,
+  PieChart,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -54,10 +124,11 @@ const ServiceCatalogHierarchical = () => {
   const [subcategories, setSubcategories] = useState([]);
   const [items, setItems] = useState([]);
 
-  // Estados de seleção
+  // Estados de seleção - agora suporta múltiplos níveis
   const [selectedRootCategory, setSelectedRootCategory] = useState(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [navigationPath, setNavigationPath] = useState([]); // Array de categorias navegadas
 
   // Estados de UI
   const [loading, setLoading] = useState(true);
@@ -106,8 +177,19 @@ const ServiceCatalogHierarchical = () => {
   const loadSubcategories = async (categoryId) => {
     setLoading(true);
     try {
-      // A categoria selecionada já tem as subcategorias aninhadas
-      const selectedCategory = rootCategories.find(cat => cat.id === categoryId);
+      // Procurar a categoria em toda a árvore (não apenas nas raízes)
+      const findCategoryInTree = (categories, id) => {
+        for (const cat of categories) {
+          if (cat.id === id) return cat;
+          if (cat.subcategories?.length > 0) {
+            const found = findCategoryInTree(cat.subcategories, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const selectedCategory = findCategoryInTree(rootCategories, categoryId);
 
       console.log(`🔍 Categoria selecionada:`, selectedCategory);
 
@@ -165,28 +247,66 @@ const ServiceCatalogHierarchical = () => {
   // ===== NAVEGAÇÃO =====
 
   const handleCategoryClick = async (category) => {
+    console.log('🔍 Clicou na categoria raiz:', category.name);
     setSelectedRootCategory(category);
+    setNavigationPath([category]); // Iniciar o path com a categoria raiz
     await loadSubcategories(category.id);
     // SEMPRE ir para nível 'subcategories' (que agora mostra subcategorias E itens)
     setNavigationLevel('subcategories');
   };
 
   const handleSubcategoryClick = async (subcategory) => {
-    setSelectedSubcategory(subcategory);
-    await loadItems(subcategory.id);
-    setNavigationLevel('items');
+    console.log('🔍 Clicou na subcategoria:', subcategory.name, subcategory.id);
+    console.log('🔍 Subcategoria tem subcategorias?', subcategory.subcategories?.length || 0);
+    
+    // Adicionar ao path de navegação
+    setNavigationPath(prev => [...prev, subcategory]);
+    
+    // Se a subcategoria tem subcategorias próprias, navegar para elas
+    if (subcategory.subcategories && subcategory.subcategories.length > 0) {
+      console.log('📁 Navegando para subcategorias de:', subcategory.name);
+      setSelectedSubcategory(subcategory);
+      setSubcategories(subcategory.subcategories);
+      await loadItems(subcategory.id);
+      // Manter no nível 'subcategories' para mostrar as sub-subcategorias
+    } else {
+      // Se não tem subcategorias, ir para o nível de itens
+      console.log('📦 Navegando para itens de:', subcategory.name);
+      setSelectedSubcategory(subcategory);
+      setSubcategories([]);
+      await loadItems(subcategory.id);
+      setNavigationLevel('items');
+    }
   };
 
   const handleBackToCategories = () => {
     setNavigationLevel('categories');
     setSelectedRootCategory(null);
+    setSelectedSubcategory(null);
     setSubcategories([]);
+    setItems([]);
+    setNavigationPath([]);
   };
 
   const handleBackToSubcategories = () => {
-    setNavigationLevel('subcategories');
-    setSelectedSubcategory(null);
-    setItems([]);
+    // Voltar um nível no path
+    if (navigationPath.length > 1) {
+      const newPath = navigationPath.slice(0, -1);
+      const parentCategory = newPath[newPath.length - 1];
+      
+      setNavigationPath(newPath);
+      setSelectedSubcategory(newPath.length > 1 ? parentCategory : null);
+      
+      // Carregar subcategorias do pai
+      if (parentCategory.subcategories) {
+        setSubcategories(parentCategory.subcategories);
+      }
+      loadItems(parentCategory.id);
+      setNavigationLevel('subcategories');
+    } else {
+      // Voltar para categorias raiz
+      handleBackToCategories();
+    }
   };
 
   // ===== UPLOAD DE FICHEIROS =====
@@ -307,6 +427,23 @@ const ServiceCatalogHierarchical = () => {
       Wrench, Zap,
       // Cloud e Rede
       Cloud,
+      // Segurança e Acesso
+      Lock, Key, Eye, EyeOff, Unlock,
+      // Outros comuns
+      Globe, Calendar, Clock, AlertTriangle, CheckCircle, XCircle,
+      MessageSquare, Bell, Bookmark, Star, Heart, ThumbsUp,
+      Download, Upload, RefreshCw, RotateCcw, Trash2, Edit,
+      Plus, Minus, Search, Filter, MoreHorizontal, MoreVertical,
+      ChevronRight, ChevronLeft, ChevronUp, ChevronDown,
+      ArrowRight, ArrowLeft, ArrowUp, ArrowDown,
+      Home, User, UserPlus, UserMinus, UserCheck,
+      Folder, File, Image, Video, Music, Camera,
+      Smartphone, Tablet, Laptop, Desktop, Tv,
+      Bluetooth, Cast, Radio, Rss, Share2, Link,
+      CreditCard, DollarSign, ShoppingBag, Tag, Gift,
+      Map, MapPin, Navigation, Compass,
+      Sun, Moon, CloudRain, Thermometer,
+      Activity, BarChart2, PieChart, TrendingUp, TrendingDown,
       // Fallback
       ShoppingCart
     };
@@ -452,31 +589,43 @@ const ServiceCatalogHierarchical = () => {
           Catálogo
         </button>
 
-        {selectedRootCategory && (
-          <>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-            <button
-              onClick={navigationLevel === 'items' ? handleBackToSubcategories : null}
-              className={`flex items-center gap-1 ${navigationLevel === 'items'
-                ? 'text-blue-600 dark:text-blue-400 hover:underline'
-                : 'text-gray-900 dark:text-white font-medium'
-                }`}
-            >
-              <FolderOpen className="w-4 h-4" />
-              {selectedRootCategory.name}
-            </button>
-          </>
-        )}
-
-        {selectedSubcategory && (
-          <>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-            <span className="text-gray-900 dark:text-white font-medium flex items-center gap-1">
-              <Package className="w-4 h-4" />
-              {selectedSubcategory.name}
-            </span>
-          </>
-        )}
+        {navigationPath.map((cat, index) => {
+          const isLast = index === navigationPath.length - 1;
+          const isClickable = !isLast;
+          
+          return (
+            <div key={cat.id} className="flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+              {isClickable ? (
+                <button
+                  onClick={() => {
+                    // Navegar para este nível
+                    const newPath = navigationPath.slice(0, index + 1);
+                    setNavigationPath(newPath);
+                    if (index === 0) {
+                      setSelectedSubcategory(null);
+                      loadSubcategories(cat.id);
+                    } else {
+                      setSelectedSubcategory(cat);
+                      setSubcategories(cat.subcategories || []);
+                      loadItems(cat.id);
+                    }
+                    setNavigationLevel('subcategories');
+                  }}
+                  className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  {cat.name}
+                </button>
+              ) : (
+                <span className="text-gray-900 dark:text-white font-medium flex items-center gap-1">
+                  <FolderOpen className="w-4 h-4" />
+                  {cat.name}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -524,47 +673,59 @@ const ServiceCatalogHierarchical = () => {
                 <button
                   key={category.id}
                   onClick={() => handleCategoryClick(category)}
-                  className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+                  className="group relative shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 text-left"
+                  style={{ 
+                    borderRadius: '16px', 
+                    overflow: 'hidden',
+                    height: '320px',
+                    width: '100%'
+                  }}
                 >
                   {/* Background com gradiente ou imagem */}
-                  <div className={`relative ${category.imageUrl
-                    ? 'bg-gray-900'
-                    : `bg-gradient-to-br ${getCategoryColor(category.color)}`
-                    } p-8 text-white min-h-[280px] flex flex-col`}>
+                  <div 
+                    className={`relative ${category.imageUrl
+                      ? 'bg-gray-900'
+                      : `bg-gradient-to-br ${getCategoryColor(category.color)}`
+                    } p-6 text-white flex flex-col`}
+                    style={{ 
+                      height: '320px', 
+                      borderRadius: '16px'
+                    }}
+                  >
 
                     {/* Imagem de fundo se existir */}
                     {category.imageUrl && (
                       <div
                         className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-40 transition-opacity"
-                        style={{ backgroundImage: `url(${category.imageUrl})` }}
+                        style={{ backgroundImage: `url(${category.imageUrl})`, borderRadius: '16px' }}
                       />
                     )}
 
                     {/* Conteúdo */}
-                    <div className="relative z-10 flex-1 flex flex-col">
-                      {/* Header com ícone e seta */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="p-4 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg group-hover:bg-white/30 transition-colors">
-                          {renderIcon(category.icon, "w-10 h-10")}
-                        </div>
-                        <div className="p-2 bg-white/10 backdrop-blur-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1">
-                          <ArrowRight className="w-5 h-5" />
+                    <div className="relative z-10 flex-1 flex flex-col h-full">
+                      {/* Header com ícone */}
+                      <div className="flex items-center justify-center mb-4">
+                        <div 
+                          className="p-4 bg-white/20 backdrop-blur-sm shadow-lg group-hover:bg-white/30 transition-colors"
+                          style={{ borderRadius: '50%' }}
+                        >
+                          {renderIcon(category.icon, "w-8 h-8")}
                         </div>
                       </div>
 
-                      {/* Título e descrição */}
-                      <div className="flex-1">
-                        <h3 className="text-2xl font-bold mb-3 group-hover:scale-105 transition-transform origin-left">
-                          {category.name}
-                        </h3>
-                        <p className="text-white/90 text-sm leading-relaxed line-clamp-3">
-                          {category.description || 'Explore os serviços disponíveis nesta categoria'}
-                        </p>
-                      </div>
+                      {/* Título */}
+                      <h3 className="text-xl font-bold mb-2 text-center">
+                        {category.name}
+                      </h3>
+                      
+                      {/* Descrição com altura fixa */}
+                      <p className="text-white/90 text-sm leading-relaxed text-center flex-1 line-clamp-3">
+                        {category.description || 'Explore os serviços disponíveis nesta categoria'}
+                      </p>
 
                       {/* Footer com badges */}
-                      <div className="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
-                        <div className="flex gap-2 flex-wrap">
+                      <div className="mt-auto pt-4 border-t border-white/20 flex items-center justify-center">
+                        <div className="flex gap-2 flex-wrap justify-center">
                           {category.itemCount > 0 && (
                             <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium flex items-center gap-1">
                               <Package className="w-3 h-3" />
@@ -575,6 +736,11 @@ const ServiceCatalogHierarchical = () => {
                             <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium flex items-center gap-1">
                               <FolderOpen className="w-3 h-3" />
                               {category.subcategoryCount} {category.subcategoryCount === 1 ? 'subcategoria' : 'subcategorias'}
+                            </span>
+                          )}
+                          {category.itemCount === 0 && category.subcategoryCount === 0 && (
+                            <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium">
+                              Explorar
                             </span>
                           )}
                         </div>

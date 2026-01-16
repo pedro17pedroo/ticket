@@ -12,8 +12,19 @@ import { corsOptions } from './config/cors.js';
 
 const app = express();
 
-// Segurança
-app.use(helmet());
+// Segurança - configurar helmet para permitir imagens de qualquer origem
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "blob:", "*"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      fontSrc: ["'self'", "https:", "data:"],
+    },
+  },
+}));
 app.use(cors(corsOptions));
 
 // Rate limiting (mais permissivo em desenvolvimento)

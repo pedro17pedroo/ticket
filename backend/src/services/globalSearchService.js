@@ -1,7 +1,7 @@
 import { Op, fn, col, literal } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { 
-  Ticket, User, KnowledgeArticle, Category, 
+  Ticket, User, KnowledgeArticle, CatalogCategory, 
   Department, Comment, Asset 
 } from '../modules/models/index.js';
 import SearchIndex from '../models/SearchIndex.js';

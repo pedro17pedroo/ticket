@@ -1,10 +1,56 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, X } from 'lucide-react';
+import { Check, X, Loader2 } from 'lucide-react';
+import { saasAPI } from '../services/api';
 
 export default function Pricing() {
-  return (
-    <div className="min-h-screen">{/* Header está no Layout global */}
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    loadPlans();
+  }, []);
+
+  const loadPlans = async () => {
+    try {
+      const response = await saasAPI.getPlans();
+      // A API retorna { success: true, plans: [...] }
+      const plansData = response?.plans || [];
+      setPlans(plansData);
+    } catch (error) {
+      console.error('Erro ao carregar planos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mapear símbolo de moeda
+  const getCurrencySymbol = (currency) => {
+    const symbols = { EUR: '€', USD: '$', BRL: 'R$', AOA: 'Kz', GBP: '£', CHF: 'CHF' };
+    return symbols[currency] || currency || '€';
+  };
+
+  // Formatar preço - usar o price já formatado da API ou formatar manualmente
+  const formatPrice = (plan) => {
+    // Se a API já retorna price formatado, usar
+    if (plan.price) return plan.price;
+    // Senão, formatar manualmente
+    if (!plan.priceValue && plan.priceValue !== 0) return 'Contacte-nos';
+    const symbol = getCurrencySymbol(plan.currency);
+    return `${symbol}${parseFloat(plan.priceValue).toFixed(0)}`;
+  };
+
+  // Parsear features do plano - a API já retorna array de features
+  const parseFeatures = (plan) => {
+    // A API retorna features como array de strings
+    if (plan.features && Array.isArray(plan.features)) {
+      return plan.features.map(f => ({ text: f, included: true }));
+    }
+    return [{ text: 'Suporte incluído', included: true }];
+  };
+
+  return (
+    <div className="min-h-screen">
       {/* Hero */}
       <section className="bg-gradient-to-br from-blue-600 to-indigo-700 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -20,71 +66,33 @@ export default function Pricing() {
       {/* Pricing Cards */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Starter */}
-            <PricingCard
-              name="Starter"
-              price="€49"
-              period="/mês"
-              description="Ideal para pequenas equipas"
-              features={[
-                { text: 'Até 10 utilizadores', included: true },
-                { text: '1.000 tickets/mês', included: true },
-                { text: 'Email + Portal', included: true },
-                { text: 'Knowledge Base', included: true },
-                { text: 'Suporte por email', included: true },
-                { text: 'SLA básico', included: true },
-                { text: 'API REST', included: false },
-                { text: 'Webhooks', included: false },
-                { text: 'Suporte 24/7', included: false },
-                { text: 'White-label', included: false },
-              ]}
-              cta="Começar Agora"
-            />
-
-            {/* Professional */}
-            <PricingCard
-              name="Professional"
-              price="€149"
-              period="/mês"
-              description="Para equipas em crescimento"
-              features={[
-                { text: 'Até 50 utilizadores', included: true },
-                { text: '10.000 tickets/mês', included: true },
-                { text: 'Todos os canais', included: true },
-                { text: 'Knowledge Base avançada', included: true },
-                { text: 'Suporte 24/7', included: true },
-                { text: 'SLA avançado', included: true },
-                { text: 'API REST ilimitada', included: true },
-                { text: 'Webhooks', included: true },
-                { text: 'Integrações', included: true },
-                { text: 'Analytics avançado', included: true },
-              ]}
-              cta="Começar Agora"
-              highlighted
-            />
-
-            {/* Enterprise */}
-            <PricingCard
-              name="Enterprise"
-              price="Contacte-nos"
-              period=""
-              description="Solução personalizada"
-              features={[
-                { text: 'Utilizadores ilimitados', included: true },
-                { text: 'Tickets ilimitados', included: true },
-                { text: 'Todos os recursos', included: true },
-                { text: 'Suporte dedicado', included: true },
-                { text: 'SLA personalizado', included: true },
-                { text: 'White-label completo', included: true },
-                { text: 'On-Premise', included: true },
-                { text: 'Treinamento', included: true },
-                { text: 'Account Manager', included: true },
-                { text: 'Custom development', included: true },
-              ]}
-              cta="Contactar Vendas"
-            />
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <span className="ml-3 text-gray-600">A carregar planos...</span>
+            </div>
+          ) : (
+            <div className={`grid gap-8 max-w-6xl mx-auto ${
+              plans.length === 1 ? 'md:grid-cols-1 max-w-md' :
+              plans.length === 2 ? 'md:grid-cols-2 max-w-3xl' :
+              'md:grid-cols-3'
+            }`}>
+              {plans.map((plan, index) => (
+                <PricingCard
+                  key={plan.id || index}
+                  name={plan.name}
+                  price={formatPrice(plan)}
+                  period={plan.priceValue ? '/mês' : ''}
+                  description={plan.description || ''}
+                  features={parseFeatures(plan)}
+                  cta={plan.priceValue ? 'Começar Agora' : 'Contactar Vendas'}
+                  highlighted={plan.highlighted || plan.planId === 'professional' || index === 1}
+                  planId={plan.planId || plan.id}
+                  trialDays={plan.trialDays || 0}
+                />
+              ))}
+            </div>
+          )}
 
           {/* FAQ */}
           <div className="mt-24 max-w-4xl mx-auto">
@@ -118,7 +126,10 @@ export default function Pricing() {
             Ainda tem dúvidas?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Experimente gratuitamente por 14 dias. Sem cartão de crédito.
+            {plans.length > 0 && plans.some(p => p.trialDays > 0) 
+              ? `Experimente gratuitamente por ${Math.max(...plans.map(p => p.trialDays || 0))} dias. Sem cartão de crédito.`
+              : 'Experimente gratuitamente. Sem cartão de crédito.'
+            }
           </p>
           <Link
             to="/trial"
@@ -139,7 +150,7 @@ export default function Pricing() {
   );
 }
 
-function PricingCard({ name, price, period, description, features, cta, highlighted }) {
+function PricingCard({ name, price, period, description, features, cta, highlighted, planId, trialDays }) {
   return (
     <div className={`rounded-2xl p-8 ${
       highlighted 
@@ -160,12 +171,23 @@ function PricingCard({ name, price, period, description, features, cta, highligh
           {period}
         </span>
       </div>
-      <p className={`mb-6 ${highlighted ? 'text-blue-100' : 'text-gray-600'}`}>
-        {description}
-      </p>
+      {trialDays > 0 && (
+        <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-4 ${
+          highlighted 
+            ? 'bg-green-400 text-green-900' 
+            : 'bg-green-100 text-green-700'
+        }`}>
+          {trialDays} dias grátis
+        </div>
+      )}
+      {description && (
+        <p className={`mb-6 ${highlighted ? 'text-blue-100' : 'text-gray-600'}`}>
+          {description}
+        </p>
+      )}
       
       <Link
-        to="/trial"
+        to={planId ? `/onboarding?plan=${planId}` : '/trial'}
         className={`block w-full text-center px-6 py-3 rounded-lg font-semibold transition-colors mb-8 ${
           highlighted
             ? 'bg-white text-blue-600 hover:bg-blue-50'

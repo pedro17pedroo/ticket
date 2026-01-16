@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import request from 'supertest';
 import app from '../../src/app.js';
 import { sequelize } from '../../src/config/database.js';
-import { Organization, User, SLA, Client, Category } from '../../src/modules/models/index.js';
+import { Organization, User, SLA, Client, CatalogCategory } from '../../src/modules/models/index.js';
 import bcrypt from 'bcryptjs';
 
 describe('SLA API Integration Tests', () => {
@@ -73,7 +73,7 @@ describe('SLA API Integration Tests', () => {
     });
 
     // Criar categoria
-    category = await Category.create({
+    category = await CatalogCategory.create({
       name: 'Suporte Técnico',
       icon: '🔧',
       color: '#3B82F6',

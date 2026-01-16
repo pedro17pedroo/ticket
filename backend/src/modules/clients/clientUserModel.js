@@ -70,7 +70,38 @@ const ClientUser = sequelize.define('ClientUser', {
   departmentName: {
     type: DataTypes.STRING,
     allowNull: true,
-    comment: 'Departamento dentro da empresa cliente'
+    comment: 'Departamento dentro da empresa cliente (texto livre - legado)'
+  },
+  // Estrutura organizacional (FKs)
+  directionId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'direction_id',
+    references: {
+      model: 'directions',
+      key: 'id'
+    },
+    comment: 'Direção do utilizador'
+  },
+  departmentId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'department_id',
+    references: {
+      model: 'departments',
+      key: 'id'
+    },
+    comment: 'Departamento do utilizador'
+  },
+  sectionId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'section_id',
+    references: {
+      model: 'sections',
+      key: 'id'
+    },
+    comment: 'Secção do utilizador'
   },
   // Localização (para suporte on-site)
   location: {

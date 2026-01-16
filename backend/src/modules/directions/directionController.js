@@ -93,8 +93,8 @@ export const createDirection = async (req, res, next) => {
 
     const direction = await Direction.create({
       name,
-      description,
-      code,
+      description: description && description.trim() !== '' ? description : null,
+      code: code && code.trim() !== '' ? code : null,
       managerId: managerId && managerId.trim() !== '' ? managerId : null, // Converter string vazia para null
       organizationId,
       clientId: null, // Direção interna do tenant, não de cliente
@@ -142,8 +142,8 @@ export const updateDirection = async (req, res, next) => {
 
     await direction.update({
       name,
-      description,
-      code,
+      description: description !== undefined ? (description && description.trim() !== '' ? description : null) : undefined,
+      code: code !== undefined ? (code && code.trim() !== '' ? code : null) : undefined,
       managerId: managerId !== undefined ? (managerId && managerId.trim() !== '' ? managerId : null) : undefined,
       isActive
     });

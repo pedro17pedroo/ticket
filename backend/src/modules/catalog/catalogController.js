@@ -1,5 +1,5 @@
 import { CatalogCategory, CatalogItem, ServiceRequest } from './catalogModelSimple.js';
-import { Ticket, User, Category, Department, SLA } from '../models/index.js';
+import { Ticket, User, Department, SLA } from '../models/index.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
 
@@ -24,6 +24,34 @@ export const getCatalogCategories = async (req, res, next) => {
     res.json({
       success: true,
       categories
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Obter categoria por ID
+export const getCategoryById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const category = await CatalogCategory.findOne({
+      where: {
+        id,
+        organizationId: req.user.organizationId
+      }
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        error: 'Categoria não encontrada'
+      });
+    }
+
+    res.json({
+      success: true,
+      category
     });
   } catch (error) {
     next(error);
@@ -199,7 +227,7 @@ export const getCatalogItemById = async (req, res, next) => {
           attributes: ['id', 'name', 'responseTimeMinutes', 'resolutionTimeMinutes']
         },
         {
-          model: Category,
+          model: CatalogCategory,
           as: 'ticketCategory',
           attributes: ['id', 'name']
         },

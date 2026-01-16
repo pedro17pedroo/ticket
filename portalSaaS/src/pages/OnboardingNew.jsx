@@ -308,7 +308,7 @@ const CompanyStepComponent = memo(({
             {...register('phone')}
             type="tel"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="+351 123 456 789"
+            placeholder="+244 9XX XXX XXX"
           />
         </div>
       </div>
@@ -383,8 +383,37 @@ const OnboardingNew = () => {
   // Obter plano da URL (ex: /onboarding?plan=professional)
   const selectedPlan = searchParams.get('plan') || 'starter';
   
+  // Obter parâmetros de verificação da URL (ex: /onboarding?verify=TOKEN&email=EMAIL)
+  const verifyToken = searchParams.get('verify');
+  const verifyEmail = searchParams.get('email');
+  
   // Usar useRef para controlar envio de email globalmente
   const emailSentRef = useRef(false);
+  const verifyAttemptedRef = useRef(false);
+
+  // Processar verificação automática se vier do link do email
+  useEffect(() => {
+    const autoVerify = async () => {
+      if (verifyToken && verifyEmail && !verifyAttemptedRef.current) {
+        verifyAttemptedRef.current = true;
+        setEmailToken(verifyToken);
+        
+        try {
+          await saasAPI.verifyEmail(verifyEmail, verifyToken);
+          toast.success('Email verificado com sucesso!');
+          // Ir para o step de definir senha
+          setCurrentStep(3);
+        } catch (error) {
+          console.error('Erro na verificação automática:', error);
+          toast.error('Código de verificação inválido ou expirado. Por favor, solicite um novo código.');
+          // Ir para o step de verificação manual
+          setCurrentStep(2);
+        }
+      }
+    };
+    
+    autoVerify();
+  }, [verifyToken, verifyEmail]);
 
   // Carregar planos da API ao montar
   useEffect(() => {
@@ -491,10 +520,18 @@ const OnboardingNew = () => {
                     Plano selecionado: <strong className="text-blue-900">{getPlanDisplayName()}</strong>
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
-                    O plano será associado à sua organização após o cadastro
+                    {selectedPlanData?.trialDays > 0 
+                      ? `${selectedPlanData.trialDays} dias de trial grátis incluídos`
+                      : 'O plano será associado à sua organização após o cadastro'
+                    }
                   </p>
                 </div>
               </div>
+              {selectedPlanData?.trialDays > 0 && (
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                  {selectedPlanData.trialDays} dias grátis
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -562,7 +599,7 @@ const OnboardingNew = () => {
             <input
               {...register('phone')}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="+351 XXX XXX XXX"
+              placeholder="+244 9XX XXX XXX"
             />
           </div>
         </div>
@@ -690,7 +727,7 @@ const OnboardingNew = () => {
           <input
             {...register('adminPhone')}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="+351 XXX XXX XXX"
+            placeholder="+244 9XX XXX XXX"
           />
         </div>
 

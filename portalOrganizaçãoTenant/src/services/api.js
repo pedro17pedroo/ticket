@@ -38,9 +38,9 @@ api.interceptors.response.use(
         console.log('❌ Erro 401 na página de login:', message)
         // Na página de login, não mostrar toast aqui - o componente Login já trata isso
       }
-    } else {
-      toast.error(message)
     }
+    // ✅ REMOVIDO: toast.error genérico para outros erros
+    // Deixar os componentes tratarem seus próprios erros
 
     return Promise.reject(error)
   }

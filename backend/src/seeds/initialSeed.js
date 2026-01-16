@@ -1,12 +1,20 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from backend directory
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import { connectPostgreSQL, connectMongoDB, syncDatabase } from '../config/database.js';
 import { 
   Organization, 
   User, 
   Department, 
-  Category, 
+  Direction,
+  CatalogCategory, 
   SLA,
   setupAssociations 
 } from '../modules/models/index.js';
@@ -42,22 +50,48 @@ const runSeed = async () => {
     });
     logger.info(`✅ Organização criada: ${organization.name}`);
 
-    // 2. Criar Departamentos
+    // 2. Criar Direções primeiro
+    const directions = await Direction.bulkCreate([
+      {
+        organizationId: organization.id,
+        name: 'Direção Geral',
+        description: 'Direção executiva e administrativa',
+        code: 'DG'
+      },
+      {
+        organizationId: organization.id,
+        name: 'Direção Técnica',
+        description: 'Direção de tecnologia e desenvolvimento',
+        code: 'DT'
+      },
+      {
+        organizationId: organization.id,
+        name: 'Direção Operacional',
+        description: 'Direção de operações e suporte',
+        code: 'DO'
+      }
+    ], { ignoreDuplicates: true });
+    logger.info(`✅ ${directions.length} direções criadas`);
+
+    // 3. Criar Departamentos
     const departments = await Department.bulkCreate([
       {
         organizationId: organization.id,
+        directionId: directions[1].id, // Direção Técnica
         name: 'Suporte Técnico',
         description: 'Atendimento e resolução de problemas técnicos',
         email: 'suporte@empresademo.com'
       },
       {
         organizationId: organization.id,
+        directionId: directions[1].id, // Direção Técnica
         name: 'Desenvolvimento',
         description: 'Implementações e customizações',
         email: 'dev@empresademo.com'
       },
       {
         organizationId: organization.id,
+        directionId: directions[2].id, // Direção Operacional
         name: 'Comercial',
         description: 'Vendas e relacionamento com cliente',
         email: 'comercial@empresademo.com'
@@ -65,8 +99,8 @@ const runSeed = async () => {
     ]);
     logger.info(`✅ ${departments.length} departamentos criados`);
 
-    // 3. Criar Categorias
-    const categories = await Category.bulkCreate([
+    // 4. Criar Categorias
+    const categories = await CatalogCategory.bulkCreate([
       {
         organizationId: organization.id,
         name: 'Bug / Erro',
@@ -98,7 +132,7 @@ const runSeed = async () => {
     ]);
     logger.info(`✅ ${categories.length} categorias criadas`);
 
-    // 4. Criar SLAs
+    // 5. Criar SLAs
     const slas = await SLA.bulkCreate([
       {
         organizationId: organization.id,
@@ -131,7 +165,7 @@ const runSeed = async () => {
     ]);
     logger.info(`✅ ${slas.length} SLAs criados`);
 
-    // 5. Criar Usuários Demo
+    // 6. Criar Usuários Demo
     const users = await User.bulkCreate([
       {
         organizationId: organization.id,
@@ -139,7 +173,7 @@ const runSeed = async () => {
         name: 'Admin Sistema',
         email: 'admin@empresademo.com',
         password: 'Admin@123',
-        role: 'org-admin',
+        role: 'tenant-admin',
         phone: '+351 910 000 001'
       },
       {
@@ -148,7 +182,7 @@ const runSeed = async () => {
         name: 'Agente Suporte',
         email: 'agente@empresademo.com',
         password: 'Agente@123',
-        role: 'agente',
+        role: 'agent',
         phone: '+351 910 000 002'
       },
       {
@@ -156,7 +190,7 @@ const runSeed = async () => {
         name: 'Cliente Demo',
         email: 'cliente@empresademo.com',
         password: 'Cliente@123',
-        role: 'cliente-org',
+        role: 'viewer',
         phone: '+351 910 000 003'
       }
     ], { individualHooks: true }); // Para trigger de hash de senha

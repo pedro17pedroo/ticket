@@ -7,6 +7,7 @@ import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import FileUpload from '../components/FileUpload'
 import RichTextEditor from '../components/RichTextEditor'
+import CategoryTreeSelect from '../components/CategoryTreeSelect'
 
 const NewTicket = () => {
   const navigate = useNavigate()
@@ -17,6 +18,7 @@ const NewTicket = () => {
   const [agents, setAgents] = useState([])
   const [attachments, setAttachments] = useState([])
   const [description, setDescription] = useState('')
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null)
   const { register, handleSubmit, formState: { errors }, setValue } = useForm()
 
   useEffect(() => {
@@ -28,7 +30,7 @@ const NewTicket = () => {
       const [prioritiesRes, typesRes, categoriesRes, usersRes] = await Promise.all([
         api.get('/priorities'),
         api.get('/types'),
-        api.get('/categories'),
+        api.get('/catalog/categories'),
         api.get('/users')
       ])
       setPriorities(prioritiesRes.data.priorities || [])
@@ -59,7 +61,8 @@ const NewTicket = () => {
       // Criar ticket com descrição HTML
       const ticketData = {
         ...data,
-        description
+        description,
+        categoryId: selectedCategoryId // Adicionar categoria selecionada
       }
       const response = await ticketService.create(ticketData)
       const ticketId = response.ticket.id
@@ -164,16 +167,14 @@ Você pode usar:
               <select
                 {...register('priority', { required: 'Prioridade é obrigatória' })}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+                defaultValue=""
               >
-                {priorities.length === 0 ? (
-                  <option value="">Carregando...</option>
-                ) : (
-                  priorities.map(priority => (
-                    <option key={priority.id} value={priority.name}>
-                      {priority.name}
-                    </option>
-                  ))
-                )}
+                <option value="">Selecione a prioridade</option>
+                {priorities.map(priority => (
+                  <option key={priority.id} value={priority.name}>
+                    {priority.name}
+                  </option>
+                ))}
               </select>
               {errors.priority && (
                 <p className="text-red-500 text-sm mt-1">{errors.priority.message}</p>
@@ -188,16 +189,14 @@ Você pode usar:
               <select
                 {...register('type', { required: 'Tipo é obrigatório' })}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+                defaultValue=""
               >
-                {types.length === 0 ? (
-                  <option value="">Carregando...</option>
-                ) : (
-                  types.map(type => (
-                    <option key={type.id} value={type.name}>
-                      {type.name}
-                    </option>
-                  ))
-                )}
+                <option value="">Selecione o tipo</option>
+                {types.map(type => (
+                  <option key={type.id} value={type.name}>
+                    {type.name}
+                  </option>
+                ))}
               </select>
               {errors.type && (
                 <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>
@@ -208,17 +207,12 @@ Você pode usar:
           {/* Category */}
           <div>
             <label className="block text-sm font-medium mb-2">Categoria</label>
-            <select
-              {...register('categoryId')}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-            >
-              <option value="">Selecione uma categoria (opcional)</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+            <CategoryTreeSelect
+              categories={categories}
+              value={selectedCategoryId}
+              onChange={setSelectedCategoryId}
+              placeholder="Selecione uma categoria (opcional)"
+            />
           </div>
 
           {/* Assignee */}

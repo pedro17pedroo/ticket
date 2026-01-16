@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as inventoryService from '../services/inventoryService';
+import api from '../services/api';
 
 const AssetForm = () => {
   const { id } = useParams();
@@ -11,11 +12,13 @@ const AssetForm = () => {
   
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [clients, setClients] = useState([]);
   
   const [formData, setFormData] = useState({
     name: '',
     type: 'desktop',
     status: 'active',
+    clientId: '',
     manufacturer: '',
     model: '',
     serialNumber: '',
@@ -52,16 +55,27 @@ const AssetForm = () => {
   });
 
   useEffect(() => {
+    loadClients();
     if (isEdit) {
       loadAsset();
     }
   }, [id]);
+
+  const loadClients = async () => {
+    try {
+      const response = await api.get('/clients');
+      setClients(response.data.clients || []);
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+    }
+  };
 
   const loadAsset = async () => {
     try {
       const data = await inventoryService.getAssetById(id);
       setFormData({
         ...data.asset,
+        clientId: data.asset.clientId || '',
         purchaseDate: data.asset.purchaseDate ? data.asset.purchaseDate.split('T')[0] : '',
         warrantyExpiry: data.asset.warrantyExpiry ? data.asset.warrantyExpiry.split('T')[0] : ''
       });
@@ -86,14 +100,19 @@ const AssetForm = () => {
     setSaving(true);
 
     try {
+      const payload = {
+        ...formData,
+        clientId: formData.clientId || null
+      };
+
       if (isEdit) {
-        await inventoryService.updateAsset(id, formData);
+        await inventoryService.updateAsset(id, payload);
         toast.success('Asset atualizado com sucesso');
       } else {
-        await inventoryService.createAsset(formData);
+        await inventoryService.createAsset(payload);
         toast.success('Asset criado com sucesso');
       }
-      navigate('/inventory');
+      navigate('/inventory/assets');
     } catch (error) {
       console.error('Erro ao salvar asset:', error);
       toast.error('Erro ao salvar asset');
@@ -146,6 +165,21 @@ const AssetForm = () => {
                 required
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Cliente</label>
+              <select
+                name="clientId"
+                value={formData.clientId}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+              >
+                <option value="">Nenhum (Organização)</option>
+                {clients.map(client => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
             </div>
 
             <div>

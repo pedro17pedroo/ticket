@@ -78,7 +78,7 @@ export const getPendingSubscriptions = async (req, res, next) => {
 
     const { count, rows: subscriptions } = await Subscription.findAndCountAll({
       where: {
-        status: { [Op.in]: ['pending_payment', 'pending_approval'] }
+        status: { [Op.in]: ['trial', 'past_due'] }
       },
       include: [
         {
@@ -392,10 +392,9 @@ export const getSubscriptionStats = async (req, res, next) => {
       byStatus: {
         active: await Subscription.count({ where: { status: 'active' } }),
         trial: await Subscription.count({ where: { status: 'trial' } }),
-        pending_payment: await Subscription.count({ where: { status: 'pending_payment' } }),
-        pending_approval: await Subscription.count({ where: { status: 'pending_approval' } }),
+        past_due: await Subscription.count({ where: { status: 'past_due' } }),
         cancelled: await Subscription.count({ where: { status: 'cancelled' } }),
-        expired: await Subscription.count({ where: { status: 'expired' } })
+        suspended: await Subscription.count({ where: { status: 'suspended' } })
       },
       trialsEndingSoon: await Subscription.count({
         where: {

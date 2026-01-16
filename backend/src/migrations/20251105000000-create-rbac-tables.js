@@ -30,6 +30,15 @@ export async function up(queryInterface, Sequelize) {
       },
       onDelete: 'CASCADE'
     },
+    client_id: {
+      type: Sequelize.UUID,
+      allowNull: true,
+      references: {
+        model: 'clients',
+        key: 'id'
+      },
+      onDelete: 'CASCADE'
+    },
     is_system: {
       type: Sequelize.BOOLEAN,
       defaultValue: false
@@ -190,6 +199,7 @@ export async function up(queryInterface, Sequelize) {
 
   // 5. Criar índices
   await queryInterface.addIndex('roles', ['organization_id']);
+  await queryInterface.addIndex('roles', ['client_id']);
   await queryInterface.addIndex('roles', ['level']);
   await queryInterface.addIndex('roles', ['name', 'organization_id'], { unique: true });
   

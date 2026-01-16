@@ -1,5 +1,5 @@
 import { CatalogItem, CatalogCategory } from '../modules/catalog/catalogModel.js';
-import Category from '../modules/categories/categoryModel.js';
+// Category removido - usar CatalogCategory como fonte única
 import User from '../modules/users/userModel.js';
 import Department from '../modules/departments/departmentModel.js';
 import Section from '../modules/sections/sectionModel.js';
@@ -24,17 +24,14 @@ class TicketRoutingService {
         return await this.routeFromCatalogItem(ticketData);
       }
 
-      // 2. Se veio com Category mas sem Catalog Item
-      if (ticketData.categoryId) {
-        return await this.routeFromCategory(ticketData);
-      }
-
-      // 3. Se tem Catalog Category (categoria do catálogo)
-      if (ticketData.catalogCategoryId) {
+      // 2. Se tem Catalog Category (categoria do catálogo) - suporta tanto categoryId quanto catalogCategoryId
+      const categoryId = ticketData.catalogCategoryId || ticketData.categoryId;
+      if (categoryId) {
+        ticketData.catalogCategoryId = categoryId; // Normalizar para catalogCategoryId
         return await this.routeFromCatalogCategory(ticketData);
       }
 
-      // 4. Se não tem nada, vai para Triage
+      // 3. Se não tem nada, vai para Triage
       return await this.routeToTriage(ticketData);
 
     } catch (error) {
@@ -73,7 +70,7 @@ class TicketRoutingService {
 
     // Aplicar categoria de ticket
     if (item.defaultTicketCategoryId) {
-      ticketData.categoryId = item.defaultTicketCategoryId;
+      ticketData.catalogCategoryId = item.defaultTicketCategoryId;
     }
 
     // Aplicar SLA
@@ -83,7 +80,7 @@ class TicketRoutingService {
       // Buscar SLA baseado em prioridade e categoria
       ticketData.slaId = await this.getSLAByPriorityAndCategory(
         ticketData.priority || item.defaultPriority,
-        ticketData.categoryId
+        ticketData.catalogCategoryId
       );
     }
 
@@ -109,33 +106,6 @@ class TicketRoutingService {
     await item.increment('requestCount');
 
     logger.info(`Ticket roteado via Catalog Item para: Direction ${ticketData.directionId}, Department ${ticketData.departmentId}`);
-
-    return ticketData;
-  }
-
-  // ===== ROTEAMENTO POR CATEGORIA =====
-  
-  async routeFromCategory(ticketData) {
-    const category = await Category.findByPk(ticketData.categoryId);
-
-    if (!category) {
-      logger.warn(`Category ${ticketData.categoryId} não encontrada`);
-      return await this.routeToTriage(ticketData);
-    }
-
-    logger.info(`Aplicando regras da Category: ${category.name}`);
-
-    // Aplicar regras da categoria (se tiver)
-    // Categorias podem ter departamento padrão
-    if (category.departmentId) {
-      ticketData.departmentId = category.departmentId;
-    }
-
-    // Buscar SLA baseado na categoria e prioridade
-    ticketData.slaId = await this.getSLAByPriorityAndCategory(
-      ticketData.priority || 'media',
-      category.id
-    );
 
     return ticketData;
   }
@@ -337,12 +307,12 @@ class TicketRoutingService {
 
   // ===== SLA =====
   
-  async getSLAByPriorityAndCategory(priority, categoryId) {
+  async getSLAByPriorityAndCategory(priority, catalogCategoryId) {
     try {
       const sla = await SLA.findOne({
         where: {
           priority,
-          categoryId: categoryId || null,
+          // SLA pode ter catalogCategoryId ou ser genérico (null)
           isActive: true
         },
         order: [['createdAt', 'DESC']]

@@ -25,7 +25,7 @@ const Categories = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await api.get('/categories')
+      const response = await api.get('/catalog/categories')
       setCategories(response.data.categories || [])
     } catch (error) {
       console.error('Erro ao carregar categorias:', error)
@@ -38,10 +38,10 @@ const Categories = () => {
     e.preventDefault()
     try {
       if (editingCategory) {
-        await api.put(`/categories/${editingCategory.id}`, formData)
+        await api.put(`/catalog/categories/${editingCategory.id}`, formData)
         showSuccess('Atualizado!', 'Categoria atualizada com sucesso')
       } else {
-        await api.post('/categories', formData)
+        await api.post('/catalog/categories', formData)
         showSuccess('Criado!', 'Categoria criada com sucesso')
       }
       setShowModal(false)
@@ -73,7 +73,7 @@ const Categories = () => {
     if (!confirmed) return
 
     try {
-      await api.delete(`/categories/${id}`)
+      await api.delete(`/catalog/categories/${id}`)
       showSuccess('Eliminado!', 'Categoria eliminada com sucesso')
       loadCategories()
     } catch (error) {

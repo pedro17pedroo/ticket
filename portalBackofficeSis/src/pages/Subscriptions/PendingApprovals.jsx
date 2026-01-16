@@ -86,8 +86,8 @@ const PendingApprovals = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{sub.organization?.name}</h3>
-                    <Badge variant={sub.status === 'pending_payment' ? 'warning' : 'info'}>
-                      {sub.status === 'pending_payment' ? 'Aguardando Pagamento' : 'Aguardando Aprovação'}
+                    <Badge variant={sub.status === 'past_due' ? 'warning' : 'info'}>
+                      {sub.status === 'past_due' ? 'Pagamento em Atraso' : 'Trial'}
                     </Badge>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -135,7 +135,7 @@ const PendingApprovals = () => {
       {/* Modal Aprovar */}
       {showApproveModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg">
             <h3 className="text-lg font-bold mb-4 dark:text-white">Aprovar Subscrição</h3>
             <p className="text-sm text-gray-500 mb-4">Organização: <strong>{selectedSub?.organization?.name}</strong></p>
             <div className="space-y-4">
@@ -163,7 +163,7 @@ const PendingApprovals = () => {
       {/* Modal Rejeitar */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg">
             <h3 className="text-lg font-bold mb-4 dark:text-white">Rejeitar Subscrição</h3>
             <p className="text-sm text-gray-500 mb-4">Organização: <strong>{selectedSub?.organization?.name}</strong></p>
             <div>

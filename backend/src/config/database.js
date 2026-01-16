@@ -8,7 +8,7 @@ dotenv.config();
 export const sequelize = new Sequelize(
   process.env.POSTGRES_DB,
   process.env.POSTGRES_USER,
-  process.env.POSTGRES_PASSWORD,
+  String(process.env.POSTGRES_PASSWORD), // Ensure password is a string
   {
     host: process.env.POSTGRES_HOST,
     port: process.env.POSTGRES_PORT,
@@ -28,14 +28,22 @@ export const sequelize = new Sequelize(
   }
 );
 
-// Configuração MongoDB (Logs e auditoria)
+// Configuração MongoDB (Logs e auditoria) - OPCIONAL
 export const connectMongoDB = async () => {
+  // Se não houver URI do MongoDB configurada, pular conexão
+  if (!process.env.MONGODB_URI) {
+    console.log('⚠️ MongoDB URI não configurada - auditoria desativada');
+    return false;
+  }
+  
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('✅ MongoDB conectado com sucesso');
+    return true;
   } catch (error) {
     console.error('❌ Erro ao conectar MongoDB:', error.message);
-    process.exit(1);
+    console.log('⚠️ Continuando sem MongoDB - auditoria desativada');
+    return false;
   }
 };
 

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as inventoryService from '../services/inventoryService';
+import PermissionGate from '../components/PermissionGate';
 
 const Inventory = () => {
   const [statistics, setStatistics] = useState(null);
@@ -132,20 +133,15 @@ const Inventory = () => {
           </p>
         </div>
         <div className="flex gap-3">
-          <Link
-            to="/inventory/licenses"
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            <Key className="w-5 h-5" />
-            Licenças
-          </Link>
-          <Link
-            to="/inventory/new"
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Asset
-          </Link>
+          <PermissionGate permission="inventory.create">
+            <Link
+              to="/inventory/new"
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Novo Asset
+            </Link>
+          </PermissionGate>
         </div>
       </div>
 

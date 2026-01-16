@@ -1,10 +1,15 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from backend directory
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import { sequelize } from '../config/database.js';
-import Permission from '../models/Permission.js';
-import Role from '../models/Role.js';
-import RolePermission from '../models/RolePermission.js';
+import { Permission, Role, RolePermission } from '../modules/models/index.js';
 import logger from '../config/logger.js';
 
 // Definir todas as permissões do sistema
@@ -45,6 +50,7 @@ const PERMISSIONS = [
 
   // ==================== CLIENTES B2B ====================
   { resource: 'clients', action: 'read', displayName: 'Ver Clientes B2B', description: 'Visualizar empresas clientes da organização', category: 'Clientes', scope: 'organization' },
+  { resource: 'clients', action: 'read_all', displayName: 'Ver Todos os Clientes B2B', description: 'Visualizar todas as empresas clientes', category: 'Clientes', scope: 'organization' },
   { resource: 'clients', action: 'create', displayName: 'Criar Clientes B2B', description: 'Registar novas empresas clientes', category: 'Clientes', scope: 'organization' },
   { resource: 'clients', action: 'update', displayName: 'Editar Clientes B2B', description: 'Atualizar dados das empresas clientes', category: 'Clientes', scope: 'organization' },
   { resource: 'clients', action: 'delete', displayName: 'Desativar Clientes B2B', description: 'Desativar ou remover empresas clientes', category: 'Clientes', scope: 'organization' },
@@ -100,6 +106,37 @@ const PERMISSIONS = [
   { resource: 'settings', action: 'update', displayName: 'Alterar Configurações', description: 'Alterar configurações do sistema', category: 'Configurações', scope: 'organization' },
   { resource: 'settings', action: 'manage_roles', displayName: 'Gerir Roles e Permissões', description: 'Criar e editar roles e permissões', category: 'Configurações', scope: 'organization' },
   { resource: 'settings', action: 'manage_sla', displayName: 'Gerir SLAs', description: 'Configurar SLAs e prioridades', category: 'Configurações', scope: 'organization' },
+  
+  // ==================== TAGS ====================
+  { resource: 'tags', action: 'read', displayName: 'Ver Tags', description: 'Visualizar tags do sistema', category: 'Tags', scope: 'organization' },
+  { resource: 'tags', action: 'create', displayName: 'Criar Tags', description: 'Criar novas tags', category: 'Tags', scope: 'organization' },
+  { resource: 'tags', action: 'update', displayName: 'Editar Tags', description: 'Editar tags existentes', category: 'Tags', scope: 'organization' },
+  { resource: 'tags', action: 'delete', displayName: 'Eliminar Tags', description: 'Eliminar tags', category: 'Tags', scope: 'organization' },
+  
+  // ==================== TEMPLATES ====================
+  { resource: 'templates', action: 'read', displayName: 'Ver Templates', description: 'Visualizar templates de resposta', category: 'Templates', scope: 'organization' },
+  { resource: 'templates', action: 'create', displayName: 'Criar Templates', description: 'Criar novos templates', category: 'Templates', scope: 'organization' },
+  { resource: 'templates', action: 'update', displayName: 'Editar Templates', description: 'Editar templates existentes', category: 'Templates', scope: 'organization' },
+  { resource: 'templates', action: 'delete', displayName: 'Eliminar Templates', description: 'Eliminar templates', category: 'Templates', scope: 'organization' },
+  
+  // ==================== DESKTOP AGENT ====================
+  { resource: 'desktop_agent', action: 'read', displayName: 'Ver Desktop Agent', description: 'Visualizar informações do Desktop Agent', category: 'Desktop Agent', scope: 'organization' },
+  { resource: 'desktop_agent', action: 'manage', displayName: 'Gerir Desktop Agent', description: 'Configurar e gerir Desktop Agent', category: 'Desktop Agent', scope: 'organization' },
+  
+  // ==================== PROJECTS ====================
+  { resource: 'projects', action: 'view', displayName: 'Ver Projetos', description: 'Visualizar projetos', category: 'Projetos', scope: 'organization' },
+  { resource: 'projects', action: 'create', displayName: 'Criar Projetos', description: 'Criar novos projetos', category: 'Projetos', scope: 'organization' },
+  { resource: 'projects', action: 'update', displayName: 'Editar Projetos', description: 'Editar projetos existentes', category: 'Projetos', scope: 'organization' },
+  { resource: 'projects', action: 'delete', displayName: 'Eliminar Projetos', description: 'Eliminar/arquivar projetos', category: 'Projetos', scope: 'organization' },
+  
+  // ==================== PROJECT TASKS ====================
+  { resource: 'project_tasks', action: 'view', displayName: 'Ver Tarefas de Projeto', description: 'Visualizar tarefas de projetos', category: 'Projetos', scope: 'organization' },
+  { resource: 'project_tasks', action: 'create', displayName: 'Criar Tarefas de Projeto', description: 'Criar tarefas em projetos', category: 'Projetos', scope: 'organization' },
+  { resource: 'project_tasks', action: 'update', displayName: 'Editar Tarefas de Projeto', description: 'Editar tarefas de projetos', category: 'Projetos', scope: 'organization' },
+  { resource: 'project_tasks', action: 'delete', displayName: 'Eliminar Tarefas de Projeto', description: 'Eliminar tarefas de projetos', category: 'Projetos', scope: 'organization' },
+  
+  // ==================== PROJECT STAKEHOLDERS ====================
+  { resource: 'project_stakeholders', action: 'manage', displayName: 'Gerir Stakeholders', description: 'Adicionar, editar e remover stakeholders de projetos', category: 'Projetos', scope: 'organization' },
 ];
 
 // Definir roles padrão do sistema
@@ -115,8 +152,24 @@ const SYSTEM_ROLES = [
     permissions: '*' // Todas as permissões
   },
   {
+    name: 'org-manager',
+    displayName: 'Gestor',
+    description: 'Supervisiona agentes e pode gerir tickets, utilizadores e relatórios.',
+    level: 'organization',
+    isSystem: true,
+    priority: 800,
+    permissions: [
+      'tickets.*', 'comments.*', 'users.read', 'users.create', 'users.update', 'users.reset_password',
+      'clients.*', 'directions.*', 'departments.*', 'sections.*',
+      'reports.*', 'knowledge.*', 'catalog.*', 'assets.*', 'hours_bank.*',
+      'tags.*', 'templates.*', 'desktop_agent.*',
+      'projects.*', 'project_tasks.*', 'project_stakeholders.*',
+      'settings.view'
+    ]
+  },
+  {
     name: 'gerente',
-    displayName: 'Gerente',
+    displayName: 'Gerente (Legado)',
     description: 'Supervisiona agentes e pode gerir tickets, utilizadores e relatórios.',
     level: 'organization',
     isSystem: true,
@@ -124,6 +177,8 @@ const SYSTEM_ROLES = [
     permissions: [
       'tickets.*', 'comments.*', 'users.read', 'users.update', 'users.reset_password',
       'reports.*', 'knowledge.*', 'catalog.manage', 'assets.*', 'hours_bank.*',
+      'tags.*', 'templates.*', 'desktop_agent.read',
+      'projects.*', 'project_tasks.*', 'project_stakeholders.*',
       'settings.view'
     ]
   },
@@ -137,12 +192,33 @@ const SYSTEM_ROLES = [
     permissions: [
       'tickets.*', 'comments.*', 'users.read', 'reports.view', 'reports.export',
       'knowledge.read', 'knowledge.create', 'knowledge.update',
-      'assets.read_all', 'assets.update'
+      'assets.read_all', 'assets.update',
+      'tags.read', 'templates.read', 'desktop_agent.read',
+      'projects.view', 'projects.create', 'projects.update',
+      'project_tasks.view', 'project_tasks.create', 'project_tasks.update',
+      'project_stakeholders.manage'
+    ]
+  },
+  {
+    name: 'agent',
+    displayName: 'Agente de Suporte',
+    description: 'Responde e gere tickets atribuídos.',
+    level: 'organization',
+    isSystem: true,
+    priority: 600,
+    permissions: [
+      'tickets.read_all', 'tickets.create', 'tickets.update_all', 'tickets.assign', 'tickets.close',
+      'comments.create', 'comments.create_internal', 'comments.read',
+      'users.read', 'clients.read', 'directions.read', 'departments.read', 'sections.read',
+      'knowledge.read', 'knowledge.create', 'knowledge.update',
+      'catalog.read', 'assets.read_all', 'hours_bank.view', 'hours_bank.consume',
+      'reports.view', 'tags.read', 'templates.read', 'desktop_agent.read',
+      'projects.view', 'project_tasks.view', 'project_tasks.update'
     ]
   },
   {
     name: 'agente',
-    displayName: 'Agente de Suporte',
+    displayName: 'Agente de Suporte (Legado)',
     description: 'Responde e gere tickets atribuídos.',
     level: 'organization',
     isSystem: true,
@@ -150,7 +226,26 @@ const SYSTEM_ROLES = [
     permissions: [
       'tickets.read_all', 'tickets.update_all', 'tickets.assign', 'tickets.close',
       'comments.create', 'comments.create_internal', 'comments.read',
-      'users.read', 'knowledge.read', 'assets.read_all', 'hours_bank.consume'
+      'users.read', 'knowledge.read', 'assets.read_all', 'hours_bank.consume',
+      'tags.read', 'templates.read', 'desktop_agent.read',
+      'projects.view', 'project_tasks.view', 'project_tasks.update'
+    ]
+  },
+  {
+    name: 'technician',
+    displayName: 'Técnico',
+    description: 'Técnico de suporte com foco em inventário e equipamentos.',
+    level: 'organization',
+    isSystem: true,
+    priority: 550,
+    permissions: [
+      'tickets.read_all', 'tickets.update_all',
+      'comments.create', 'comments.read',
+      'users.read', 'clients.read', 'directions.read', 'departments.read', 'sections.read',
+      'knowledge.read', 'knowledge.create',
+      'catalog.read', 'assets.*', 'hours_bank.view', 'hours_bank.consume',
+      'tags.read', 'templates.read', 'desktop_agent.read',
+      'projects.view', 'project_tasks.view', 'project_tasks.update'
     ]
   },
   

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ticketService } from '../services/api'
-import { Plus, Search, Filter, Eye, User, X, LayoutGrid, FileDown } from 'lucide-react'
+import { Plus, Search, Filter, Eye, User, X, LayoutGrid, FileDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import { useAuthStore } from '../store/authStore'
 import AdvancedSearch from '../components/AdvancedSearch'
 import toast from 'react-hot-toast'
 import { exportTicketsToCSV, exportTicketsToPDF } from '../utils/exportUtils'
+import PermissionGate from '../components/PermissionGate'
 
 const Tickets = () => {
   const navigate = useNavigate()
@@ -22,6 +23,12 @@ const Tickets = () => {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [activeFilters, setActiveFilters] = useState({})
   const [savedSearches, setSavedSearches] = useState([])
+  const [ticketOriginFilter, setTicketOriginFilter] = useState('all') // 'all', 'catalog', 'manual'
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [totalItems, setTotalItems] = useState(0)
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search)
@@ -34,7 +41,7 @@ const Tickets = () => {
 
   useEffect(() => {
     loadData()
-  }, [activeFilters, showMyTickets])
+  }, [activeFilters, showMyTickets, ticketOriginFilter, currentPage, itemsPerPage])
 
   useEffect(() => {
     const saved = localStorage.getItem('savedSearches');
@@ -81,10 +88,30 @@ const Tickets = () => {
       if (showMyTickets) {
         params.assigneeId = user.id
       }
+      
+      // Filtrar por origem do ticket
+      if (ticketOriginFilter === 'catalog') {
+        params.hasCatalogItem = 'true' // Apenas solicitações de serviço
+      } else if (ticketOriginFilter === 'manual') {
+        params.hasCatalogItem = 'false' // Apenas tickets manuais
+      }
+      // Se 'all', não adiciona filtro (mostra tudo)
+      
+      // Add pagination params
+      params.page = currentPage
+      params.limit = itemsPerPage
+      
+      console.log('🔍 Carregando tickets com params:', params)
       const data = await ticketService.getAll(params)
+      console.log('📊 Resposta da API:', data)
+      console.log('🎫 Total de tickets:', data.tickets?.length)
+      console.log('📈 Paginação:', data.pagination)
+      
       setTickets(data.tickets)
+      // Use pagination.total from backend response
+      setTotalItems(data.pagination?.total || data.tickets.length)
     } catch (error) {
-      console.error('Erro ao carregar tickets:', error)
+      console.error('❌ Erro ao carregar tickets:', error)
     } finally {
       setLoading(false)
     }
@@ -92,6 +119,12 @@ const Tickets = () => {
 
   const handleSearch = (filters) => {
     setActiveFilters(filters)
+    setCurrentPage(1) // Reset to first page on new search
+  }
+
+  const handleOriginFilterChange = (origin) => {
+    setTicketOriginFilter(origin)
+    setCurrentPage(1) // Reset to first page
   }
 
   const handleSaveSearch = (searchData) => {
@@ -110,7 +143,57 @@ const Tickets = () => {
 
   const handleLoadSavedSearch = (filters) => {
     setActiveFilters(filters)
+    setCurrentPage(1) // Reset to first page
     toast.success('Pesquisa carregada')
+  }
+
+  // Pagination functions
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+    }
+  }
+  
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value))
+    setCurrentPage(1) // Reset to first page
+  }
+  
+  const getPageNumbers = () => {
+    const pages = []
+    const maxVisible = 5
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i)
+        }
+        pages.push('...')
+        pages.push(totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1)
+        pages.push('...')
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i)
+        }
+      } else {
+        pages.push(1)
+        pages.push('...')
+        pages.push(currentPage - 1)
+        pages.push(currentPage)
+        pages.push(currentPage + 1)
+        pages.push('...')
+        pages.push(totalPages)
+      }
+    }
+    
+    return pages
   }
 
   const getStatusBadge = (status) => {
@@ -215,10 +298,47 @@ const Tickets = () => {
         <div>
           <h1 className="text-3xl font-bold">Tickets</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Gerir todos os tickets do sistema
+            Gerencie todos os tickets e solicitações
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Origin Filter Toggle */}
+          <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <button
+              onClick={() => handleOriginFilterChange('all')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                ticketOriginFilter === 'all'
+                  ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+              title="Mostrar todos os tickets"
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => handleOriginFilterChange('catalog')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                ticketOriginFilter === 'catalog'
+                  ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+              title="Apenas solicitações de serviço do catálogo"
+            >
+              Solicitações
+            </button>
+            <button
+              onClick={() => handleOriginFilterChange('manual')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                ticketOriginFilter === 'manual'
+                  ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+              title="Apenas tickets criados manualmente"
+            >
+              Manuais
+            </button>
+          </div>
+
           <button
             onClick={() => setShowMyTickets(!showMyTickets)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${showMyTickets
@@ -268,13 +388,15 @@ const Tickets = () => {
             <LayoutGrid className="w-5 h-5" />
             Kanban
           </button>
-          <button
-            onClick={() => navigate('/tickets/new')}
-            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Ticket
-          </button>
+          <PermissionGate permission="tickets.create">
+            <button
+              onClick={() => navigate('/tickets/new')}
+              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Novo Ticket
+            </button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -362,10 +484,17 @@ const Tickets = () => {
                     onClick={() => navigate(`/tickets/${ticket.id}`)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {ticket.ticketNumber}
+                      #{ticket.id?.slice(0, 8)}
                     </td>
-                    <td className="px-6 py-4 max-w-xs truncate">
-                      {ticket.subject}
+                    <td className="px-6 py-4 max-w-xs">
+                      <div className="flex items-center gap-2">
+                        {ticket.catalogItemId && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" title="Solicitação de Serviço">
+                            📋
+                          </span>
+                        )}
+                        <span className="truncate">{ticket.subject}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {ticket.requester?.name || <span className="text-gray-400">-</span>}
@@ -403,6 +532,105 @@ const Tickets = () => {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {!loading && tickets.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Items per page selector */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Mostrar
+              </span>
+              <select
+                value={itemsPerPage}
+                onChange={handleItemsPerPageChange}
+                className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                por página
+              </span>
+            </div>
+
+            {/* Page info */}
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems} registros
+            </div>
+
+            {/* Page navigation */}
+            <div className="flex items-center gap-2">
+              {/* First page */}
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Primeira página"
+              >
+                <ChevronsLeft className="w-5 h-5" />
+              </button>
+
+              {/* Previous page */}
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Página anterior"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {getPageNumbers().map((page, index) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${index}`} className="px-3 py-1.5 text-gray-400">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === page
+                          ? 'bg-primary-600 text-white'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                ))}
+              </div>
+
+              {/* Next page */}
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Próxima página"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+
+              {/* Last page */}
+              <button
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Última página"
+              >
+                <ChevronsRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

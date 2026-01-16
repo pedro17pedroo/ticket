@@ -2,11 +2,11 @@
  * Organization Seed Service
  * 
  * Populates default configurations for new organizations during SaaS onboarding.
- * Includes: Priorities, Types, Categories, SLAs, and Catalog Categories.
+ * Includes: Priorities, Types, SLAs, and Catalog Categories.
  * Based on ITIL best practices.
  */
 
-import { Priority, Type, Category, SLA } from '../modules/models/index.js';
+import { Priority, Type, SLA } from '../modules/models/index.js';
 import { CatalogCategory } from '../modules/catalog/catalogModel.js';
 import logger from '../config/logger.js';
 
@@ -353,19 +353,9 @@ export async function seedOrganizationDefaults(organizationId, options = {}) {
             }
         }
 
-        // 3. Seed Categories
-        if (!skipCategories) {
-            const existingCategories = await Category.count({ where: { organizationId } });
-            if (existingCategories === 0) {
-                for (const category of DEFAULT_CATEGORIES) {
-                    await Category.create({ ...category, organizationId });
-                    stats.categories++;
-                }
-                logger.info(`[OrganizationSeed] Created ${stats.categories} categories`);
-            } else {
-                stats.skipped.push('categories (já existem)');
-            }
-        }
+        // 3. Seed Categories - REMOVIDO (usar CatalogCategories)
+        // Categories agora são unificadas em catalog_categories
+        stats.skipped.push('categories (usar catalog_categories)');
 
         // 4. Seed SLAs
         if (!skipSLAs) {
@@ -441,10 +431,9 @@ async function seedCatalogCategoriesRecursive(organizationId, categories, parent
  * @returns {Object} Status of each entity type
  */
 export async function checkSeedStatus(organizationId) {
-    const [priorities, types, categories, slas, catalogCategories] = await Promise.all([
+    const [priorities, types, slas, catalogCategories] = await Promise.all([
         Priority.count({ where: { organizationId } }),
         Type.count({ where: { organizationId } }),
-        Category.count({ where: { organizationId } }),
         SLA.count({ where: { organizationId } }),
         CatalogCategory.count({ where: { organizationId } })
     ]);
@@ -452,10 +441,11 @@ export async function checkSeedStatus(organizationId) {
     return {
         priorities: { count: priorities, hasData: priorities > 0 },
         types: { count: types, hasData: types > 0 },
-        categories: { count: categories, hasData: categories > 0 },
+        // Categories agora são unificadas em catalog_categories
+        categories: { count: catalogCategories, hasData: catalogCategories > 0 },
         slas: { count: slas, hasData: slas > 0 },
         catalogCategories: { count: catalogCategories, hasData: catalogCategories > 0 },
-        isComplete: priorities > 0 && types > 0 && categories > 0 && slas > 0 && catalogCategories > 0
+        isComplete: priorities > 0 && types > 0 && slas > 0 && catalogCategories > 0
     };
 }
 
@@ -464,7 +454,6 @@ export default {
     checkSeedStatus,
     DEFAULT_PRIORITIES,
     DEFAULT_TYPES,
-    DEFAULT_CATEGORIES,
     DEFAULT_SLAS,
     DEFAULT_CATALOG_CATEGORIES
 };

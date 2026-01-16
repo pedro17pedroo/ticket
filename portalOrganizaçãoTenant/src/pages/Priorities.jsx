@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
 import Modal from '../components/Modal'
+import PermissionGate from '../components/PermissionGate'
 
 const Priorities = () => {
   const { t } = useTranslation()
@@ -120,16 +121,18 @@ const Priorities = () => {
             Criar e gerir prioridades personalizadas para os tickets
           </p>
         </div>
-        <button
-          onClick={() => {
-            resetForm()
-            setShowModal(true)
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={20} />
-          Nova Prioridade
-        </button>
+        <PermissionGate permission="settings.manage_sla">
+          <button
+            onClick={() => {
+              resetForm()
+              setShowModal(true)
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={20} />
+            Nova Prioridade
+          </button>
+        </PermissionGate>
       </div>
 
       {/* Lista de Prioridades */}
@@ -176,18 +179,22 @@ const Priorities = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(priority)}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(priority.id)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      <PermissionGate permission="settings.manage_sla">
+                        <button
+                          onClick={() => handleEdit(priority)}
+                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                      </PermissionGate>
+                      <PermissionGate permission="settings.manage_sla">
+                        <button
+                          onClick={() => handleDelete(priority.id)}
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </PermissionGate>
                     </td>
                   </tr>
                 ))
@@ -199,7 +206,7 @@ const Priorities = () => {
 
       {/* Modal */}
       <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm(); }}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
           
           {/* Header com gradiente */}
           <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
@@ -231,26 +238,26 @@ const Priorities = () => {
             <div className="bg-gray-50 dark:bg-gray-900 p-6">
               <form id="priorityForm" onSubmit={handleSubmit} className="space-y-5">
                 {/* Card: Informações Básicas */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-primary-500" />
                     Informações Básicas
                   </h3>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome da Prioridade *</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Nome da Prioridade *</label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       placeholder="Ex: Alta, Média, Baixa"
                       required
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-1">
                       <Hash className="w-4 h-4 text-gray-400" />
                       Ordem de Exibição
                     </label>
@@ -258,39 +265,39 @@ const Priorities = () => {
                       type="number"
                       value={formData.order}
                       onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       placeholder="1"
                       min="0"
                     />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Quanto menor o número, maior a prioridade na ordenação</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Quanto menor o número, maior a prioridade na ordenação</p>
                   </div>
                 </div>
 
                 {/* Card: Aparência */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Palette className="w-5 h-5 text-primary-500" />
                     Aparência Visual
                   </h3>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cor da Prioridade *</label>
-                    <div className="flex items-center gap-4">
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Cor da Prioridade *</label>
+                    <div className="flex items-center gap-6">
                       <input
                         type="color"
                         value={formData.color}
                         onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                        className="w-20 h-12 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer"
+                        className="w-24 h-14 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer"
                         required
                       />
                       <div className="flex-1">
                         <div 
-                          className="px-4 py-2 rounded-lg font-medium text-center text-white shadow-sm"
+                          className="px-6 py-3 rounded-lg font-medium text-center text-white shadow-sm text-base"
                           style={{ backgroundColor: formData.color }}
                         >
                           Prévia da Cor
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Clique no seletor para escolher uma cor</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Clique no seletor para escolher uma cor</p>
                       </div>
                     </div>
                   </div>

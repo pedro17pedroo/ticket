@@ -1,6 +1,6 @@
 import { Op, fn, col, literal } from 'sequelize';
 import { sequelize } from '../config/database.js';
-import { Ticket, User, Department, Category, Comment, SLA } from '../modules/models/index.js';
+import { Ticket, User, Department, CatalogCategory, Comment, SLA } from '../modules/models/index.js';
 import KPI from '../models/KPI.js';
 import logger from '../config/logger.js';
 

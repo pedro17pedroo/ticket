@@ -88,16 +88,7 @@ const Ticket = sequelize.define('Ticket', {
     },
     comment: 'Referência ao tipo configurável da organização'
   },
-  categoryId: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    references: {
-      model: 'categories',
-      key: 'id'
-    },
-    comment: 'LEGADO - Categoria funcional do ticket (manter por compatibilidade)'
-  },
-  // Campos do Catálogo de Serviços
+  // Categoria do Catálogo de Serviços (fonte única)
   catalogCategoryId: {
     type: DataTypes.UUID,
     allowNull: true,
@@ -272,6 +263,23 @@ const Ticket = sequelize.define('Ticket', {
       const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
       const random = Math.floor(1000 + Math.random() * 9000);
       ticket.ticketNumber = `TKT-${dateStr}-${random}`;
+      
+      // Auto-preencher clientId se for ticket de cliente e não estiver preenchido
+      if (ticket.requesterType === 'client' && ticket.requesterClientUserId && !ticket.clientId) {
+        try {
+          // Importar dinamicamente para evitar dependência circular
+          const { ClientUser } = await import('../models/index.js');
+          const clientUser = await ClientUser.findByPk(ticket.requesterClientUserId, {
+            attributes: ['clientId']
+          });
+          if (clientUser && clientUser.clientId) {
+            ticket.clientId = clientUser.clientId;
+            console.log(`✅ Auto-preenchido clientId: ${ticket.clientId} para ticket de cliente`);
+          }
+        } catch (error) {
+          console.error('⚠️ Erro ao auto-preencher clientId:', error.message);
+        }
+      }
     }
   }
 });

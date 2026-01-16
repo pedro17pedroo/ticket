@@ -119,11 +119,12 @@ const TicketTemplate = sequelize.define('TicketTemplate', {
       key: 'id'
     }
   },
-  categoryId: {
-    type: DataTypes.INTEGER,
+  catalogCategoryId: {
+    type: DataTypes.UUID,
     allowNull: true,
+    field: 'catalog_category_id',
     references: {
-      model: 'Categories',
+      model: 'catalog_categories',
       key: 'id'
     }
   },

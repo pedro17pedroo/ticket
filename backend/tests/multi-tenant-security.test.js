@@ -5,7 +5,7 @@
 
 import request from 'supertest';
 import app from '../src/server.js';
-import { User, Organization, Ticket, Category } from '../src/modules/models/index.js';
+import { User, Organization, Ticket, CatalogCategory } from '../src/modules/models/index.js';
 
 describe('Multi-Tenant Security Tests', () => {
   let orgA, orgB;
@@ -132,7 +132,7 @@ describe('Multi-Tenant Security Tests', () => {
     let categoryOrgA;
 
     beforeAll(async () => {
-      categoryOrgA = await Category.create({
+      categoryOrgA = await CatalogCategory.create({
         organizationId: orgA.id,
         name: 'Categoria Org A',
         description: 'Descrição'
@@ -155,7 +155,7 @@ describe('Multi-Tenant Security Tests', () => {
       expect(response.status).toBe(404);
       
       // Verificar que categoria ainda existe
-      const category = await Category.findByPk(categoryOrgA.id);
+      const category = await CatalogCategory.findByPk(categoryOrgA.id);
       expect(category).not.toBeNull();
     });
 
@@ -173,7 +173,7 @@ describe('Multi-Tenant Security Tests', () => {
       expect(response.body.category.organizationId).toBe(orgA.id);  // Deve ser Org A
       
       // Limpar
-      await Category.destroy({ where: { id: response.body.category.id } });
+      await CatalogCategory.destroy({ where: { id: response.body.category.id } });
     });
   });
 

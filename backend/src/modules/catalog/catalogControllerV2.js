@@ -8,11 +8,12 @@
  * - Service requests com regras de negócio
  */
 
-import { CatalogCategory, CatalogItem, ServiceRequest } from './catalogModel.js';
+import { CatalogCategory, CatalogItem } from './catalogModel.js';
 import catalogService from '../../services/catalogService.js';
+import catalogAccessService from '../../services/catalogAccessService.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
-import { User } from '../models/index.js';
+import { User, ClientUser, OrganizationUser } from '../models/index.js';
 import * as notificationService from '../notifications/notificationService.js';
 import { sequelize } from '../../config/database.js';
 import Ticket from '../tickets/ticketModel.js';
@@ -22,10 +23,51 @@ import Ticket from '../tickets/ticketModel.js';
 /**
  * Listar categorias com hierarquia
  * GET /api/catalog/categories?hierarchy=true
+ * 
+ * For client users, this endpoint filters categories based on their
+ * effective catalog access permissions (Requirements: 4.1)
  */
 export const getCatalogCategories = async (req, res, next) => {
   try {
     const { hierarchy, includeInactive } = req.query;
+
+    // Check if user is a client user
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+    
+    logger.info(`[getCatalogCategories] User: ${req.user.id}, Role: ${req.user.role}, isClientUser: ${isClientUser}`);
+
+    // For client users, use the catalog access service to filter categories
+    // Requirements: 4.1
+    if (isClientUser && req.user.id) {
+      try {
+        logger.info(`[getCatalogCategories] Calling getAccessibleCategories for user ${req.user.id}`);
+        const accessibleCategories = await catalogAccessService.getAccessibleCategories(req.user.id);
+        
+        logger.info(`[getCatalogCategories] Got ${accessibleCategories.length} root categories`);
+        
+        // Log the full JSON structure being returned
+        const logCategoryTree = (cats, level = 0) => {
+          cats.forEach(cat => {
+            const subcatNames = cat.subcategories?.map(s => s.name) || [];
+            logger.info(`[getCatalogCategories] ${'  '.repeat(level)}${cat.name} (${cat.subcategories?.length || 0} subcats: [${subcatNames.join(', ')}])`);
+            if (cat.subcategories?.length > 0) {
+              logCategoryTree(cat.subcategories, level + 1);
+            }
+          });
+        };
+        logCategoryTree(accessibleCategories);
+        
+        return res.json({
+          success: true,
+          categories: accessibleCategories,
+          viewType: 'hierarchy'
+        });
+      } catch (accessError) {
+        // If there's an error with access control, log it and fall back to standard filtering
+        logger.warn(`Catalog access filtering failed for user ${req.user.id}, falling back to standard filtering:`, accessError.message);
+        logger.error(`[getCatalogCategories] Error stack:`, accessError.stack);
+      }
+    }
 
     // Se hierarchy=true, retornar estrutura de árvore
     if (hierarchy === 'true') {
@@ -296,6 +338,9 @@ export const deleteCatalogCategory = async (req, res, next) => {
 /**
  * Buscar itens com filtros avançados
  * GET /api/catalog/items?itemType=incident&categoryId=xxx&search=vpn
+ * 
+ * For client users, this endpoint filters items based on their effective
+ * catalog access permissions (Requirements: 4.1, 4.2)
  */
 export const getCatalogItems = async (req, res, next) => {
   try {
@@ -308,6 +353,31 @@ export const getCatalogItems = async (req, res, next) => {
       includeInactive
     } = req.query;
 
+    // Check if user is a client user
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+
+    // For client users, use the catalog access service to filter items
+    // Requirements: 4.1, 4.2
+    if (isClientUser && req.user.id) {
+      try {
+        const filteredItems = await catalogAccessService.filterCatalog(req.user.id, {
+          categoryId,
+          itemType,
+          search
+        });
+
+        return res.json({
+          success: true,
+          items: filteredItems,
+          count: filteredItems.length
+        });
+      } catch (accessError) {
+        // If there's an error with access control, log it and fall back to standard filtering
+        logger.warn(`Catalog access filtering failed for user ${req.user.id}, falling back to standard filtering:`, accessError.message);
+      }
+    }
+
+    // Standard filtering for organization users or fallback
     const filters = {
       categoryId,
       itemType,
@@ -335,6 +405,9 @@ export const getCatalogItems = async (req, res, next) => {
 /**
  * Obter item específico com detalhes completos
  * GET /api/catalog/items/:id
+ * 
+ * For client users, this endpoint verifies access permissions before
+ * returning the item (Requirements: 4.3)
  */
 export const getCatalogItemById = async (req, res, next) => {
   try {
@@ -358,10 +431,34 @@ export const getCatalogItemById = async (req, res, next) => {
       return res.status(404).json({ error: 'Item não encontrado' });
     }
 
-    // Cliente só pode ver itens públicos
+    // Check if user is a client user
     const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
-    if (isClientUser && !item.isPublic) {
-      return res.status(403).json({ error: 'Item não disponível' });
+    
+    if (isClientUser) {
+      // Client users can only see public items
+      if (!item.isPublic) {
+        return res.status(403).json({ 
+          success: false,
+          error: 'CATALOG_ACCESS_DENIED',
+          message: 'Não tem permissão para aceder a este item do catálogo'
+        });
+      }
+
+      // Check catalog access permissions (Requirements: 4.3)
+      try {
+        const hasAccess = await catalogAccessService.hasAccessToItem(req.user.id, id);
+        if (!hasAccess) {
+          return res.status(403).json({ 
+            success: false,
+            error: 'CATALOG_ACCESS_DENIED',
+            message: 'Não tem permissão para aceder a este item do catálogo'
+          });
+        }
+      } catch (accessError) {
+        // Log the error but don't block access if the access control system fails
+        logger.warn(`Catalog access check failed for user ${req.user.id}, item ${id}:`, accessError.message);
+        // Fall back to basic public check which already passed
+      }
     }
 
     // Obter category path
@@ -673,14 +770,19 @@ export const createServiceRequest = async (req, res, next) => {
 };
 
 /**
- * Listar service requests
+ * Listar service requests (agora busca de tickets com catalogItemId)
  * GET /api/catalog/requests
  */
 export const getServiceRequests = async (req, res, next) => {
   try {
     const { status, catalogItemId, requestType } = req.query;
 
-    const where = { organizationId: req.user.organizationId };
+    // Buscar tickets que são solicitações de serviço (têm catalogItemId)
+    const where = { 
+      organizationId: req.user.organizationId,
+      catalogItemId: { [Op.ne]: null } // Apenas tickets de solicitações
+    };
+
     const include = [
       {
         model: CatalogItem,
@@ -688,23 +790,27 @@ export const getServiceRequests = async (req, res, next) => {
         attributes: ['id', 'name', 'icon', 'itemType', 'estimatedCost', 'estimatedDeliveryTime']
       },
       {
-        model: Ticket,
-        as: 'ticket',
-        attributes: ['id', 'ticketNumber', 'status', 'priority', 'createdAt', 'updatedAt'],
+        model: ClientUser,
+        as: 'requesterClientUser',
+        attributes: ['id', 'name', 'email', 'avatar'],
+        required: false
+      },
+      {
+        model: OrganizationUser,
+        as: 'requesterOrgUser',
+        attributes: ['id', 'name', 'email', 'avatar'],
         required: false
       }
     ];
 
-    // Log para debug
     logger.info(`[getServiceRequests] User: ${req.user.id}, Role: ${req.user.role}, ClientId: ${req.user.clientId}`);
 
     // Clientes só veem solicitações da sua própria empresa cliente
     const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
     if (isClientUser) {
-      // Se não tiver clientId no token (token antigo), buscar do banco
       let clientId = req.user.clientId;
       if (!clientId) {
-        const userWithClient = await User.findByPk(req.user.id, { attributes: ['clientId'] });
+        const userWithClient = await ClientUser.findByPk(req.user.id, { attributes: ['clientId'] });
         clientId = userWithClient?.clientId;
         logger.warn(`[getServiceRequests] ClientId não estava no token, buscado do banco: ${clientId}`);
       }
@@ -717,16 +823,35 @@ export const getServiceRequests = async (req, res, next) => {
         });
       }
 
-      // Para usuários clientes, filtrar apenas as suas próprias solicitações
-      // ou solicitações da sua empresa se for admin (futuro)
-      // Por enquanto, assumindo "Minhas Solicitações" = apenas do usuário logado
-      where.clientUserId = req.user.id;
-
-      logger.info(`[getServiceRequests] Filtrando por clientUserId: ${req.user.id}`);
+      // CLIENT-ADMIN vê todas as solicitações da empresa cliente
+      if (req.user.role === 'client-admin') {
+        const clientUsers = await ClientUser.findAll({
+          where: { clientId: clientId, isActive: true },
+          attributes: ['id']
+        });
+        
+        const clientUserIds = clientUsers.map(u => u.id);
+        where.requesterClientUserId = { [Op.in]: clientUserIds };
+        
+        logger.info(`[getServiceRequests] Client-admin vendo solicitações de ${clientUserIds.length} usuários do cliente ${clientId}`);
+      } else {
+        where.requesterClientUserId = req.user.id;
+        logger.info(`[getServiceRequests] Client-user vendo apenas suas próprias solicitações`);
+      }
     }
 
+    // Filtros
     if (status) {
-      where.status = status;
+      // Mapear status antigo para novo
+      if (status === 'pending_approval') {
+        where.requestStatus = 'pending';
+      } else if (status === 'approved') {
+        where.requestStatus = 'approved';
+      } else if (status === 'rejected') {
+        where.requestStatus = 'rejected';
+      } else {
+        where.status = status; // Status do ticket
+      }
     }
 
     if (catalogItemId) {
@@ -734,61 +859,56 @@ export const getServiceRequests = async (req, res, next) => {
     }
 
     if (requestType) {
-      where.requestType = requestType;
+      // requestType agora está em metadata ou pode ser inferido do catalogItem
+      // Por enquanto, ignorar este filtro ou buscar no metadata
     }
 
-    const requests = await ServiceRequest.findAll({
+    // Buscar tickets (que são as solicitações)
+    const tickets = await Ticket.findAll({
       where,
       include,
-      order: [['created_at', 'DESC']]
+      order: [['createdAt', 'DESC']]
     });
 
-    logger.info(`[getServiceRequests] Total de solicitações encontradas: ${requests.length}`);
+    logger.info(`[getServiceRequests] Total de solicitações encontradas: ${tickets.length}`);
 
-    // Contar solicitações por status e quantas têm ticket
-    const statusCount = {};
-    let withTicket = 0;
-    let withoutTicket = 0;
-
-    requests.forEach(req => {
-      statusCount[req.status] = (statusCount[req.status] || 0) + 1;
-      if (req.ticketId) {
-        withTicket++;
-      } else {
-        withoutTicket++;
-      }
-    });
-
-    logger.info(`[getServiceRequests] Status das solicitações:`, statusCount);
-    logger.info(`[getServiceRequests] Com ticket: ${withTicket}, Sem ticket: ${withoutTicket}`);
-
-    if (requests.length > 0) {
-      logger.info(`[getServiceRequests] Primeira solicitação:`, {
-        id: requests[0].id,
-        userId: requests[0].userId,
-        status: requests[0].status,
-        ticketId: requests[0].ticketId,
-        createdAt: requests[0].createdAt,
-        created_at: requests[0].created_at,
-        userClientId: requests[0].user?.clientId
-      });
-    }
-
-    // Serializar corretamente os dados
-    const serializedRequests = requests.map(req => {
-      const plain = req.get({ plain: true });
+    // Transformar tickets em formato de solicitações para compatibilidade
+    const requests = tickets.map(ticket => {
+      const requester = ticket.requesterClientUser || ticket.requesterOrgUser;
+      
       return {
-        ...plain,
-        createdAt: plain.createdAt || plain.created_at,
-        updatedAt: plain.updatedAt || plain.updated_at
+        id: ticket.id,
+        organizationId: ticket.organizationId,
+        catalogItemId: ticket.catalogItemId,
+        catalogItem: ticket.catalogItem,
+        userId: ticket.requesterClientUserId || ticket.requesterOrgUserId,
+        clientUserId: ticket.requesterClientUserId,
+        requester: requester,
+        ticketId: ticket.id, // O próprio ticket
+        ticket: {
+          id: ticket.id,
+          ticketNumber: ticket.ticketNumber,
+          status: ticket.status,
+          priority: ticket.priority,
+          createdAt: ticket.createdAt,
+          updatedAt: ticket.updatedAt
+        },
+        formData: ticket.requestFormData || {},
+        requestType: ticket.catalogItem?.itemType,
+        status: ticket.requestStatus || 'approved',
+        createdAt: ticket.createdAt,
+        updatedAt: ticket.updatedAt
       };
     });
 
+    logger.info(`[getServiceRequests] Solicitações transformadas: ${requests.length}`);
+
     res.json({
       success: true,
-      data: serializedRequests
+      data: requests
     });
   } catch (error) {
+    logger.error('[getServiceRequests] Erro:', error);
     next(error);
   }
 };
@@ -1002,9 +1122,31 @@ export const approveServiceRequest = async (req, res, next) => {
 /**
  * Portal do cliente - Hierarquia de categorias
  * GET /api/catalog/portal/categories
+ * 
+ * For client users, this endpoint filters categories based on their
+ * effective catalog access permissions (Requirements: 4.1)
  */
 export const getPortalCategories = async (req, res, next) => {
   try {
+    // Check if user is a client user
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+
+    // For client users, use the catalog access service to filter categories
+    if (isClientUser && req.user.id) {
+      try {
+        const accessibleCategories = await catalogAccessService.getAccessibleCategories(req.user.id);
+        
+        return res.json({
+          success: true,
+          categories: accessibleCategories
+        });
+      } catch (accessError) {
+        // If there's an error with access control, log it and fall back to standard filtering
+        logger.warn(`Catalog access filtering failed for user ${req.user.id}, falling back to standard filtering:`, accessError.message);
+      }
+    }
+
+    // Standard filtering for organization users or fallback
     const tree = await catalogService.getCategoryHierarchy(
       req.user.organizationId,
       { includeInactive: false }
@@ -1022,11 +1164,35 @@ export const getPortalCategories = async (req, res, next) => {
 /**
  * Portal do cliente - Itens de uma categoria
  * GET /api/catalog/portal/categories/:categoryId/items
+ * 
+ * For client users, this endpoint filters items based on their
+ * effective catalog access permissions (Requirements: 4.1, 4.2)
  */
 export const getPortalCategoryItems = async (req, res, next) => {
   try {
     const { categoryId } = req.params;
 
+    // Check if user is a client user
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+
+    // For client users, use the catalog access service to filter items
+    if (isClientUser && req.user.id) {
+      try {
+        const filteredItems = await catalogAccessService.filterCatalog(req.user.id, {
+          categoryId
+        });
+
+        return res.json({
+          success: true,
+          items: filteredItems
+        });
+      } catch (accessError) {
+        // If there's an error with access control, log it and fall back to standard filtering
+        logger.warn(`Catalog access filtering failed for user ${req.user.id}, falling back to standard filtering:`, accessError.message);
+      }
+    }
+
+    // Standard filtering for organization users or fallback
     const items = await catalogService.searchCatalogItems(
       req.user.organizationId,
       {
@@ -1048,11 +1214,41 @@ export const getPortalCategoryItems = async (req, res, next) => {
 /**
  * Portal do cliente - Itens mais populares
  * GET /api/catalog/portal/popular?limit=10&itemType=incident
+ * 
+ * For client users, this endpoint filters items based on their
+ * effective catalog access permissions (Requirements: 4.1, 4.2)
  */
 export const getPortalPopularItems = async (req, res, next) => {
   try {
     const { limit = 10, itemType } = req.query;
 
+    // Check if user is a client user
+    const isClientUser = ['client-admin', 'client-user', 'client-manager'].includes(req.user.role);
+
+    // For client users, filter popular items by access permissions
+    if (isClientUser && req.user.id) {
+      try {
+        // Get all accessible items first
+        const filteredItems = await catalogAccessService.filterCatalog(req.user.id, {
+          itemType: itemType || null
+        });
+
+        // Sort by requestCount (popularity) and limit
+        const popularItems = filteredItems
+          .sort((a, b) => (b.requestCount || 0) - (a.requestCount || 0))
+          .slice(0, parseInt(limit));
+
+        return res.json({
+          success: true,
+          items: popularItems
+        });
+      } catch (accessError) {
+        // If there's an error with access control, log it and fall back to standard filtering
+        logger.warn(`Catalog access filtering failed for user ${req.user.id}, falling back to standard filtering:`, accessError.message);
+      }
+    }
+
+    // Standard filtering for organization users or fallback
     const items = await catalogService.getMostPopularItems(
       req.user.organizationId,
       parseInt(limit),

@@ -1,5 +1,12 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from backend directory
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import { connectPostgreSQL, connectMongoDB, syncDatabase } from '../config/database.js';
 import {
@@ -8,7 +15,8 @@ import {
   Client,
   ClientUser,
   Department,
-  Category,
+  Direction,
+  CatalogCategory,
   SLA,
   Priority,
   Type,
@@ -90,24 +98,59 @@ const runMultiTenantSeed = async () => {
     logger.info(`✅ Tenant criado: ${tenant.name}\n`);
 
     // ==========================================
-    // 4. CRIAR DEPARTAMENTOS DO TENANT
+    // 4. CRIAR DIREÇÕES DO TENANT
+    // ==========================================
+    logger.info('📁 Criando Direções do Tenant...');
+    const directions = await Direction.bulkCreate([
+      {
+        organizationId: tenant.id,
+        name: 'Direção Geral',
+        description: 'Direção executiva e administrativa',
+        code: 'DG'
+      },
+      {
+        organizationId: tenant.id,
+        name: 'Direção Técnica',
+        description: 'Direção de tecnologia e desenvolvimento',
+        code: 'DT'
+      },
+      {
+        organizationId: tenant.id,
+        name: 'Direção Comercial',
+        description: 'Direção de vendas e marketing',
+        code: 'DC'
+      },
+      {
+        organizationId: tenant.id,
+        name: 'Direção Operacional',
+        description: 'Direção de operações e suporte',
+        code: 'DO'
+      }
+    ], { ignoreDuplicates: true });
+    logger.info(`✅ ${directions.length} direções criadas\n`);
+
+    // ==========================================
+    // 5. CRIAR DEPARTAMENTOS DO TENANT
     // ==========================================
     logger.info('🏷️  Criando Departamentos do Tenant...');
     const departments = await Department.bulkCreate([
       {
         organizationId: tenant.id,
+        directionId: directions[1].id, // Direção Técnica
         name: 'Suporte Técnico',
         description: 'Atendimento e resolução de problemas técnicos',
         email: 'suporte@empresademo.com'
       },
       {
         organizationId: tenant.id,
+        directionId: directions[1].id, // Direção Técnica
         name: 'Desenvolvimento',
         description: 'Implementações e customizações',
         email: 'dev@empresademo.com'
       },
       {
         organizationId: tenant.id,
+        directionId: directions[2].id, // Direção Comercial
         name: 'Comercial',
         description: 'Vendas e relacionamento com cliente',
         email: 'comercial@empresademo.com'
@@ -116,10 +159,10 @@ const runMultiTenantSeed = async () => {
     logger.info(`✅ ${departments.length} departamentos criados\n`);
 
     // ==========================================
-    // 5. CRIAR CATEGORIAS, SLAs, PRIORIDADES, TIPOS
+    // 6. CRIAR CATEGORIAS, SLAs, PRIORIDADES, TIPOS
     // ==========================================
     logger.info('🔖 Criando Categorias, SLAs, Prioridades...');
-    const categories = await Category.bulkCreate([
+    const categories = await CatalogCategory.bulkCreate([
       {
         organizationId: tenant.id,
         name: 'Bug / Erro',
@@ -224,7 +267,7 @@ const runMultiTenantSeed = async () => {
     logger.info(`✅ Categorias, SLAs, Prioridades e Tipos criados\n`);
 
     // ==========================================
-    // 6. CRIAR USUÁRIOS DO TENANT (Staff Interno)
+    // 7. CRIAR USUÁRIOS DO TENANT (Staff Interno)
     // ==========================================
     logger.info('👥 Criando usuários do Tenant (Staff)...');
     const tenantUsers = await User.bulkCreate([
@@ -232,8 +275,8 @@ const runMultiTenantSeed = async () => {
         organizationId: tenant.id,
         departmentId: departments[0].id,
         name: 'Admin Tenant',
-        email: 'admin@empresademo.com',
-        password: 'Admin@123',
+        email: 'tenant-admin@empresademo.com',
+        password: 'TenantAdmin@123',
         role: 'tenant-admin',
         phone: '+351 910 100 001',
         permissions: {
@@ -249,8 +292,8 @@ const runMultiTenantSeed = async () => {
         organizationId: tenant.id,
         departmentId: departments[0].id,
         name: 'Agente Suporte',
-        email: 'agente@empresademo.com',
-        password: 'Agente@123',
+        email: 'tenant-agente@empresademo.com',
+        password: 'TenantAgente@123',
         role: 'agent',
         phone: '+351 910 100 002'
       },
@@ -258,8 +301,8 @@ const runMultiTenantSeed = async () => {
         organizationId: tenant.id,
         departmentId: departments[0].id,
         name: 'Manager Suporte',
-        email: 'manager@empresademo.com',
-        password: 'Manager@123',
+        email: 'tenant-manager@empresademo.com',
+        password: 'TenantManager@123',
         role: 'tenant-manager',
         phone: '+351 910 100 003'
       }
@@ -267,7 +310,7 @@ const runMultiTenantSeed = async () => {
     logger.info(`✅ ${tenantUsers.length} usuários Tenant criados\n`);
 
     // ==========================================
-    // 7. CRIAR EMPRESAS CLIENTES B2B
+    // 8. CRIAR EMPRESAS CLIENTES B2B
     // ==========================================
     logger.info('🏪 Criando Empresas Clientes B2B...');
     const clients = await Client.bulkCreate([
@@ -357,7 +400,7 @@ const runMultiTenantSeed = async () => {
     logger.info(`✅ ${clients.length} empresas clientes criadas\n`);
 
     // ==========================================
-    // 8. CRIAR USUÁRIOS DAS EMPRESAS CLIENTES
+    // 9. CRIAR USUÁRIOS DAS EMPRESAS CLIENTES
     // ==========================================
     logger.info('👤 Criando Usuários das Empresas Clientes...');
     const clientUsers = await ClientUser.bulkCreate([
@@ -446,9 +489,9 @@ const runMultiTenantSeed = async () => {
     logger.info('Provider Admin: provideradmin@tatuticket.com / Provider@123\n');
 
     logger.info('━━━ TENANT (Empresa Demo - Staff) ━━━');
-    logger.info('Tenant Admin: admin@empresademo.com / Admin@123');
-    logger.info('Agente: agente@empresademo.com / Agente@123');
-    logger.info('Manager: manager@empresademo.com / Manager@123\n');
+    logger.info('Tenant Admin: tenant-admin@empresademo.com / TenantAdmin@123');
+    logger.info('Agente: tenant-agente@empresademo.com / TenantAgente@123');
+    logger.info('Manager: tenant-manager@empresademo.com / TenantManager@123\n');
 
     logger.info('━━━ CLIENTES B2B ━━━');
     logger.info('Cliente Demo SA:');

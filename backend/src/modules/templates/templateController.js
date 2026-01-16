@@ -1,11 +1,13 @@
-import { ResponseTemplate as Template, User, Category, OrganizationUser } from '../models/index.js';
+import { ResponseTemplate as Template, User, OrganizationUser, CatalogCategory } from '../models/index.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
 
 // Listar templates
 export const getTemplates = async (req, res, next) => {
   try {
-    const { categoryId } = req.query;
+    const { categoryId, catalogCategoryId } = req.query;
+    // Suportar tanto categoryId (legado) quanto catalogCategoryId (novo)
+    const finalCategoryId = catalogCategoryId || categoryId;
 
     const where = {
       organizationId: req.user.organizationId
@@ -14,12 +16,11 @@ export const getTemplates = async (req, res, next) => {
     // Filtrar apenas templates ativos
     where.isActive = true;
 
-    if (categoryId) {
-      where.categoryId = categoryId;
+    if (finalCategoryId) {
+      where.catalogCategoryId = finalCategoryId;
     }
 
     const templates = await Template.findAll({
-      where,
       where,
       include: [
         {
@@ -33,8 +34,8 @@ export const getTemplates = async (req, res, next) => {
           attributes: ['id', 'name']
         },
         {
-          model: Category,
-          as: 'category',
+          model: CatalogCategory,
+          as: 'catalogCategory',
           attributes: ['id', 'name', 'color']
         }
       ],
@@ -53,7 +54,9 @@ export const getTemplates = async (req, res, next) => {
 // Criar template
 export const createTemplate = async (req, res, next) => {
   try {
-    const { name, description, type, subject, content, categoryId, priorityId, typeId } = req.body;
+    const { name, description, type, subject, content, categoryId, catalogCategoryId, priorityId, typeId } = req.body;
+    // Suportar tanto categoryId (legado) quanto catalogCategoryId (novo)
+    const finalCategoryId = catalogCategoryId || categoryId;
 
     if (!name || !content) {
       return res.status(400).json({ error: 'Nome e conteúdo são obrigatórios' });
@@ -66,7 +69,7 @@ export const createTemplate = async (req, res, next) => {
       type: type || 'ticket',
       subject,
       content,
-      categoryId: categoryId || null,
+      catalogCategoryId: finalCategoryId || null,
       priorityId: priorityId || null,
       typeId: typeId || null,
       createdBy: req.user.id
@@ -105,8 +108,8 @@ export const getTemplateById = async (req, res, next) => {
           attributes: ['id', 'name']
         },
         {
-          model: Category,
-          as: 'category',
+          model: CatalogCategory,
+          as: 'catalogCategory',
           attributes: ['id', 'name', 'color']
         }
       ]
@@ -129,7 +132,9 @@ export const getTemplateById = async (req, res, next) => {
 export const updateTemplate = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, type, subject, content, categoryId, priorityId, typeId, isActive } = req.body;
+    const { name, description, type, subject, content, categoryId, catalogCategoryId, priorityId, typeId, isActive } = req.body;
+    // Suportar tanto categoryId (legado) quanto catalogCategoryId (novo)
+    const finalCategoryId = catalogCategoryId !== undefined ? catalogCategoryId : categoryId;
 
     const template = await Template.findOne({
       where: {
@@ -153,7 +158,7 @@ export const updateTemplate = async (req, res, next) => {
       type,
       subject,
       content,
-      categoryId,
+      catalogCategoryId: finalCategoryId,
       priorityId,
       typeId,
       isActive

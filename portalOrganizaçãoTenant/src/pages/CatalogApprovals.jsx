@@ -335,7 +335,7 @@ const CatalogApprovals = () => {
 
       {/* Approval Modal */}
       <Modal isOpen={showApprovalModal} onClose={() => { setShowApprovalModal(false); setSelectedRequest(null); setApprovalAction(null); setApprovalComment(''); }}>
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-xl w-full overflow-hidden">
             {selectedRequest && (
               <>
                 {/* Header Azul */}

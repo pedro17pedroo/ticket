@@ -108,6 +108,8 @@ const TicketsKanban = () => {
   };
 
   const onDragEnd = async (result) => {
+    console.log('🎯 onDragEnd chamado:', result.draggableId, '->', result.destination?.droppableId);
+    
     const { source, destination, draggableId } = result;
 
     if (!destination) return;
@@ -122,6 +124,21 @@ const TicketsKanban = () => {
     // Encontrar o ticket movido
     const movedTicket = sourceColumn[source.index];
     if (!movedTicket) return;
+
+    // ✅ VALIDAÇÃO: Verificar se pode mover para "aguardando_aprovacao"
+    if (destination.droppableId === 'aguardando_aprovacao') {
+      // Apenas tickets de solicitação de serviço (com catalogItemId) podem ir para aguardando aprovação
+      if (!movedTicket.catalogItemId) {
+        toast.error('Apenas solicitações de serviço podem ter status "Aguardando Aprovação"');
+        return;
+      }
+      
+      // Verificar se a solicitação requer aprovação
+      if (movedTicket.requestStatus && movedTicket.requestStatus !== 'pending') {
+        toast.error('Esta solicitação não requer aprovação');
+        return;
+      }
+    }
 
     // Remover da coluna de origem
     sourceColumn.splice(source.index, 1);
@@ -152,7 +169,26 @@ const TicketsKanban = () => {
       toast.success(`Ticket movido para ${statusConfig[destination.droppableId].label}`);
     } catch (error) {
       console.error('Erro ao atualizar ticket:', error);
-      toast.error('Erro ao atualizar status do ticket');
+      console.log('📋 Error details:', {
+        error: error.response?.data?.error,
+        message: error.response?.data?.message,
+        reason: error.response?.data?.reason
+      });
+      
+      // Mostrar mensagem de erro específica
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Erro ao atualizar status do ticket';
+      const errorReason = error.response?.data?.reason;
+      
+      if (errorReason === 'ticket_closed') {
+        toast.error('Não é possível mover tickets concluídos (resolvido/fechado)');
+      } else if (errorReason === 'ticket_not_assigned') {
+        toast.error('Ticket deve ser atribuído antes de mudar o status');
+      } else if (errorMessage.includes('aprovação') || errorMessage.includes('approval')) {
+        toast.error(errorMessage);
+      } else {
+        toast.error(errorMessage);
+      }
+      
       // Reverter mudança em caso de erro
       loadTickets();
     }

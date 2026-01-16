@@ -12,10 +12,14 @@ const KnowledgeArticle = sequelize.define('KnowledgeArticle', {
     allowNull: false,
     field: 'organization_id'
   },
-  categoryId: {
+  catalogCategoryId: {
     type: DataTypes.UUID,
     allowNull: true,
-    field: 'category_id'
+    field: 'catalog_category_id',
+    references: {
+      model: 'catalog_categories',
+      key: 'id'
+    }
   },
   title: {
     type: DataTypes.STRING,
@@ -83,7 +87,7 @@ const KnowledgeArticle = sequelize.define('KnowledgeArticle', {
   indexes: [
     { fields: ['slug'], unique: true },
     { fields: ['organization_id'] },
-    { fields: ['category_id'] },
+    { fields: ['catalog_category_id'] },
     { fields: ['is_published'] }
   ]
 });

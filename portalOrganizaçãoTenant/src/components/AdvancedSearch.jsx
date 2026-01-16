@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, X, Save, BookmarkPlus } from 'lucide-react';
 import api from '../services/api';
+import CategoryTreeSelect from './CategoryTreeSelect';
 
 const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -29,7 +30,7 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
   const loadFiltersData = async () => {
     try {
       const [categoriesRes, departmentsRes, usersRes, clientsRes] = await Promise.all([
-        api.get('/categories'),
+        api.get('/catalog/categories'),
         api.get('/departments'),
         api.get('/users'),
         api.get('/clients-b2b')
@@ -188,16 +189,12 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
             {/* Category */}
             <div>
               <label className="block text-sm font-medium mb-2">Categoria</label>
-              <select
+              <CategoryTreeSelect
+                categories={categories}
                 value={filters.categoryId}
-                onChange={(e) => handleFilterChange('categoryId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
-              >
-                <option value="">Todas</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
+                onChange={(value) => handleFilterChange('categoryId', value)}
+                placeholder="Todas"
+              />
             </div>
 
             {/* Department */}

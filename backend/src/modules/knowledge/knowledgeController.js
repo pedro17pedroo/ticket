@@ -2,7 +2,7 @@ import KnowledgeArticle from './knowledgeModel.js';
 
 import User from '../users/userModel.js';
 import OrganizationUser from '../../models/OrganizationUser.js';
-import Category from '../categories/categoryModel.js';
+import { CatalogCategory } from '../catalog/catalogModel.js';
 import { Op } from 'sequelize';
 
 // Função para gerar slug a partir do título
@@ -34,7 +34,7 @@ export const getArticles = async (req, res, next) => {
     }
 
     if (categoryId) {
-      where.categoryId = categoryId;
+      where.catalogCategoryId = categoryId;
     }
 
     if (search) {
@@ -49,7 +49,7 @@ export const getArticles = async (req, res, next) => {
       include: [
         { model: User, as: 'author', attributes: ['id', 'name', 'email'] },
         { model: OrganizationUser, as: 'authorOrgUser', attributes: ['id', 'name', 'email'] },
-        { model: Category, as: 'category', attributes: ['id', 'name', 'icon', 'color'] },
+        { model: CatalogCategory, as: 'catalogCategory', attributes: ['id', 'name', 'icon', 'color'] },
       ],
       order: [['createdAt', 'DESC']],
     });
@@ -81,7 +81,7 @@ export const getArticleById = async (req, res, next) => {
       include: [
         { model: User, as: 'author', attributes: ['id', 'name', 'email'] },
         { model: OrganizationUser, as: 'authorOrgUser', attributes: ['id', 'name', 'email'] },
-        { model: Category, as: 'category', attributes: ['id', 'name', 'icon', 'color'] },
+        { model: CatalogCategory, as: 'catalogCategory', attributes: ['id', 'name', 'icon', 'color'] },
       ],
     });
 
@@ -93,7 +93,7 @@ export const getArticleById = async (req, res, next) => {
     }
 
     // Incrementar visualizações
-    await article.increment('views');
+    await article.increment('viewCount');
 
     res.json({
       success: true,
@@ -107,7 +107,9 @@ export const getArticleById = async (req, res, next) => {
 // POST /api/knowledge - Criar novo artigo
 export const createArticle = async (req, res, next) => {
   try {
-    const { title, content, categoryId, isPublished } = req.body;
+    const { title, content, categoryId, catalogCategoryId, isPublished } = req.body;
+    // Suportar tanto categoryId (legado) quanto catalogCategoryId (novo)
+    const finalCategoryId = catalogCategoryId || categoryId;
     const organizationId = req.user.organizationId;
     const authorId = req.user.id;
 
@@ -135,7 +137,7 @@ export const createArticle = async (req, res, next) => {
       title,
       slug,
       content,
-      categoryId: categoryId && categoryId.trim() !== '' ? categoryId : null,
+      catalogCategoryId: finalCategoryId && finalCategoryId.trim() !== '' ? finalCategoryId : null,
       isPublished: isPublished || false,
       publishedAt: isPublished ? new Date() : null,
       authorId,
@@ -157,7 +159,9 @@ export const createArticle = async (req, res, next) => {
 export const updateArticle = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, content, categoryId, isPublished } = req.body;
+    const { title, content, categoryId, catalogCategoryId, isPublished } = req.body;
+    // Suportar tanto categoryId (legado) quanto catalogCategoryId (novo)
+    const finalCategoryId = catalogCategoryId !== undefined ? catalogCategoryId : categoryId;
     const organizationId = req.user.organizationId;
 
     if (req.user.role === 'cliente-org') {
@@ -211,7 +215,7 @@ export const updateArticle = async (req, res, next) => {
       title,
       slug,
       content,
-      categoryId: categoryId !== undefined ? (categoryId && categoryId.trim() !== '' ? categoryId : null) : undefined,
+      catalogCategoryId: finalCategoryId !== undefined ? (finalCategoryId && finalCategoryId.trim() !== '' ? finalCategoryId : null) : undefined,
       isPublished,
       publishedAt: isPublished && !oldData.isPublished ? new Date() : article.publishedAt,
     });

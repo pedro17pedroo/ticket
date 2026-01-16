@@ -131,7 +131,8 @@ class PermissionService {
    */
   async getUserPermissions(userId) {
     try {
-      const user = await User.findByPk(userId, {
+      // Tentar buscar em User primeiro
+      let user = await User.findByPk(userId, {
         include: [{
           model: Role,
           as: 'roleObject',
@@ -146,7 +147,48 @@ class PermissionService {
         }]
       });
 
+      // Se não encontrou em User, buscar em OrganizationUser
       if (!user) {
+        const { OrganizationUser } = await import('../modules/models/index.js');
+        user = await OrganizationUser.findByPk(userId);
+        
+        if (user) {
+          // Buscar role pelo nome
+          const role = await Role.findOne({
+            where: { name: user.role },
+            include: [{
+              model: Permission,
+              as: 'permissions',
+              through: {
+                where: { granted: true },
+                attributes: []
+              }
+            }]
+          });
+          
+          if (role) {
+            const rolePermissions = role.permissions || [];
+            
+            // Adicionar permissões específicas do utilizador
+            const userPermissions = await UserPermission.findAll({
+              where: { userId, granted: true },
+              include: [{ model: Permission, as: 'permission' }]
+            });
+
+            const allPermissions = [
+              ...rolePermissions,
+              ...userPermissions.map(up => up.permission)
+            ];
+
+            // Remover duplicados e formatar
+            const uniquePermissions = allPermissions.filter((perm, index, self) =>
+              index === self.findIndex(p => p.id === perm.id)
+            );
+
+            return uniquePermissions.map(p => `${p.resource}.${p.action}`);
+          }
+        }
+        
         return [];
       }
 
@@ -163,12 +205,12 @@ class PermissionService {
         ...userPermissions.map(up => up.permission)
       ];
 
-      // Remover duplicados
+      // Remover duplicados e formatar
       const uniquePermissions = allPermissions.filter((perm, index, self) =>
         index === self.findIndex(p => p.id === perm.id)
       );
 
-      return uniquePermissions;
+      return uniquePermissions.map(p => `${p.resource}.${p.action}`);
     } catch (error) {
       logger.error('Erro ao obter permissões do utilizador:', error);
       return [];

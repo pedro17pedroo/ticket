@@ -135,12 +135,23 @@ export const login = async (req, res, next) => {
     // Atualizar último login
     await user.update({ lastLogin: new Date() });
 
+    // Carregar permissões do utilizador (RBAC)
+    let permissions = [];
+    try {
+      const permissionService = (await import('../../services/permissionService.js')).default;
+      permissions = await permissionService.getUserPermissions(user.id);
+    } catch (error) {
+      // Ignora se RBAC não estiver inicializado
+      logger.warn('Não foi possível carregar permissões RBAC:', error.message);
+    }
+
     // Gerar token com userType (garantir que userType não seja sobrescrito)
     const userData = user.toJSON();
     const token = generateToken({
       ...userData,
       userType,  // Força o userType correto
-      clientId: client?.id || user.clientId || null
+      clientId: client?.id || user.clientId || null,
+      permissions // Incluir permissões no token
     });
 
     // Remover senha do retorno
@@ -148,7 +159,8 @@ export const login = async (req, res, next) => {
       ...user.toJSON(),
       userType,
       organization,
-      client
+      client,
+      permissions // Incluir permissões na resposta
     };
 
     logger.info(`Login bem-sucedido: ${user.email} (${userType}) no portal ${portalType || 'agent-desktop'}`);

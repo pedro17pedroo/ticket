@@ -9,13 +9,17 @@
  * - Aprovações baseadas em tipo
  */
 
-import { CatalogCategory, CatalogItem, ServiceRequest } from '../modules/catalog/catalogModel.js';
+import { CatalogCategory, CatalogItem } from '../modules/catalog/catalogModel.js';
 import Ticket from '../modules/tickets/ticketModel.js';
-import { User, SLA, Department, Category, ClientUser } from '../modules/models/index.js';
+import { User, SLA, Department, ClientUser, OrganizationUser } from '../modules/models/index.js';
+import Attachment from '../modules/attachments/attachmentModel.js';
 import logger from '../config/logger.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { notifyTicketWatchers } from './watcherNotificationService.js';
+import fs from 'fs';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 class CatalogService {
 
@@ -225,7 +229,8 @@ class CatalogService {
   }
 
   /**
-   * Criar Service Request com regras de negócio aplicadas
+   * Criar Ticket a partir de Solicitação de Serviço (Service Request)
+   * Método unificado - cria apenas ticket (service_requests foi descontinuado)
    */
   async createServiceRequest(catalogItemId, userId, formData, organizationId, options = {}) {
     const {
@@ -234,7 +239,7 @@ class CatalogService {
       userPriority = '',
       expectedResolutionTime = null,
       attachments = [],
-      clientWatchers = [], // Novos watchers do cliente
+      clientWatchers = [],
       isClientUser = false
     } = options;
 
@@ -264,82 +269,57 @@ class CatalogService {
     const routing = await this.determineRouting(item, item.category);
     const workflowId = this.getWorkflowByType(item);
 
-    // Criar service request com todas as informações do cliente
-    const serviceRequest = await ServiceRequest.create({
-      organizationId,
-      catalogItemId,
-      userId: isClientUser ? null : userId,
-      clientUserId: isClientUser ? userId : null,
-      formData: {
-        ...formData,
-        additionalDetails,
-        userPriority,
-        expectedResolutionTime,
-        attachments: (attachments || []).map(a => ({
-          name: a.name,
-          size: a.size,
-          type: a.type
-        }))
-      },
-      requestType: item.itemType,
-      finalPriority,
-      status: requiresApproval ? 'pending' : 'approved',
-      approvedById: requiresApproval ? null : null
-    });
+    // Preparar dados do formulário
+    const requestFormData = {
+      ...formData,
+      additionalDetails,
+      userPriority,
+      expectedResolutionTime,
+      attachments: (attachments || []).map(a => ({
+        name: a.name,
+        size: a.size,
+        type: a.type
+      }))
+    };
 
     // Incrementar contador de popularidade
     await item.increment('requestCount');
 
-    logger.info(`Service request criado: ${item.name} (Tipo: ${item.itemType}, Prioridade: ${finalPriority})`);
+    logger.info(`Criando ticket de serviço: ${item.name} (Tipo: ${item.itemType}, Prioridade: ${finalPriority})`);
 
-    // SEMPRE criar ticket imediatamente
-    const ticket = await this.createTicketFromRequest(
-      serviceRequest,
+    // Criar ticket diretamente (sem service_request intermediário)
+    const ticket = await this.createTicketFromCatalogItem(
       item,
+      userId,
+      isClientUser,
+      requestFormData,
       routing,
       workflowId,
       finalPriority,
-      { additionalDetails, userPriority, expectedResolutionTime, attachments, clientWatchers }
+      requiresApproval,
+      clientWatchers
     );
 
-    // Se requer aprovação, ticket fica com status aguardando_aprovacao
-    // Se não requer aprovação, ticket fica com status novo/aberto
-    const ticketStatus = requiresApproval ? 'aguardando_aprovacao' : 'novo';
-    const requestStatus = requiresApproval ? 'pending' : 'in_progress';
+    logger.info(`Ticket criado: ${ticket.ticketNumber} - Status: ${ticket.status}`);
 
-    await ticket.update({ status: ticketStatus });
-    await serviceRequest.update({
-      ticketId: ticket.id,
-      status: requestStatus
-    });
-
-    logger.info(`Ticket criado: ${ticket.ticketNumber} - Status: ${ticketStatus}`);
-
-    // 🔔 NOTIFICAR WATCHERS
+    // Notificar watchers
     try {
-      // Carregar ticket completo com relacionamentos para notificações
       const fullTicket = await Ticket.findByPk(ticket.id, {
         include: [
-          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+          { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
         ]
       });
-
-      logger.info(`🔔 Iniciando notificação de watchers para ticket ${fullTicket.ticketNumber}`);
-      logger.info(`📧 Client watchers: ${JSON.stringify(fullTicket.clientWatchers)}`);
-      logger.info(`👥 Org watchers: ${JSON.stringify(fullTicket.orgWatchers)}`);
-      logger.info(`👤 Requester: ${fullTicket.requester?.email || 'N/A'}`);
-      logger.info(`🎯 Assignee: ${fullTicket.assignee?.email || 'N/A'}`);
 
       await notifyTicketWatchers(fullTicket, 'created');
       logger.info(`✅ Watchers notificados para ticket ${fullTicket.ticketNumber}`);
     } catch (error) {
-      logger.error(`❌ Erro ao notificar watchers do ticket ${ticket.ticketNumber}:`, error);
-      console.error('Stack trace completo:', error.stack);
-      // Não falhar a criação do ticket por erro de notificação
+      logger.error(`❌ Erro ao notificar watchers:`, error);
     }
 
-    return { serviceRequest, ticket, requiresApproval };
+    return { ticket, requiresApproval };
   }
 
   /**
@@ -363,7 +343,119 @@ class CatalogService {
   }
 
   /**
-   * Criar ticket a partir de service request
+   * Criar ticket diretamente do catalog item (sem service_request intermediário)
+   */
+  async createTicketFromCatalogItem(item, userId, isClientUser, formData, routing, workflowId, priority, requiresApproval, clientWatchers = []) {
+    // Buscar requester
+    let requester;
+    let requesterType;
+    let requesterUserId = null;
+    let requesterOrgUserId = null;
+    let requesterClientUserId = null;
+
+    if (isClientUser) {
+      requester = await ClientUser.findByPk(userId);
+      requesterType = 'client';
+      requesterClientUserId = userId;
+    } else {
+      requester = await User.findByPk(userId);
+      requesterType = 'provider';
+      requesterUserId = userId;
+    }
+
+    // Descrição
+    const description = formData.additionalDetails || 'Solicitação de serviço do catálogo';
+
+    // Preparar customFields
+    const customFields = {};
+    if (formData && Object.keys(formData).length > 0) {
+      for (const [key, value] of Object.entries(formData)) {
+        if (['additionalDetails', 'userPriority', 'expectedResolutionTime', 'attachments'].includes(key)) continue;
+        
+        const field = item.customFields?.find(f => f.name === key);
+        const label = field ? field.label : key;
+        customFields[key] = {
+          label,
+          value,
+          type: field?.type || 'text'
+        };
+      }
+    }
+
+    // Metadata
+    const metadata = {
+      catalogItem: {
+        id: item.id,
+        name: item.name,
+        type: item.itemType,
+        typeLabel: this.getTypeLabel(item.itemType)
+      },
+      clientRequest: {
+        userPriority: formData.userPriority || null,
+        expectedResolutionTime: formData.expectedResolutionTime || null
+      }
+    };
+
+    // Gerar número do ticket
+    const ticketNumber = await this.generateTicketNumber();
+
+    // Status do ticket
+    const ticketStatus = requiresApproval ? 'aguardando_aprovacao' : 'novo';
+    const requestStatus = requiresApproval ? 'pending' : 'approved';
+
+    // Criar ticket
+    const ticket = await Ticket.create({
+      ticketNumber,
+      organizationId: item.organizationId,
+      clientId: requester?.clientId || null,
+      // Campos polimórficos
+      requesterType,
+      requesterUserId,
+      requesterOrgUserId,
+      requesterClientUserId,
+      // Legado
+      requesterId: userId,
+      subject: `[${this.getTypeLabel(item.itemType)}] ${item.name}`,
+      description,
+      // Catálogo
+      catalogCategoryId: item.categoryId,
+      catalogItemId: item.id,
+      // Prioridade e Tipo
+      priority: priority || item.defaultPriority || 'media',
+      priorityId: item.priorityId,
+      typeId: item.typeId,
+      status: ticketStatus,
+      // Roteamento
+      directionId: routing.directionId || item.defaultDirectionId,
+      departmentId: routing.departmentId || item.defaultDepartmentId,
+      sectionId: routing.sectionId || item.defaultSectionId,
+      // SLA e Workflow
+      slaId: item.slaId,
+      workflowId,
+      // Metadados
+      customFields,
+      metadata,
+      source: 'portal',
+      tags: item.keywords || [],
+      // Watchers
+      clientWatchers: clientWatchers || [],
+      // Novos campos para solicitações
+      requestFormData: formData,
+      requestStatus: requestStatus
+    });
+
+    logger.info(`Ticket criado do catálogo: ${ticket.ticketNumber} (${item.itemType})`);
+
+    // Salvar anexos se existirem
+    if (formData.attachments && formData.attachments.length > 0) {
+      await this.saveAttachmentsFromBase64(ticket.id, formData.attachments, userId, isClientUser);
+    }
+
+    return ticket;
+  }
+
+  /**
+   * Criar ticket a partir de service request (MÉTODO LEGADO - MANTER POR COMPATIBILIDADE)
    */
   async createTicketFromRequest(serviceRequest, catalogItem, routing, workflowId, priority, clientData = {}) {
     const { additionalDetails = '', userPriority = '', expectedResolutionTime = null, attachments = [], clientWatchers = [] } = clientData;
@@ -441,6 +533,7 @@ class CatalogService {
     const ticket = await Ticket.create({
       ticketNumber,
       organizationId: serviceRequest.organizationId,
+      clientId: serviceRequest.clientId, // ID da empresa cliente
       requesterId: serviceRequest.userId, // Mantido para compatibilidade (pode ser null para clientes)
       // Campos polimórficos
       requesterType: serviceRequest.clientUserId ? 'client' : 'provider',
@@ -476,7 +569,73 @@ class CatalogService {
 
     logger.info(`Ticket criado a partir de catálogo: ${ticket.ticketNumber} (Tipo: ${catalogItem.itemType})`);
 
+    // Guardar anexos se existirem (base64 -> ficheiro)
+    if (attachments && attachments.length > 0) {
+      const isClientUser = !!serviceRequest.clientUserId;
+      await this.saveAttachmentsFromBase64(ticket.id, attachments, requester?.id, isClientUser);
+    }
+
     return ticket;
+  }
+
+  /**
+   * Guardar anexos a partir de dados base64
+   */
+  async saveAttachmentsFromBase64(ticketId, attachments, uploadedById = null, isClientUser = false) {
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'tickets');
+    
+    // Criar diretório se não existir
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const savedAttachments = [];
+
+    for (const attachment of attachments) {
+      try {
+        // Verificar se tem dados base64
+        if (!attachment.data) {
+          logger.warn(`Anexo ${attachment.name} sem dados base64, ignorando`);
+          continue;
+        }
+
+        // Extrair dados base64 (remover prefixo data:mime/type;base64,)
+        const base64Data = attachment.data.replace(/^data:[^;]+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // Gerar nome único para o ficheiro
+        const ext = path.extname(attachment.name) || '';
+        const uniqueFilename = `${uuidv4()}${ext}`;
+        const filePath = path.join(uploadsDir, uniqueFilename);
+
+        // Guardar ficheiro
+        fs.writeFileSync(filePath, buffer);
+        logger.info(`Ficheiro guardado em: ${filePath}`);
+
+        // Criar registo na base de dados (campos mínimos obrigatórios)
+        const attachmentData = {
+          ticketId,
+          filename: uniqueFilename,
+          originalName: attachment.name,
+          mimetype: attachment.type || 'application/octet-stream',
+          size: attachment.size || buffer.length,
+          path: filePath
+        };
+
+        logger.info(`Criando registo de anexo: ${JSON.stringify(attachmentData)}`);
+
+        const savedAttachment = await Attachment.create(attachmentData);
+
+        savedAttachments.push(savedAttachment);
+        logger.info(`✅ Anexo guardado com sucesso: ${attachment.name} -> ${uniqueFilename} (ID: ${savedAttachment.id})`);
+      } catch (error) {
+        logger.error(`❌ Erro ao guardar anexo ${attachment.name}:`, error.message);
+        logger.error('Stack:', error.stack);
+      }
+    }
+
+    logger.info(`Total de anexos guardados: ${savedAttachments.length}/${attachments.length}`);
+    return savedAttachments;
   }
 
   /**

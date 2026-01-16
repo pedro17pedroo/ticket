@@ -106,7 +106,7 @@ export const ticketService = {
   },
 
   getCategories: async () => {
-    const response = await api.get('/categories')
+    const response = await api.get('/catalog/categories')
     return response.data
   },
 

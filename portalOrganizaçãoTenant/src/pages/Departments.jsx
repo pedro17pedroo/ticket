@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Users, Building2, X, Save, FileText, Mail, User, S
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
 import Modal from '../components/Modal'
+import PermissionGate from '../components/PermissionGate'
 
 const Departments = () => {
   const [departments, setDepartments] = useState([])
@@ -162,15 +163,17 @@ const Departments = () => {
           <h1 className="text-3xl font-bold">Departamentos</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Gerir departamentos e equipas</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          disabled={directions.length === 0}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          title={directions.length === 0 ? 'Crie uma Direção primeiro' : ''}
-        >
-          <Plus className="w-5 h-5" />
-          Novo Departamento
-        </button>
+        <PermissionGate permission="departments.create">
+          <button
+            onClick={() => setShowModal(true)}
+            disabled={directions.length === 0}
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            title={directions.length === 0 ? 'Crie uma Direção primeiro' : ''}
+          >
+            <Plus className="w-5 h-5" />
+            Novo Departamento
+          </button>
+        </PermissionGate>
       </div>
 
       {/* Departments Grid */}
@@ -217,20 +220,24 @@ const Departments = () => {
             </div>
 
             <div className="flex gap-2 pt-4 border-t">
-              <button
-                onClick={() => handleEdit(dept)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <Edit2 className="w-4 h-4" />
-                Editar
-              </button>
-              <button
-                onClick={() => handleDelete(dept.id)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
-              >
-                <Trash2 className="w-4 h-4" />
-                Eliminar
-              </button>
+              <PermissionGate permission="departments.update">
+                <button
+                  onClick={() => handleEdit(dept)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Editar
+                </button>
+              </PermissionGate>
+              <PermissionGate permission="departments.delete">
+                <button
+                  onClick={() => handleDelete(dept.id)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar
+                </button>
+              </PermissionGate>
             </div>
           </div>
         ))}

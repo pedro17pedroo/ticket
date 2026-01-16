@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ticketService } from '../services/api'
 import api from '../services/api'
-import { ArrowLeft, Clock, User, Building2, Tag, UserPlus, Paperclip, Download, Trash2, FileText, Mail, Phone, GitMerge, ArrowRightLeft } from 'lucide-react'
+import { ArrowLeft, Clock, User, Building2, Tag, UserPlus, Paperclip, Download, Trash2, FileText, Mail, Phone, GitMerge, ArrowRightLeft, FolderKanban, CheckSquare, ExternalLink } from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -42,11 +42,42 @@ const TicketDetail = () => {
   const [showMergeModal, setShowMergeModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
+  const [ticketPermissions, setTicketPermissions] = useState(null)
 
   useEffect(() => {
     loadTicket()
     loadAttachments()
   }, [id])
+
+  // Carregar permissões quando o ticket for carregado
+  useEffect(() => {
+    if (ticket?.id) {
+      loadTicketPermissions()
+    }
+  }, [ticket?.id])
+
+  const loadTicketPermissions = async () => {
+    try {
+      const response = await api.get(`/tickets/${id}/permissions`)
+      if (response.data.success) {
+        setTicketPermissions(response.data.permissions)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar permissões do ticket:', error)
+      // Se falhar, assumir permissões padrão baseadas no role
+      setTicketPermissions({
+        canView: true,
+        canEdit: user.role === 'org-admin',
+        canAssign: user.role === 'org-admin',
+        canComment: true,
+        canClose: user.role === 'org-admin',
+        canTransfer: user.role === 'org-admin',
+        isAdmin: user.role === 'org-admin',
+        isAssignee: ticket?.assigneeId === user.id,
+        accessLevel: user.role === 'org-admin' ? 'admin' : 'viewer'
+      })
+    }
+  }
 
 
   const loadTicket = async () => {
@@ -196,42 +227,50 @@ const TicketDetail = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold">{ticket.ticketNumber}</h1>
+            <h1 className="text-2xl font-bold">#{ticket.id.substring(0, 8)}</h1>
             <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>
           </div>
         </div>
         {(user.role === 'org-admin' || user.role === 'agent') && (() => {
           const isTicketClosed = ['fechado', 'resolvido'].includes(ticket.status);
+          const canAssign = ticketPermissions?.canAssign ?? (user.role === 'org-admin');
+          const canTransfer = ticketPermissions?.canTransfer ?? (user.role === 'org-admin');
           return (
             <div className="flex gap-2">
               <RemoteAccessButton ticket={ticket} />
-              <button
-                onClick={() => setShowAssignModal(true)}
-                disabled={isTicketClosed}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={isTicketClosed ? 'Não é possível atribuir ticket concluído' : 'Atribuir ticket'}
-              >
-                <UserPlus className="w-4 h-4" />
-                Atribuir
-              </button>
-              <button
-                onClick={() => setShowTransferModal(true)}
-                disabled={isTicketClosed}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={isTicketClosed ? 'Não é possível transferir ticket concluído' : 'Transferir ticket'}
-              >
-                <ArrowRightLeft className="w-4 h-4" />
-                Transferir
-              </button>
-              <button
-                onClick={() => setShowMergeModal(true)}
-                disabled={isTicketClosed}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={isTicketClosed ? 'Não é possível mesclar ticket concluído' : 'Mesclar tickets'}
-              >
-                <GitMerge className="w-4 h-4" />
-                Mesclar
-              </button>
+              {canAssign && (
+                <button
+                  onClick={() => setShowAssignModal(true)}
+                  disabled={isTicketClosed}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={isTicketClosed ? 'Não é possível atribuir ticket concluído' : 'Atribuir ticket'}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Atribuir
+                </button>
+              )}
+              {canTransfer && (
+                <button
+                  onClick={() => setShowTransferModal(true)}
+                  disabled={isTicketClosed}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={isTicketClosed ? 'Não é possível transferir ticket concluído' : 'Transferir ticket'}
+                >
+                  <ArrowRightLeft className="w-4 h-4" />
+                  Transferir
+                </button>
+              )}
+              {canAssign && (
+                <button
+                  onClick={() => setShowMergeModal(true)}
+                  disabled={isTicketClosed}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={isTicketClosed ? 'Não é possível mesclar ticket concluído' : 'Mesclar tickets'}
+                >
+                  <GitMerge className="w-4 h-4" />
+                  Mesclar
+                </button>
+              )}
             </div>
           );
         })()}
@@ -248,6 +287,38 @@ const TicketDetail = () => {
               dangerouslySetInnerHTML={{ __html: ticket.description }}
             />
           </div>
+
+          {/* Attachments from metadata (legacy - para tickets antigos sem ficheiros guardados) */}
+          {ticket.metadata?.clientRequest?.attachments && 
+           ticket.metadata.clientRequest.attachments.length > 0 && 
+           ticketAttachments.length === 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="font-semibold mb-4 flex items-center gap-2">
+                <Paperclip className="w-5 h-5" />
+                Anexos da Solicitação ({ticket.metadata.clientRequest.attachments.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {ticket.metadata.clientRequest.attachments.map((attachment, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border"
+                  >
+                    <FileText className="w-8 h-8 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{attachment.name}</p>
+                      <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                    </div>
+                    <span className="text-xs text-gray-400" title="Ficheiro não disponível para download">
+                      (legado)
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                ⚠️ Estes anexos foram submetidos antes da atualização do sistema e não estão disponíveis para download.
+              </p>
+            </div>
+          )}
 
           {/* Attachments */}
           {ticketAttachments.length > 0 && (
@@ -488,6 +559,92 @@ Você pode usar formatação para destacar informações importantes:
               </div>
             </div>
           </div>
+
+          {/* Project/Task Association - Requirements: 5.6 */}
+          {ticket.projectInfo && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <FolderKanban className="w-5 h-5 text-primary-600" />
+                Projeto Associado
+              </h3>
+
+              <div className="space-y-3">
+                {/* Project Info */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                      Projeto
+                    </span>
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                      ticket.projectInfo.project.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                      ticket.projectInfo.project.status === 'in_progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                      ticket.projectInfo.project.status === 'on_hold' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                      ticket.projectInfo.project.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300'
+                    }`}>
+                      {ticket.projectInfo.project.status === 'planning' && 'Planeamento'}
+                      {ticket.projectInfo.project.status === 'in_progress' && 'Em Progresso'}
+                      {ticket.projectInfo.project.status === 'on_hold' && 'Em Espera'}
+                      {ticket.projectInfo.project.status === 'completed' && 'Concluído'}
+                      {ticket.projectInfo.project.status === 'cancelled' && 'Cancelado'}
+                    </span>
+                  </div>
+                  <Link
+                    to={`/projects/${ticket.projectInfo.project.id}`}
+                    className="group flex items-center gap-2 text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  >
+                    <span className="font-medium">{ticket.projectInfo.project.code}</span>
+                    <span className="text-gray-600 dark:text-gray-400">-</span>
+                    <span className="truncate">{ticket.projectInfo.project.name}</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                  </Link>
+                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Metodologia: {
+                      ticket.projectInfo.project.methodology === 'waterfall' ? 'Waterfall' :
+                      ticket.projectInfo.project.methodology === 'agile' ? 'Agile' :
+                      ticket.projectInfo.project.methodology === 'scrum' ? 'Scrum' :
+                      ticket.projectInfo.project.methodology === 'kanban' ? 'Kanban' :
+                      ticket.projectInfo.project.methodology === 'hybrid' ? 'Híbrido' :
+                      ticket.projectInfo.project.methodology
+                    }
+                  </div>
+                </div>
+
+                {/* Task Info (if linked to a specific task) */}
+                {ticket.projectInfo.task && (
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1">
+                        <CheckSquare className="w-3.5 h-3.5" />
+                        Tarefa
+                      </span>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                        ticket.projectInfo.task.status === 'done' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                        ticket.projectInfo.task.status === 'in_progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                        ticket.projectInfo.task.status === 'in_review' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300'
+                      }`}>
+                        {ticket.projectInfo.task.status === 'todo' && 'A Fazer'}
+                        {ticket.projectInfo.task.status === 'in_progress' && 'Em Progresso'}
+                        {ticket.projectInfo.task.status === 'in_review' && 'Em Revisão'}
+                        {ticket.projectInfo.task.status === 'done' && 'Concluída'}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {ticket.projectInfo.task.title}
+                    </p>
+                  </div>
+                )}
+
+                {/* Link date */}
+                {ticket.projectInfo.linkedAt && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                    Associado em {format(new Date(ticket.projectInfo.linkedAt), 'dd/MM/yyyy', { locale: pt })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Time Tracker */}
           {(user.role === 'org-admin' || user.role === 'agent') && (

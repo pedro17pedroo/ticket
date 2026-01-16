@@ -37,7 +37,7 @@ const Templates = () => {
 
   const loadCategories = async () => {
     try {
-      const { data } = await api.get('/categories');
+      const { data } = await api.get('/catalog/categories');
       setCategories(data.categories || []);
     } catch (error) {
       console.error('Erro ao carregar categorias');
@@ -201,7 +201,7 @@ const Templates = () => {
 
       {/* Modal */}
       <Modal isOpen={showModal} onClose={handleCloseModal}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
 
           {/* Header com gradiente */}
           <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
@@ -233,62 +233,62 @@ const Templates = () => {
             <div className="bg-gray-50 dark:bg-gray-900 p-6">
               <form id="templateForm" onSubmit={handleSubmit} className="space-y-5">
                 {/* Card: Conteúdo do Template */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Mail className="w-5 h-5 text-primary-500" />
                     Conteúdo do Template
                   </h3>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome do Template *</label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Nome do Template *</label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       placeholder="Ex: Resposta padrão de boas-vindas"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assunto <span className="text-xs text-gray-500">(opcional)</span></label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Assunto <span className="text-xs text-gray-500">(opcional)</span></label>
                     <input
                       type="text"
                       value={formData.subject}
                       onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                       placeholder="Ex: Bem-vindo ao suporte"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Conteúdo *</label>
+                  <div className="max-w-4xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Conteúdo *</label>
                     <textarea
                       value={formData.content}
                       onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                       required
-                      rows={10}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                      rows={12}
+                      className="w-full min-w-[600px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none text-base"
                       placeholder="Escreva o conteúdo do template...\n\nDica: Você pode usar variáveis como {nome}, {email}, {ticket}"
                     />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Use variáveis para personalizar automaticamente as respostas</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Use variáveis para personalizar automaticamente as respostas</p>
                   </div>
                 </div>
 
                 {/* Card: Organização */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <FolderOpen className="w-5 h-5 text-primary-500" />
                     Organização
                   </h3>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Categoria <span className="text-xs text-gray-500">(opcional)</span></label>
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Categoria <span className="text-xs text-gray-500">(opcional)</span></label>
                     <select
                       value={formData.categoryId}
                       onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
                     >
                       <option value="">Nenhuma categoria</option>
                       {categories.map((cat) => (
@@ -297,34 +297,36 @@ const Templates = () => {
                         </option>
                       ))}
                     </select>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Organize templates por categoria para fácil localização</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Organize templates por categoria para fácil localização</p>
                   </div>
                 </div>
 
                 {/* Card: Configurações de Visibilidade */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Settings className="w-5 h-5 text-primary-500" />
                     Configurações de Visibilidade
                   </h3>
 
-                  <label className="flex items-center gap-3 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={formData.isPublic}
-                      onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
-                      className="w-5 h-5 text-primary-500 rounded focus:ring-2 focus:ring-primary-500"
-                    />
-                    <div className="flex-1">
-                      <span className="font-medium">Público</span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="max-w-2xl">
+                    <label className="flex items-center gap-4 px-6 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={formData.isPublic}
+                        onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
+                        className="w-5 h-5 text-primary-500 rounded focus:ring-2 focus:ring-primary-500"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium text-base">Público</span>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         {formData.isPublic
                           ? 'Visível para todos os membros da organização'
                           : 'Apenas visível para você'
                         }
-                      </p>
-                    </div>
-                  </label>
+                        </p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
               </form>

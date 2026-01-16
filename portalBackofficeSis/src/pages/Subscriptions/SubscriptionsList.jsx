@@ -12,10 +12,9 @@ import { showSuccess, showError } from '../../utils/alerts';
 const statusConfig = {
   active: { label: 'Ativo', variant: 'success', icon: CheckCircle },
   trial: { label: 'Trial', variant: 'warning', icon: Clock },
-  pending_payment: { label: 'Aguardando Pagamento', variant: 'warning', icon: AlertTriangle },
-  pending_approval: { label: 'Aguardando Aprovação', variant: 'info', icon: AlertTriangle },
-  cancelled: { label: 'Cancelado', variant: 'danger', icon: XCircle },
-  expired: { label: 'Expirado', variant: 'danger', icon: XCircle }
+  past_due: { label: 'Pagamento em Atraso', variant: 'warning', icon: AlertTriangle },
+  suspended: { label: 'Suspenso', variant: 'info', icon: AlertTriangle },
+  cancelled: { label: 'Cancelado', variant: 'danger', icon: XCircle }
 };
 
 const SubscriptionsList = () => {
@@ -171,7 +170,7 @@ const SubscriptionsList = () => {
           <Card className="p-4"><div className="text-2xl font-bold">{stats.total}</div><div className="text-sm text-gray-500">Total</div></Card>
           <Card className="p-4"><div className="text-2xl font-bold text-green-600">{stats.byStatus?.active || 0}</div><div className="text-sm text-gray-500">Ativos</div></Card>
           <Card className="p-4"><div className="text-2xl font-bold text-amber-600">{stats.byStatus?.trial || 0}</div><div className="text-sm text-gray-500">Trial</div></Card>
-          <Card className="p-4"><div className="text-2xl font-bold text-blue-600">{stats.byStatus?.pending_approval || 0}</div><div className="text-sm text-gray-500">Pendentes</div></Card>
+          <Card className="p-4"><div className="text-2xl font-bold text-blue-600">{stats.byStatus?.past_due || 0}</div><div className="text-sm text-gray-500">Em Atraso</div></Card>
           <Card className="p-4"><div className="text-2xl font-bold text-red-600">{stats.byStatus?.cancelled || 0}</div><div className="text-sm text-gray-500">Cancelados</div></Card>
           <Card className="p-4"><div className="text-2xl font-bold text-orange-600">{stats.trialsEndingSoon || 0}</div><div className="text-sm text-gray-500">Trials Expirando</div></Card>
         </div>
@@ -189,7 +188,7 @@ const SubscriptionsList = () => {
             <option value="all">Todos</option>
             <option value="active">Ativos</option>
             <option value="trial">Trial</option>
-            <option value="pending_approval">Pendentes</option>
+            <option value="past_due">Em Atraso</option>
             <option value="cancelled">Cancelados</option>
           </select>
         </div>
@@ -198,7 +197,7 @@ const SubscriptionsList = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg">
             <h3 className="text-lg font-bold mb-4 dark:text-white">Alterar Plano</h3>
             <p className="text-sm text-gray-500 mb-4">Organização: {selectedSub?.organization?.name}</p>
             <div className="space-y-4">

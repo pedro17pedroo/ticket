@@ -427,11 +427,11 @@ export const getLicenses = async (req, res, next) => {
       };
     }
 
-    const licenses = await License.findAll({
+    const licenses = await SoftwareLicense.findAll({
       where,
       include: [
         {
-          model: User,
+          model: Client,
           as: 'client',
           attributes: ['id', 'name', 'email']
         },
@@ -467,11 +467,11 @@ export const getLicenseById = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    const license = await License.findOne({
+    const license = await SoftwareLicense.findOne({
       where: { id, organizationId },
       include: [
         {
-          model: User,
+          model: Client,
           as: 'client',
           attributes: ['id', 'name', 'email', 'phone']
         },
@@ -512,7 +512,7 @@ export const createLicense = async (req, res, next) => {
       organizationId
     };
 
-    const license = await License.create(licenseData);
+    const license = await SoftwareLicense.create(licenseData);
 
     logger.info(`Licença criada: ${license.name} por ${req.user.email}`);
 
@@ -536,7 +536,7 @@ export const updateLicense = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    const license = await License.findOne({
+    const license = await SoftwareLicense.findOne({
       where: { id, organizationId }
     });
 
@@ -571,7 +571,7 @@ export const deleteLicense = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.user.organizationId;
 
-    const license = await License.findOne({
+    const license = await SoftwareLicense.findOne({
       where: { id, organizationId }
     });
 
@@ -606,7 +606,7 @@ export const assignLicense = async (req, res, next) => {
     const { assetId } = req.body;
     const organizationId = req.user.organizationId;
 
-    const license = await License.findOne({
+    const license = await SoftwareLicense.findOne({
       where: { id, organizationId }
     });
 
@@ -669,7 +669,7 @@ export const unassignLicense = async (req, res, next) => {
     const { assetId } = req.body;
     const organizationId = req.user.organizationId;
 
-    const license = await License.findOne({
+    const license = await SoftwareLicense.findOne({
       where: { id, organizationId }
     });
 

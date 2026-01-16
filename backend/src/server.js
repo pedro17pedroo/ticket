@@ -12,6 +12,7 @@ import emailProcessor from './services/emailProcessor.js';
 import slaMonitor from './jobs/slaMonitor.js';
 import healthCheckMonitor from './jobs/healthCheckMonitor.js';
 import { startExpirationJob } from './jobs/expireRemoteAccessRequests.js';
+import { startCleanupJob } from './jobs/cleanupExpiredReports.js';
 import logger from './config/logger.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -91,6 +92,13 @@ const startServer = async () => {
         startExpirationJob();
       } catch (error) {
         logger.warn('⚠️ Job de expiração desabilitado:', error.message);
+      }
+
+      // Inicializar job de limpeza de relatórios expirados
+      try {
+        startCleanupJob();
+      } catch (error) {
+        logger.warn('⚠️ Job de limpeza de relatórios desabilitado:', error.message);
       }
     });
   } catch (error) {

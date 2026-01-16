@@ -7,6 +7,7 @@
  * - /api/catalog/requests - Service requests
  * - /api/catalog/portal - Portal do cliente
  * - /api/catalog/statistics - Estatísticas
+ * - /api/catalog/effective-access - Permissões efetivas do utilizador
  */
 
 import express from 'express';
@@ -14,8 +15,23 @@ import { authenticate } from '../../middleware/auth.js';
 import { requirePermission } from '../../middleware/permission.js';
 import { auditLog } from '../../middleware/audit.js';
 import * as catalogController from './catalogControllerV2.js';
+import * as catalogAccessController from '../catalogAccess/catalogAccessController.js';
 
 const router = express.Router();
+
+// ==================== EFFECTIVE ACCESS ====================
+
+/**
+ * @route   GET /api/catalog/effective-access
+ * @desc    Get current user's effective catalog permissions
+ * @access  Private
+ * Requirements: 7.5
+ */
+router.get(
+  '/effective-access',
+  authenticate,
+  catalogAccessController.getEffectiveAccess
+);
 
 // ==================== CATEGORIAS ====================
 
@@ -200,7 +216,7 @@ router.get(
 router.post(
   '/requests/:id/approve',
   authenticate,
-  requirePermission('catalog', 'approve'),
+  requirePermission('catalog', 'manage'),
   auditLog('update', 'service_request'),
   catalogController.approveServiceRequest
 );
@@ -252,7 +268,7 @@ router.get(
 router.get(
   '/statistics',
   authenticate,
-  requirePermission('catalog', 'view'),
+  requirePermission('catalog', 'read'),
   catalogController.getCatalogStatistics
 );
 
@@ -265,7 +281,7 @@ router.get(
 router.get(
   '/analytics',
   authenticate,
-  requirePermission('catalog', 'view'),
+  requirePermission('catalog', 'read'),
   catalogController.getAnalytics
 );
 

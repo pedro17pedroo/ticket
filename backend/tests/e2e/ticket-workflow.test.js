@@ -10,7 +10,7 @@ import {
   User, 
   Organization, 
   Ticket, 
-  Category, 
+  CatalogCategory,
   Priority,
   TicketHistory 
 } from '../../src/modules/models/index.js';

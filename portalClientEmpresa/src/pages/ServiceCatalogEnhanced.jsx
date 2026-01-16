@@ -29,6 +29,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../components/Modal';
 import WatchersField from '../components/WatchersField';
+import DynamicIcon from '../components/DynamicIcon';
 
 const ServiceCatalogEnhanced = () => {
   const navigate = useNavigate();
@@ -490,7 +491,7 @@ const ServiceCatalogEnhanced = () => {
                 : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
-            <span className="mr-2">{category.icon}</span>
+            <DynamicIcon icon={category.icon} className="w-5 h-5 mr-2 inline-block" />
             {category.name}
             {category.itemCount > 0 && (
               <span className="ml-2 text-sm opacity-60">({category.itemCount})</span>

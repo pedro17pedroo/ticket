@@ -12,7 +12,7 @@ import * as authController from '../modules/auth/authController.js';
 import * as userController from '../modules/users/userController.js';
 import * as ticketController from '../modules/tickets/ticketController.js';
 import * as departmentController from '../modules/departments/departmentController.js';
-import * as categoryController from '../modules/categories/categoryController.js';
+// categoryController removido - usar catalogController para categorias unificadas
 import * as knowledgeController from '../modules/knowledge/knowledgeController.js';
 import * as slaController from '../modules/slas/slaController.js';
 import * as priorityController from '../modules/priorities/priorityController.js';
@@ -41,6 +41,8 @@ import commentRoutes from './commentRoutes.js';
 import saasRoutes from './saasRoutes.js';
 import * as landingPageController from '../modules/landingPage/landingPageController.js';
 import * as downloadController from '../modules/downloads/downloadController.js';
+import debugUserRoutes from './debugUserRoutes.js';
+import fixTicketsRoutes from './fixTicketsRoutes.js';
 
 const router = express.Router();
 
@@ -78,6 +80,12 @@ router.post('/auth/password-reset/reset', validate(schemas.resetPasswordWithToke
 // router.delete('/client/users/:id', authenticate, auditLog('delete', 'client_user'), clientUserController.deleteClientUser);
 
 // ==================== USERS ====================
+// Profile routes (devem vir ANTES de /users/:id para não serem capturadas como ID)
+router.get('/users/profile', authenticate, authController.getProfile);
+router.put('/users/profile', authenticate, auditLog('update', 'user'), authController.updateProfile);
+router.put('/users/password', authenticate, auditLog('update', 'user'), authController.changePassword);
+router.put('/users/preferences', authenticate, auditLog('update', 'user'), authController.updateProfile);
+
 router.get('/users', authenticate, requirePermission('users', 'read'), userController.getUsers);
 router.get('/users/:id', authenticate, requirePermission('users', 'read'), userController.getUserById);
 router.post('/users', authenticate, requirePermission('users', 'create'), validate(schemas.createUser), validateUserManagement, auditLog('create', 'user'), userController.createUser);
@@ -115,6 +123,8 @@ router.delete('/relationships/:relationshipId', authenticate, ticketController.r
 
 // Ticket History & Management
 router.get('/tickets/:ticketId/history', authenticate, ticketController.getHistory);
+router.get('/tickets/:ticketId/permissions', authenticate, ticketController.getTicketPermissions);
+router.get('/tickets/:ticketId/eligible-assignees', authenticate, ticketController.getEligibleAssignees);
 router.post('/tickets/:ticketId/transfer', authenticate, auditLog('transfer', 'ticket'), ticketController.transferTicket);
 router.patch('/tickets/:ticketId/internal-priority', authenticate, auditLog('update_internal_priority', 'ticket'), ticketController.updateInternalPriority);
 router.patch('/tickets/:ticketId/resolution-status', authenticate, auditLog('update_resolution_status', 'ticket'), ticketController.updateResolutionStatus);
@@ -160,12 +170,13 @@ router.post('/organizational-structure/sections', authenticate, authorize('org-a
 router.put('/organizational-structure/sections/:id', authenticate, authorize('org-admin'), validate(schemas.updateSection), auditLog('update', 'section'), sectionController.updateSection);
 router.delete('/organizational-structure/sections/:id', authenticate, authorize('org-admin'), auditLog('delete', 'section'), sectionController.deleteSection);
 
-// ==================== CATEGORIES ====================
-router.get('/categories', authenticate, categoryController.getCategories);
-router.get('/categories/:id', authenticate, categoryController.getCategoryById);
-router.post('/categories', authenticate, authorize('org-admin', 'agent'), auditLog('create', 'category'), categoryController.createCategory);
-router.put('/categories/:id', authenticate, authorize('org-admin', 'agent'), auditLog('update', 'category'), categoryController.updateCategory);
-router.delete('/categories/:id', authenticate, authorize('org-admin'), auditLog('delete', 'category'), categoryController.deleteCategory);
+// ==================== CATEGORIES (DEPRECATED - Redireciona para Catalog) ====================
+// As rotas de /api/categories agora usam catalog_categories como fonte única
+router.get('/categories', authenticate, catalogController.getCatalogCategories);
+router.get('/categories/:id', authenticate, catalogController.getCategoryById);
+router.post('/categories', authenticate, authorize('org-admin', 'agent'), auditLog('create', 'catalog_category'), catalogController.createCatalogCategory);
+router.put('/categories/:id', authenticate, authorize('org-admin', 'agent'), auditLog('update', 'catalog_category'), catalogController.updateCatalogCategory);
+router.delete('/categories/:id', authenticate, authorize('org-admin'), auditLog('delete', 'catalog_category'), catalogController.deleteCatalogCategory);
 
 // ==================== KNOWLEDGE BASE ====================
 router.get('/knowledge', authenticate, requirePermission('knowledge', 'read'), knowledgeController.getArticles);
@@ -257,21 +268,25 @@ router.get('/landing-page/config/history', authenticate, authorize('super-admin'
 // ==================== CLIENTS B2B (Nova Arquitetura) ====================
 import clientRoutes from './clientRoutes.js';
 import clientUserRoutes from './clientUserRoutes.js';
+import * as clientUserManagementController from '../modules/clients/clientUserManagementController.js';
 router.use('/clients-b2b', clientRoutes);
 router.use('/client-users-b2b', clientUserRoutes);
 
 // ==================== CLIENTS (Compatibilidade com Frontend) ====================
 // Rotas de compatibilidade - redirecionam para o novo controller
 router.use('/clients', clientRoutes); // Mesmas rotas que /clients-b2b
+router.use('/client-users', clientUserRoutes); // Mesmas rotas que /client-users-b2b
 
-// ==================== CLIENT USERS (Legacy - Deprecated - DESATIVADO) ====================
-// ❌ DEPRECATED - Usar /client-users-b2b para nova arquitetura multi-tenant
-// router.get('/clients/:clientId/users', authenticate, authorize('org-admin', 'agent'), clientUsersController.getClientUsers);
-// router.post('/clients/:clientId/users', authenticate, authorize('org-admin'), validate(schemas.createClientUserByOrg), auditLog('create', 'client_user'), clientUsersController.createClientUser);
-// router.put('/clients/:clientId/users/:userId', authenticate, authorize('org-admin'), validate(schemas.updateClientUserByOrg), auditLog('update', 'client_user'), clientUsersController.updateClientUser);
-// router.put('/clients/:clientId/users/:userId/activate', authenticate, authorize('org-admin'), auditLog('update', 'client_user'), clientUsersController.activateClientUser);
-// router.put('/clients/:clientId/users/:userId/reset-password', authenticate, authorize('org-admin'), validate(schemas.resetPassword), auditLog('update', 'client_user'), clientUsersController.resetClientUserPassword);
-// router.delete('/clients/:clientId/users/:userId', authenticate, authorize('org-admin'), auditLog('delete', 'client_user'), clientUsersController.deleteClientUser);
+// ==================== CLIENT USERS (Rotas de gestão de utilizadores de clientes) ====================
+// Listar e criar utilizadores de um cliente
+router.get('/clients/:clientId/users', authenticate, requireSmartPermission('client_users', 'read'), clientUserManagementController.getClientUsers);
+router.post('/clients/:clientId/users', authenticate, requireSmartPermission('client_users', 'create'), auditLog('create', 'client_user'), clientUserManagementController.createClientUser);
+// Operações em utilizador específico
+router.get('/clients/:clientId/users/:userId', authenticate, requireSmartPermission('client_users', 'read'), clientUserManagementController.getClientUserById);
+router.put('/clients/:clientId/users/:userId', authenticate, requireSmartPermission('client_users', 'update'), auditLog('update', 'client_user'), clientUserManagementController.updateClientUser);
+router.put('/clients/:clientId/users/:userId/activate', authenticate, requireSmartPermission('client_users', 'update'), auditLog('update', 'client_user'), clientUserManagementController.activateClientUser);
+router.put('/clients/:clientId/users/:userId/reset-password', authenticate, requireSmartPermission('client_users', 'update'), auditLog('update', 'client_user'), clientUserManagementController.resetPasswordByAdmin);
+router.delete('/clients/:clientId/users/:userId', authenticate, requireSmartPermission('client_users', 'delete'), auditLog('delete', 'client_user'), clientUserManagementController.deleteClientUser);
 
 // ==================== CLIENT STRUCTURE (Estrutura organizacional) ====================
 // Directions
@@ -303,6 +318,18 @@ router.get('/client/hours-banks', authenticate, requirePermission('hours_bank', 
 router.get('/client/hours-banks/:id', authenticate, requirePermission('hours_bank', 'view'), clientHoursController.getClientHoursBankById);
 router.get('/client/hours-banks/:id/transactions', authenticate, requirePermission('hours_bank', 'view'), clientHoursController.getClientHoursBankTransactions);
 router.get('/client/hours-transactions', authenticate, requirePermission('hours_bank', 'view'), clientHoursController.getClientAllTransactions);
+
+// ==================== CLIENT TODOS (Tarefas do Cliente) ====================
+import * as todoController from '../modules/todos/todoController.js';
+router.get('/client/todos', authenticate, todoController.getTodos);
+router.post('/client/todos', authenticate, todoController.createTodo);
+router.put('/client/todos/reorder', authenticate, todoController.reorderTodos);
+router.get('/client/todos/users', authenticate, todoController.getAvailableUsers);
+router.put('/client/todos/:id', authenticate, todoController.updateTodo);
+router.put('/client/todos/:id/move', authenticate, todoController.moveTodo);
+router.delete('/client/todos/:id', authenticate, todoController.deleteTodo);
+router.post('/client/todos/:id/collaborators', authenticate, todoController.addCollaborator);
+router.delete('/client/todos/:id/collaborators/:collaboratorId', authenticate, todoController.removeCollaborator);
 
 // ==================== HOURS BANK (Bolsa de Horas) ====================
 router.get('/hours-banks', authenticate, requirePermission('hours_bank', 'view'), hoursController.getHoursBanks);
@@ -372,26 +399,26 @@ router.patch('/notifications/mark-all-read', authenticate, notificationControlle
 router.delete('/notifications/:id', authenticate, notificationController.deleteNotification);
 
 // ==================== INVENTORY ====================
-router.get('/inventory/assets', authenticate, requireSmartPermission('inventory', 'read'), inventoryController.getAssets);
-router.get('/inventory/assets/:id', authenticate, requireSmartPermission('inventory', 'read'), inventoryController.getAssetById);
-router.post('/inventory/assets', authenticate, requireSmartPermission('inventory', 'create'), auditLog('create', 'asset'), inventoryController.createAsset);
-router.put('/inventory/assets/:id', authenticate, requireSmartPermission('inventory', 'update'), auditLog('update', 'asset'), inventoryController.updateAsset);
-router.delete('/inventory/assets/:id', authenticate, requireSmartPermission('inventory', 'delete'), auditLog('delete', 'asset'), inventoryController.deleteAsset);
-router.get('/inventory/statistics', authenticate, requireSmartPermission('inventory', 'read'), inventoryController.getStatistics);
+router.get('/inventory/assets', authenticate, requireSmartPermission('assets', 'read'), inventoryController.getAssets);
+router.get('/inventory/assets/:id', authenticate, requireSmartPermission('assets', 'read'), inventoryController.getAssetById);
+router.post('/inventory/assets', authenticate, requireSmartPermission('assets', 'create'), auditLog('create', 'asset'), inventoryController.createAsset);
+router.put('/inventory/assets/:id', authenticate, requireSmartPermission('assets', 'update'), auditLog('update', 'asset'), inventoryController.updateAsset);
+router.delete('/inventory/assets/:id', authenticate, requireSmartPermission('assets', 'delete'), auditLog('delete', 'asset'), inventoryController.deleteAsset);
+router.get('/inventory/statistics', authenticate, requireSmartPermission('assets', 'read'), inventoryController.getStatistics);
 
-// Software (comentado temporariamente - controller não existe)
-// router.get('/inventory/software', authenticate, requirePermission('assets', 'read'), inventoryController.getSoftware);
-// router.post('/inventory/software', authenticate, requirePermission('assets', 'create'), auditLog('create', 'software'), inventoryController.addSoftware);
-// router.delete('/inventory/software/:id', authenticate, requirePermission('assets', 'delete'), auditLog('delete', 'software'), inventoryController.deleteSoftware);
+// Software
+router.get('/inventory/software', authenticate, requireSmartPermission('assets', 'read'), inventoryController.getSoftware);
+router.post('/inventory/software', authenticate, requireSmartPermission('assets', 'create'), auditLog('create', 'software'), inventoryController.addSoftware);
+router.delete('/inventory/software/:id', authenticate, requireSmartPermission('assets', 'delete'), auditLog('delete', 'software'), inventoryController.deleteSoftware);
 
-// Licenses (comentado temporariamente - controller não existe)
-// router.get('/inventory/licenses', authenticate, requirePermission('assets', 'read'), inventoryController.getLicenses);
-// router.get('/inventory/licenses/:id', authenticate, requirePermission('assets', 'read'), inventoryController.getLicenseById);
-// router.post('/inventory/licenses', authenticate, requirePermission('assets', 'create'), auditLog('create', 'license'), inventoryController.createLicense);
-// router.put('/inventory/licenses/:id', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.updateLicense);
-// router.delete('/inventory/licenses/:id', authenticate, requirePermission('assets', 'delete'), auditLog('delete', 'license'), inventoryController.deleteLicense);
-// router.post('/inventory/licenses/:id/assign', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.assignLicense);
-// router.post('/inventory/licenses/:id/unassign', authenticate, requirePermission('assets', 'update'), auditLog('update', 'license'), inventoryController.unassignLicense);
+// Licenses
+router.get('/inventory/licenses', authenticate, requireSmartPermission('assets', 'read'), inventoryController.getLicenses);
+router.get('/inventory/licenses/:id', authenticate, requireSmartPermission('assets', 'read'), inventoryController.getLicenseById);
+router.post('/inventory/licenses', authenticate, requireSmartPermission('assets', 'create'), auditLog('create', 'license'), inventoryController.createLicense);
+router.put('/inventory/licenses/:id', authenticate, requireSmartPermission('assets', 'update'), auditLog('update', 'license'), inventoryController.updateLicense);
+router.delete('/inventory/licenses/:id', authenticate, requireSmartPermission('assets', 'delete'), auditLog('delete', 'license'), inventoryController.deleteLicense);
+router.post('/inventory/licenses/:id/assign', authenticate, requireSmartPermission('assets', 'update'), auditLog('update', 'license'), inventoryController.assignLicense);
+router.post('/inventory/licenses/:id/unassign', authenticate, requireSmartPermission('assets', 'update'), auditLog('update', 'license'), inventoryController.unassignLicense);
 
 // Statistics
 router.get('/inventory/statistics', authenticate, inventoryController.getStatistics);
@@ -466,11 +493,19 @@ router.use('/', emailTestRoutes);
 
 // ==================== DEBUG ROUTES ====================
 router.use('/', debugRoutes);
+router.use('/', debugUserRoutes);
+
+// ==================== FIX ROUTES (Admin only) ====================
+router.use('/', fixTicketsRoutes);
 
 // ==================== DOWNLOADS (Desktop Agent) ====================
 router.get('/downloads/agent/info', downloadController.getAgentInfo);
 router.get('/downloads/agent/:platform', downloadController.downloadAgent);
 router.post('/downloads/agent/upload', authenticate, downloadController.uploadAgent);
 router.delete('/downloads/agent/:filename', authenticate, downloadController.deleteAgent);
+
+// ==================== PROJECT MANAGEMENT ====================
+import projectRoutes from '../modules/projects/projectRoutes.js';
+router.use('/projects', projectRoutes);
 
 export default router;

@@ -18,12 +18,14 @@ import HoursBank from './pages/HoursBank'
 import ServiceCatalog from './pages/ServiceCatalog'
 import ServiceCatalogEnhanced from './pages/ServiceCatalogEnhanced'
 import ServiceCatalogHierarchical from './pages/ServiceCatalogHierarchical'
+import CatalogAccessDenied from './pages/CatalogAccessDenied'
 import MyRequests from './pages/MyRequests'
 import RequestDetail from './pages/RequestDetail'
 import MyAssets from './pages/MyAssets'
 import MyAssetDetail from './pages/MyAssetDetail'
 import Organization from './pages/Organization'
 import DesktopAgent from './pages/DesktopAgent'
+import TodoList from './pages/TodoList'
 
 const PrivateRoute = ({ children }) => {
   const { token } = useAuthStore()
@@ -86,9 +88,11 @@ function App() {
                       <Route path="/sections" element={<Sections />} />
                       <Route path="/hours-bank" element={<HoursBank />} />
                       <Route path="/catalog" element={<ServiceCatalog />} />
+                      <Route path="/catalog/access-denied" element={<CatalogAccessDenied />} />
                       <Route path="/service-catalog" element={<ServiceCatalogHierarchical />} />
                       <Route path="/my-requests" element={<MyRequests />} />
                       <Route path="/my-requests/:id" element={<RequestDetail />} />
+                      <Route path="/todos" element={<TodoList />} />
                       <Route path="/my-assets" element={<MyAssets />} />
                       <Route path="/my-assets/:id" element={<MyAssetDetail />} />
                       <Route path="/organization" element={<Organization />} />

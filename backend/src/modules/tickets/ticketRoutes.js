@@ -5,7 +5,9 @@ import {
   createTicket,
   updateTicket,
   addComment,
-  getStatistics
+  getStatistics,
+  getEligibleAssignees,
+  getTicketPermissions
 } from './ticketController.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { validate, schemas } from '../../middleware/validate.js';
@@ -23,6 +25,11 @@ router.get('/statistics', getStatistics);
 // CRUD Tickets
 router.get('/', getTickets);
 router.get('/:id', getTicketById);
+
+// Permissões e assignees elegíveis
+router.get('/:ticketId/permissions', getTicketPermissions);
+router.get('/:ticketId/eligible-assignees', getEligibleAssignees);
+
 router.post(
   '/', 
   validate(schemas.createTicket), 

@@ -84,7 +84,7 @@ export const schemas = {
   updateTicket: Joi.object({
     subject: Joi.string().min(5).max(255).optional(),
     description: Joi.string().min(10).optional(),
-    status: Joi.string().valid('novo', 'em_progresso', 'aguardando_cliente', 'resolvido', 'fechado').optional(),
+    status: Joi.string().valid('novo', 'aguardando_aprovacao', 'em_progresso', 'aguardando_cliente', 'resolvido', 'fechado').optional(),
     priority: Joi.string().optional(),
     assigneeId: Joi.string().uuid().allow(null).optional(),
     departmentId: Joi.string().uuid().allow(null).optional()
@@ -188,17 +188,17 @@ export const schemas = {
   // Direções
   createDirection: Joi.object({
     name: Joi.string().min(2).max(100).required(),
-    description: Joi.string().allow('').optional(),
-    code: Joi.string().max(20).optional(),
+    description: Joi.string().allow('', null).optional(),
+    code: Joi.string().allow('', null).max(20).optional(),
     managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 
   updateDirection: Joi.object({
     name: Joi.string().min(2).max(100).optional(),
-    description: Joi.string().allow('').optional(),
-    code: Joi.string().max(20).optional(),
-    managerId: Joi.string().uuid().allow(null).optional(),
+    description: Joi.string().allow('', null).optional(),
+    code: Joi.string().allow('', null).max(20).optional(),
+    managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 
@@ -214,11 +214,10 @@ export const schemas = {
   }),
 
   // Secções
-  // Secções
   createSection: Joi.object({
     name: Joi.string().min(2).max(100).required(),
-    description: Joi.string().allow('').optional(),
-    code: Joi.string().max(20).optional(),
+    description: Joi.string().allow('', null).optional(),
+    code: Joi.string().allow('', null).max(20).optional(),
     departmentId: Joi.string().uuid().required(),
     managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
@@ -226,8 +225,8 @@ export const schemas = {
 
   updateSection: Joi.object({
     name: Joi.string().min(2).max(100).optional(),
-    description: Joi.string().allow('').optional(),
-    code: Joi.string().max(20).optional(),
+    description: Joi.string().allow('', null).optional(),
+    code: Joi.string().allow('', null).max(20).optional(),
     departmentId: Joi.string().uuid().optional(),
     managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
@@ -258,9 +257,12 @@ export const schemas = {
       'super-admin',
       'provider-admin',
       'org-admin',
+      'org-manager',
       'tenant-admin',
       'tenant-manager',
+      'manager',
       'agent',
+      'technician',
       'client-admin',
       'client-user',
       'client-manager'
@@ -278,9 +280,12 @@ export const schemas = {
       'super-admin',
       'provider-admin',
       'org-admin',
+      'org-manager',
       'tenant-admin',
       'tenant-manager',
+      'manager',
       'agent',
+      'technician',
       'client-admin',
       'client-user',
       'client-manager'
