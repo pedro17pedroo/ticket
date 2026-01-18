@@ -85,12 +85,12 @@ const MyRequests = () => {
   const loadRequests = async () => {
     setLoading(true);
     try {
-      // Always load all requests without status filter
-      const response = await api.get('/catalog/requests');
+      // 🆕 Usar endpoint unificado que retorna todos os tickets
+      const response = await api.get('/tickets/my-tickets');
       setRequests(response.data.data || []);
     } catch (error) {
-      console.error('Erro ao carregar solicitações:', error);
-      toast.error('Erro ao carregar suas solicitações');
+      console.error('Erro ao carregar tickets:', error);
+      toast.error('Erro ao carregar seus tickets');
     } finally {
       setLoading(false);
     }
@@ -389,14 +389,35 @@ const MyRequests = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-base line-clamp-2 mb-1">
-                        {request.catalogItem?.name}
+                        {request.catalogItem?.name || request.subject}
                       </h3>
+                      {/* Badge de Origem */}
+                      <div className="flex items-center gap-2 mb-1">
+                        {request.source === 'email' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-full">
+                            <Mail className="w-3 h-3" />
+                            Email
+                          </span>
+                        )}
+                        {request.source === 'portal' && request.catalogItemId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-xs rounded-full">
+                            <ShoppingCart className="w-3 h-3" />
+                            Catálogo
+                          </span>
+                        )}
+                        {request.source === 'portal' && !request.catalogItemId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-300 text-xs rounded-full">
+                            <FileText className="w-3 h-3" />
+                            Manual
+                          </span>
+                        )}
+                      </div>
                       {/* Ticket ID */}
-                      {request.ticketId ? (
+                      {request.ticketId || request.ticketNumber ? (
                         <div className="flex items-center gap-1.5 text-sm">
                           <CheckCircle className="w-4 h-4 text-primary-500" />
                           <span className="font-medium text-primary-600 dark:text-primary-400">
-                            #{request.ticketId.slice(0, 8)}
+                            #{(request.ticketNumber || request.ticketId).slice(0, 8)}
                           </span>
                           {request.ticket?.status && (
                             <span className="ml-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-full">
@@ -469,9 +490,9 @@ const MyRequests = () => {
 
                 {/* Footer com ação */}
                 <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-                  {request.ticketId ? (
+                  {request.ticketId || request.id ? (
                     <button
-                      onClick={() => navigate(`/tickets/${request.ticketId}`)}
+                      onClick={() => navigate(`/tickets/${request.ticketId || request.id}`)}
                       className="w-full px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors font-medium"
                     >
                       <Eye className="w-4 h-4" />

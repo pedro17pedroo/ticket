@@ -294,28 +294,29 @@ const ServiceCatalog = () => {
     e.preventDefault()
 
     try {
-      const response = await api.post('/catalog/requests', {
-        catalogItemId: selectedItem.id,
+      // 🆕 Usar novo endpoint que cria ticket diretamente
+      const response = await api.post(`/catalog/items/${selectedItem.id}/ticket`, {
         formData
       })
 
       if (response.data.requiresApproval) {
         toast.success('Solicitação enviada para aprovação!')
       } else {
-        toast.success('Ticket criado automaticamente!')
+        toast.success('Ticket criado com sucesso!')
       }
 
       setShowRequestModal(false)
       setSelectedItem(null)
       setFormData({})
-      setTimeout(() => navigate('/tickets'), 1500)
+      // Redirecionar para a página de tickets
+      setTimeout(() => navigate('/my-requests'), 1500)
     } catch (error) {
       if (error.response?.status === 403) {
         handleAccessDenied(error.response?.data)
         setShowRequestModal(false)
         setSelectedItem(null)
       } else {
-        toast.error(error.response?.data?.error || 'Erro ao solicitar serviço')
+        toast.error(error.response?.data?.error || 'Erro ao criar ticket')
       }
     }
   }
