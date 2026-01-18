@@ -51,9 +51,76 @@ const CatalogApprovals = () => {
   const loadRequests = async () => {
     setLoading(true);
     try {
-      // Carregar TODAS as solicitações sem filtro
-      const response = await api.get('/catalog/requests');
-      setAllRequests(response.data.data || []);
+      // 🆕 Buscar TODOS os tickets que requerem aprovação (não filtrar por status)
+      // Vamos buscar em múltiplas chamadas para pegar todos os status
+      const [pendingResponse, approvedResponse, rejectedResponse] = await Promise.all([
+        // Tickets aguardando aprovação
+        api.get('/tickets', {
+          params: {
+            status: 'aguardando_aprovacao',
+            limit: 100
+          }
+        }),
+        // Tickets aprovados (status mudou para 'novo' mas têm approvalStatus = 'approved')
+        api.get('/tickets', {
+          params: {
+            limit: 100
+          }
+        }).then(res => ({
+          data: {
+            tickets: (res.data.tickets || []).filter(t => 
+              t.requiresApproval && t.approvalStatus === 'approved'
+            )
+          }
+        })),
+        // Tickets rejeitados (status mudou para 'fechado' mas têm approvalStatus = 'rejected')
+        api.get('/tickets', {
+          params: {
+            status: 'fechado',
+            limit: 100
+          }
+        }).then(res => ({
+          data: {
+            tickets: (res.data.tickets || []).filter(t => 
+              t.requiresApproval && t.approvalStatus === 'rejected'
+            )
+          }
+        }))
+      ]);
+      
+      // Combinar todos os tickets
+      const allTickets = [
+        ...(pendingResponse.data.tickets || []),
+        ...(approvedResponse.data.tickets || []),
+        ...(rejectedResponse.data.tickets || [])
+      ];
+      
+      // Remover duplicatas (caso um ticket apareça em múltiplas buscas)
+      const uniqueTickets = Array.from(
+        new Map(allTickets.map(ticket => [ticket.id, ticket])).values()
+      );
+      
+      // Mapear tickets para o formato esperado pela interface
+      const mappedRequests = uniqueTickets.map(ticket => ({
+        id: ticket.id,
+        ticketNumber: ticket.ticketNumber,
+        status: ticket.approvalStatus === 'approved' ? 'approved' : 
+                ticket.approvalStatus === 'rejected' ? 'rejected' : 'pending',
+        catalogItem: ticket.catalogItem,
+        requester: ticket.requester || ticket.requesterClientUser || ticket.requesterOrgUser || ticket.requesterUser,
+        createdAt: ticket.createdAt,
+        created_at: ticket.createdAt,
+        approvalComments: ticket.approvalComments,
+        rejectionReason: ticket.rejectionReason,
+        approvedBy: ticket.approvedByUser,
+        rejectedBy: ticket.rejectedByUser,
+        approvedAt: ticket.approvedAt,
+        rejectedAt: ticket.rejectedAt,
+        finalPriority: ticket.priority,
+        formData: ticket.formData || {}
+      }));
+      
+      setAllRequests(mappedRequests);
     } catch (error) {
       console.error('Erro ao carregar solicitações:', error);
       toast.error('Erro ao carregar solicitações');
@@ -64,8 +131,31 @@ const CatalogApprovals = () => {
 
   const loadRequestDetails = async (requestId) => {
     try {
-      const response = await api.get(`/catalog/requests/${requestId}`);
-      setSelectedRequest(response.data.data);
+      // 🆕 Buscar detalhes do ticket
+      const response = await api.get(`/tickets/${requestId}`);
+      const ticket = response.data.ticket;
+      
+      // Mapear para o formato esperado
+      const mappedRequest = {
+        id: ticket.id,
+        ticketNumber: ticket.ticketNumber,
+        status: ticket.approvalStatus === 'approved' ? 'approved' : 
+                ticket.approvalStatus === 'rejected' ? 'rejected' : 'pending',
+        catalogItem: ticket.catalogItem,
+        requester: ticket.requester || ticket.requesterClientUser || ticket.requesterOrgUser || ticket.requesterUser,
+        createdAt: ticket.createdAt,
+        created_at: ticket.createdAt,
+        approvalComments: ticket.approvalComments,
+        rejectionReason: ticket.rejectionReason,
+        approvedBy: ticket.approvedByUser,
+        rejectedBy: ticket.rejectedByUser,
+        approvedAt: ticket.approvedAt,
+        rejectedAt: ticket.rejectedAt,
+        finalPriority: ticket.priority,
+        formData: ticket.formData || {}
+      };
+      
+      setSelectedRequest(mappedRequest);
       setShowDetailsModal(true);
     } catch (error) {
       toast.error('Erro ao carregar detalhes');
@@ -86,10 +176,14 @@ const CatalogApprovals = () => {
     }
 
     try {
-      const endpoint = `/catalog/requests/${selectedRequest.id}/approve`;
-      await api.post(endpoint, {
-        approved: approvalAction === 'approve',
-        comments: approvalComments
+      // 🆕 Usar novos endpoints de aprovação/rejeição de tickets
+      const endpoint = approvalAction === 'approve' 
+        ? `/tickets/${selectedRequest.id}/approve`
+        : `/tickets/${selectedRequest.id}/reject`;
+      
+      await api.patch(endpoint, {
+        comments: approvalComments,
+        reason: approvalComments // Para rejeição
       });
 
       toast.success(
@@ -243,7 +337,7 @@ const CatalogApprovals = () => {
                             {request.catalogItem?.name}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            SR #{request.id?.slice(0, 8)}
+                            {request.ticketNumber || `SR #${request.id}`}
                           </p>
                         </div>
                       </div>
@@ -455,7 +549,7 @@ const CatalogApprovals = () => {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">{selectedRequest.catalogItem?.name}</h2>
-                      <p className="text-sm text-blue-100">SR #{selectedRequest.id?.slice(0, 8)}</p>
+                      <p className="text-sm text-blue-100">{selectedRequest.ticketNumber || `SR #${selectedRequest.id}`}</p>
                     </div>
                   </div>
                   <button

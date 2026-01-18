@@ -402,6 +402,7 @@ class CatalogService {
     // Status do ticket
     const ticketStatus = requiresApproval ? 'aguardando_aprovacao' : 'novo';
     const requestStatus = requiresApproval ? 'pending' : 'approved';
+    const approvalStatus = requiresApproval ? 'pending' : null;
 
     // Criar ticket
     const ticket = await Ticket.create({
@@ -439,7 +440,11 @@ class CatalogService {
       tags: item.keywords || [],
       // Watchers
       clientWatchers: clientWatchers || [],
-      // Novos campos para solicitações
+      // 🆕 Campos de aprovação (unificação)
+      requiresApproval: requiresApproval,
+      approvalStatus: approvalStatus,
+      formData: formData,
+      // Legado
       requestFormData: formData,
       requestStatus: requestStatus
     });

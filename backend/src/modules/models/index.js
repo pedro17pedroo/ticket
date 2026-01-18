@@ -214,6 +214,9 @@ const setupAssociations = () => {
   Ticket.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
   // Assignee - sempre um organization_user (técnico/agente)
   Ticket.belongsTo(OrganizationUser, { foreignKey: 'assigneeId', as: 'assignee' });
+  // Aprovação - sempre organization_user
+  Ticket.belongsTo(OrganizationUser, { foreignKey: 'approvedBy', as: 'approvedByUser' });
+  Ticket.belongsTo(OrganizationUser, { foreignKey: 'rejectedBy', as: 'rejectedByUser' });
   Ticket.belongsTo(SLA, { foreignKey: 'slaId', as: 'sla' });
   Ticket.belongsTo(Priority, { foreignKey: 'priorityId', as: 'priorityConfig' });
   Ticket.belongsTo(Type, { foreignKey: 'typeId', as: 'typeConfig' });

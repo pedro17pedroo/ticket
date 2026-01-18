@@ -25,7 +25,8 @@ const auditLogSchema = new mongoose.Schema({
       'user_created', 'user_updated', 'user_deleted',
       'settings_changed',
       'export_data',
-      'hours_added', 'hours_consumed'
+      'hours_added', 'hours_consumed',
+      'approve', 'reject'
     ]
   },
   entityType: {

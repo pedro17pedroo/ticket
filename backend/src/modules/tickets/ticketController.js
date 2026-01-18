@@ -1954,10 +1954,14 @@ export const approveTicket = async (req, res, next) => {
       await logTicketChange(
         ticket.id,
         userId,
-        'approval',
-        null,
-        'approved',
-        `Ticket aprovado${comments ? ': ' + comments : ''}`,
+        organizationId,
+        {
+          action: 'approval',
+          field: 'approvalStatus',
+          oldValue: 'pending',
+          newValue: 'approved',
+          description: `Ticket aprovado${comments ? ': ' + comments : ''}`
+        },
         transaction
       );
 
@@ -2083,10 +2087,14 @@ export const rejectTicket = async (req, res, next) => {
       await logTicketChange(
         ticket.id,
         userId,
-        'rejection',
-        null,
-        'rejected',
-        `Ticket rejeitado: ${reason}`,
+        organizationId,
+        {
+          action: 'rejection',
+          field: 'approvalStatus',
+          oldValue: 'pending',
+          newValue: 'rejected',
+          description: `Ticket rejeitado: ${reason}`
+        },
         transaction
       );
 

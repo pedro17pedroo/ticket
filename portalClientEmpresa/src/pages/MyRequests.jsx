@@ -417,7 +417,7 @@ const MyRequests = () => {
                         <div className="flex items-center gap-1.5 text-sm">
                           <CheckCircle className="w-4 h-4 text-primary-500" />
                           <span className="font-medium text-primary-600 dark:text-primary-400">
-                            #{(request.ticketNumber || request.ticketId).slice(0, 8)}
+                            #{request.ticketNumber || request.ticketId}
                           </span>
                           {request.ticket?.status && (
                             <span className="ml-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-full">

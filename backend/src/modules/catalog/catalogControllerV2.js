@@ -666,12 +666,13 @@ export const deleteCatalogItem = async (req, res, next) => {
       return res.status(404).json({ error: 'Item não encontrado' });
     }
 
-    // Verificar se tem solicitações associadas
-    const requestsCount = await ServiceRequest.count({
+    // Verificar se tem tickets associados (solicitações do catálogo)
+    const { Ticket } = await import('../models/index.js');
+    const ticketsCount = await Ticket.count({
       where: { catalogItemId: id }
     });
 
-    if (requestsCount > 0) {
+    if (ticketsCount > 0) {
       // Apenas desativar, não deletar
       await item.update({ isActive: false });
       return res.json({
@@ -1350,37 +1351,43 @@ export const getAnalytics = async (req, res, next) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - periodDays);
 
-    // Total de solicitações no período
-    const totalRequests = await ServiceRequest.count({
+    const { Ticket } = await import('../models/index.js');
+
+    // Total de solicitações no período (tickets que vieram do catálogo)
+    const totalRequests = await Ticket.count({
       where: {
-        organization_id: req.user.organizationId,
-        created_at: { [Op.gte]: startDate }
+        organizationId: req.user.organizationId,
+        catalogItemId: { [Op.ne]: null },
+        createdAt: { [Op.gte]: startDate }
       }
     });
 
-    // Solicitações por status
-    const requestsByStatus = await ServiceRequest.findAll({
+    // Solicitações por status de aprovação
+    const requestsByStatus = await Ticket.findAll({
       where: {
-        organization_id: req.user.organizationId,
-        created_at: { [Op.gte]: startDate }
+        organizationId: req.user.organizationId,
+        catalogItemId: { [Op.ne]: null },
+        requiresApproval: true,
+        createdAt: { [Op.gte]: startDate }
       },
       attributes: [
-        'status',
+        'approvalStatus',
         [sequelize.fn('COUNT', sequelize.col('id')), 'count']
       ],
-      group: ['status'],
+      group: ['approvalStatus'],
       raw: true
     });
 
     // Itens mais solicitados
-    const topItems = await ServiceRequest.findAll({
+    const topItems = await Ticket.findAll({
       where: {
-        organization_id: req.user.organizationId,
-        created_at: { [Op.gte]: startDate }
+        organizationId: req.user.organizationId,
+        catalogItemId: { [Op.ne]: null },
+        createdAt: { [Op.gte]: startDate }
       },
       attributes: [
-        'catalog_item_id',
-        [sequelize.fn('COUNT', sequelize.col('ServiceRequest.id')), 'count']
+        'catalogItemId',
+        [sequelize.fn('COUNT', sequelize.col('Ticket.id')), 'count']
       ],
       include: [
         {
@@ -1389,28 +1396,30 @@ export const getAnalytics = async (req, res, next) => {
           attributes: ['id', 'name', 'icon']
         }
       ],
-      group: ['catalog_item_id', 'catalogItem.id', 'catalogItem.name', 'catalogItem.icon'],
-      order: [[sequelize.fn('COUNT', sequelize.col('ServiceRequest.id')), 'DESC']],
+      group: ['catalogItemId', 'catalogItem.id', 'catalogItem.name', 'catalogItem.icon'],
+      order: [[sequelize.fn('COUNT', sequelize.col('Ticket.id')), 'DESC']],
       limit: 10,
       raw: false
     });
 
     // Tempo médio de aprovação (em horas)
-    const approvedRequests = await ServiceRequest.findAll({
+    const approvedRequests = await Ticket.findAll({
       where: {
-        organization_id: req.user.organizationId,
-        status: 'approved',
-        approved_at: { [Op.gte]: startDate }
+        organizationId: req.user.organizationId,
+        catalogItemId: { [Op.ne]: null },
+        requiresApproval: true,
+        approvalStatus: 'approved',
+        approvedAt: { [Op.gte]: startDate }
       },
-      attributes: ['created_at', 'approved_at'],
+      attributes: ['createdAt', 'approvedAt'],
       raw: true
     });
 
     let avgApprovalTime = 0;
     if (approvedRequests.length > 0) {
       const totalTime = approvedRequests.reduce((sum, req) => {
-        const created = new Date(req.created_at);
-        const approved = new Date(req.approved_at);
+        const created = new Date(req.createdAt);
+        const approved = new Date(req.approvedAt);
         return sum + (approved - created);
       }, 0);
       avgApprovalTime = Math.round(totalTime / approvedRequests.length / (1000 * 60 * 60)); // horas
@@ -1426,10 +1435,11 @@ export const getAnalytics = async (req, res, next) => {
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
 
-      const count = await ServiceRequest.count({
+      const count = await Ticket.count({
         where: {
-          organization_id: req.user.organizationId,
-          created_at: {
+          organizationId: req.user.organizationId,
+          catalogItemId: { [Op.ne]: null },
+          createdAt: {
             [Op.gte]: date,
             [Op.lt]: nextDate
           }
@@ -1444,75 +1454,59 @@ export const getAnalytics = async (req, res, next) => {
 
     // Taxa de aprovação
     const totalProcessed = requestsByStatus
-      .filter(r => r.status === 'approved' || r.status === 'rejected')
+      .filter(r => r.approvalStatus === 'approved' || r.approvalStatus === 'rejected')
       .reduce((sum, r) => sum + parseInt(r.count), 0);
 
     const totalApproved = requestsByStatus
-      .find(r => r.status === 'approved')?.count || 0;
+      .find(r => r.approvalStatus === 'approved')?.count || 0;
 
     const approvalRate = totalProcessed > 0
       ? Math.round((totalApproved / totalProcessed) * 100)
       : 0;
 
-    // Tempo médio de resolução (considerando tickets associados que foram fechados)
+    // Tempo médio de resolução (tickets do catálogo que foram fechados)
     let avgResolutionTime = 0;
-    try {
-      const { Ticket } = await import('../models/index.js');
-      const resolvedTickets = await Ticket.findAll({
-        where: {
-          organization_id: req.user.organizationId,
-          status: 'fechado',
-          updated_at: { [Op.gte]: startDate }
-        },
-        attributes: ['created_at', 'updated_at'],
-        raw: true
-      });
+    const resolvedTickets = await Ticket.findAll({
+      where: {
+        organizationId: req.user.organizationId,
+        catalogItemId: { [Op.ne]: null },
+        status: 'fechado',
+        closedAt: { [Op.gte]: startDate }
+      },
+      attributes: ['createdAt', 'closedAt'],
+      raw: true
+    });
 
-      if (resolvedTickets.length > 0) {
-        const totalTime = resolvedTickets.reduce((sum, ticket) => {
-          const created = new Date(ticket.created_at);
-          const resolved = new Date(ticket.updated_at);
-          return sum + (resolved - created);
-        }, 0);
-        avgResolutionTime = Math.round(totalTime / resolvedTickets.length / (1000 * 60 * 60)); // horas
-      }
-    } catch (error) {
-      logger.warn('Erro ao calcular tempo médio de resolução:', error);
+    if (resolvedTickets.length > 0) {
+      const totalTime = resolvedTickets.reduce((sum, ticket) => {
+        const created = new Date(ticket.createdAt);
+        const resolved = new Date(ticket.closedAt);
+        return sum + (resolved - created);
+      }, 0);
+      avgResolutionTime = Math.round(totalTime / resolvedTickets.length / (1000 * 60 * 60)); // horas
     }
 
-    // Taxa de conclusão (solicitações aprovadas que geraram tickets resolvidos)
+    // Taxa de conclusão (tickets do catálogo que foram resolvidos)
     let completionRate = 0;
-    try {
-      const { Ticket } = await import('../models/index.js');
-      const approvedWithTickets = await ServiceRequest.count({
+    const totalCatalogTickets = await Ticket.count({
+      where: {
+        organizationId: req.user.organizationId,
+        catalogItemId: { [Op.ne]: null },
+        createdAt: { [Op.gte]: startDate }
+      }
+    });
+
+    if (totalCatalogTickets > 0) {
+      const completedTickets = await Ticket.count({
         where: {
-          organization_id: req.user.organizationId,
-          status: 'approved',
-          ticket_id: { [Op.ne]: null },
-          created_at: { [Op.gte]: startDate }
+          organizationId: req.user.organizationId,
+          catalogItemId: { [Op.ne]: null },
+          status: 'fechado',
+          createdAt: { [Op.gte]: startDate }
         }
       });
 
-      if (approvedWithTickets > 0) {
-        const completedTickets = await ServiceRequest.count({
-          where: {
-            organization_id: req.user.organizationId,
-            status: 'approved',
-            ticket_id: { [Op.ne]: null },
-            created_at: { [Op.gte]: startDate }
-          },
-          include: [{
-            model: Ticket,
-            as: 'ticket',
-            where: { status: 'fechado' },
-            required: true
-          }]
-        });
-
-        completionRate = Math.round((completedTickets / approvedWithTickets) * 100);
-      }
-    } catch (error) {
-      logger.warn('Erro ao calcular taxa de conclusão:', error);
+      completionRate = Math.round((completedTickets / totalCatalogTickets) * 100);
     }
 
     res.json({
@@ -1527,11 +1521,11 @@ export const getAnalytics = async (req, res, next) => {
           completionRate
         },
         requestsByStatus: requestsByStatus.reduce((acc, item) => {
-          acc[item.status] = parseInt(item.count);
+          acc[item.approvalStatus || 'none'] = parseInt(item.count);
           return acc;
         }, {}),
         topItems: topItems.map(item => ({
-          id: item.catalog_item_id,
+          id: item.catalogItemId,
           name: item.catalogItem?.name,
           icon: item.catalogItem?.icon,
           count: parseInt(item.get('count'))

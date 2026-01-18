@@ -397,12 +397,13 @@ export const deleteCatalogItem = async (req, res, next) => {
       return res.status(404).json({ error: 'Item não encontrado' });
     }
 
-    // Verificar se tem solicitações associadas
-    const requestsCount = await ServiceRequest.count({
+    // Verificar se tem tickets associados (solicitações do catálogo)
+    const { Ticket } = await import('../models/index.js');
+    const ticketsCount = await Ticket.count({
       where: { catalogItemId: id }
     });
 
-    if (requestsCount > 0) {
+    if (ticketsCount > 0) {
       // Apenas desativar, não deletar
       await item.update({ isActive: false });
       return res.json({
@@ -631,6 +632,8 @@ async function createTicketFromRequest(serviceRequest, catalogItem, requester) {
 // Obter estatísticas do catálogo
 export const getCatalogStatistics = async (req, res, next) => {
   try {
+    const { Ticket } = await import('../models/index.js');
+
     const totalItems = await CatalogItem.count({
       where: {
         organizationId: req.user.organizationId,
@@ -638,14 +641,19 @@ export const getCatalogStatistics = async (req, res, next) => {
       }
     });
 
-    const totalRequests = await ServiceRequest.count({
-      where: { organizationId: req.user.organizationId }
+    const totalRequests = await Ticket.count({
+      where: { 
+        organizationId: req.user.organizationId,
+        catalogItemId: { [Op.ne]: null }
+      }
     });
 
-    const pendingApprovals = await ServiceRequest.count({
+    const pendingApprovals = await Ticket.count({
       where: {
         organizationId: req.user.organizationId,
-        status: 'pending_approval'
+        catalogItemId: { [Op.ne]: null },
+        requiresApproval: true,
+        approvalStatus: 'pending'
       }
     });
 

@@ -322,7 +322,7 @@ const RequestDetail = () => {
                 <div>
                     <h1 className="text-2xl font-bold">Detalhes da Solicitação</h1>
                     <p className="text-gray-500 dark:text-gray-400">
-                        SR #{request.id?.slice(0, 8)}
+                        SR #{request.id}
                     </p>
                 </div>
             </div>
@@ -423,7 +423,7 @@ const RequestDetail = () => {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Ticket #{request.ticketId.slice(0, 8)}
+                                        Ticket #{request.ticketId}
                                     </p>
                                     {request.ticket?.status && (
                                         <span className="mt-1 inline-block px-2 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-full">

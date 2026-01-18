@@ -34,7 +34,9 @@ const TicketHistory = sequelize.define('TicketHistory', {
       'tag_added',
       'tag_removed',
       'relationship_added',
-      'relationship_removed'
+      'relationship_removed',
+      'approval',
+      'rejection'
     ),
     allowNull: false
   },
