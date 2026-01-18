@@ -75,14 +75,16 @@ router.delete('/items/:id',
   catalogController.deleteItem.bind(catalogController)
 );
 
-// ===== SERVICE REQUESTS =====
+// ===== SERVICE REQUESTS (DEPRECATED) =====
 
+// @deprecated Use /items/:id/ticket instead
 // Criar service request a partir de um item
 router.post('/items/:id/request',
   authMiddleware,
   catalogController.createServiceRequest.bind(catalogController)
 );
 
+// @deprecated Use /api/tickets/my-tickets instead
 // Listar minhas requests
 router.get('/requests',
   authMiddleware,
@@ -93,6 +95,14 @@ router.get('/requests',
 router.get('/requests/:id',
   authMiddleware,
   catalogController.getRequestById.bind(catalogController)
+);
+
+// ===== TICKETS (UNIFICADO) =====
+
+// 🆕 Criar ticket diretamente do catálogo (substitui /items/:id/request)
+router.post('/items/:id/ticket',
+  authMiddleware,
+  catalogController.createTicketFromCatalog.bind(catalogController)
 );
 
 // ===== PORTAL PÚBLICO =====

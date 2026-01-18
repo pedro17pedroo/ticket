@@ -97,11 +97,16 @@ router.delete('/users/:id', authenticate, requirePermission('users', 'delete'), 
 // ==================== TICKETS ====================
 router.get('/tickets', authenticate, requireSmartPermission('tickets', 'read'), ticketController.getTickets);
 router.get('/tickets/statistics', authenticate, requireSmartPermission('tickets', 'read'), ticketController.getStatistics);
+// 🆕 Endpoint unificado para listar meus tickets (substitui /catalog/requests)
+router.get('/tickets/my-tickets', authenticate, ticketController.getMyTickets);
 router.get('/tickets/:id', authenticate, requireSmartPermission('tickets', 'read'), ticketController.getTicketById);
 router.post('/tickets', authenticate, requirePermission('tickets', 'create'), validate(schemas.createTicket), auditLog('create', 'ticket'), ticketController.createTicket);
 router.put('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
 router.patch('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
 router.patch('/tickets/:id/watchers', authenticate, requirePermission('tickets', 'update'), auditLog('update', 'ticket_watchers'), ticketController.updateTicketWatchers);
+// 🆕 Endpoints de aprovação/rejeição (unificação)
+router.patch('/tickets/:id/approve', authenticate, requirePermission('tickets', 'update'), auditLog('approve', 'ticket'), ticketController.approveTicket);
+router.patch('/tickets/:id/reject', authenticate, requirePermission('tickets', 'update'), auditLog('reject', 'ticket'), ticketController.rejectTicket);
 router.post('/tickets/:id/comments', authenticate, requirePermission('comments', 'create'), validate(schemas.createComment), auditLog('create', 'comment'), ticketController.addComment);
 
 // Comment routes (endpoints separados)

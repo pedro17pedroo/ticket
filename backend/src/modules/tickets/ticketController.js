@@ -1876,3 +1876,360 @@ export const updateTicketWatchers = async (req, res, next) => {
     next(error);
   }
 };
+
+// ============================================================================
+// 🆕 UNIFICAÇÃO DE TICKETS - Aprovação/Rejeição
+// ============================================================================
+
+/**
+ * PATCH /api/tickets/:id/approve
+ * Aprovar ticket de catálogo
+ */
+export const approveTicket = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { comments } = req.body;
+    const { id: userId, organizationId, role } = req.user;
+
+    // Buscar ticket
+    const ticket = await Ticket.findOne({
+      where: { id, organizationId },
+      include: [
+        { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name'], required: false }
+      ]
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Validar permissões - apenas usuários da organização podem aprovar
+    const isOrgUser = ['org-admin', 'org-manager', 'org-technician'].includes(role);
+    if (!isOrgUser) {
+      return res.status(403).json({ 
+        error: 'Sem permissão',
+        message: 'Apenas usuários da organização podem aprovar tickets'
+      });
+    }
+
+    // Validar se ticket requer aprovação
+    if (!ticket.requiresApproval) {
+      return res.status(400).json({
+        error: 'Ticket não requer aprovação',
+        message: 'Este ticket não está configurado para requerer aprovação'
+      });
+    }
+
+    // Validar se já foi aprovado/rejeitado
+    if (ticket.approvalStatus === 'approved') {
+      return res.status(400).json({
+        error: 'Ticket já aprovado',
+        message: 'Este ticket já foi aprovado anteriormente'
+      });
+    }
+
+    if (ticket.approvalStatus === 'rejected') {
+      return res.status(400).json({
+        error: 'Ticket rejeitado',
+        message: 'Este ticket foi rejeitado e não pode ser aprovado'
+      });
+    }
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      // Atualizar ticket
+      await ticket.update({
+        approvalStatus: 'approved',
+        approvalComments: comments,
+        approvedBy: userId,
+        approvedAt: new Date(),
+        status: 'novo' // Mudar de aguardando_aprovacao para novo
+      }, { transaction });
+
+      // Registrar no histórico
+      await logTicketChange(
+        ticket.id,
+        userId,
+        'approval',
+        null,
+        'approved',
+        `Ticket aprovado${comments ? ': ' + comments : ''}`,
+        transaction
+      );
+
+      await transaction.commit();
+
+      // Recarregar ticket com relações
+      await ticket.reload({
+        include: [
+          { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: OrganizationUser, as: 'approvedByUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name'], required: false }
+        ]
+      });
+
+      logger.info(`✅ Ticket aprovado: ${ticket.ticketNumber} por ${req.user.name || req.user.email}`);
+
+      // Notificar requester (async)
+      try {
+        const requester = ticket.requesterClientUser || ticket.requesterOrgUser || ticket.requesterUser;
+        if (requester) {
+          await notificationService.notifyTicketApproved(ticket, requester.id, userId, req.user.name);
+        }
+      } catch (notifError) {
+        logger.error('Erro ao enviar notificação de aprovação:', notifError);
+      }
+
+      res.json({
+        success: true,
+        message: 'Ticket aprovado com sucesso',
+        data: ticket
+      });
+
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+
+  } catch (error) {
+    logger.error('Erro ao aprovar ticket:', error);
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/tickets/:id/reject
+ * Rejeitar ticket de catálogo
+ */
+export const rejectTicket = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const { id: userId, organizationId, role } = req.user;
+
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({
+        error: 'Motivo obrigatório',
+        message: 'É necessário informar o motivo da rejeição'
+      });
+    }
+
+    // Buscar ticket
+    const ticket = await Ticket.findOne({
+      where: { id, organizationId },
+      include: [
+        { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+        { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name'], required: false }
+      ]
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Validar permissões - apenas usuários da organização podem rejeitar
+    const isOrgUser = ['org-admin', 'org-manager', 'org-technician'].includes(role);
+    if (!isOrgUser) {
+      return res.status(403).json({ 
+        error: 'Sem permissão',
+        message: 'Apenas usuários da organização podem rejeitar tickets'
+      });
+    }
+
+    // Validar se ticket requer aprovação
+    if (!ticket.requiresApproval) {
+      return res.status(400).json({
+        error: 'Ticket não requer aprovação',
+        message: 'Este ticket não está configurado para requerer aprovação'
+      });
+    }
+
+    // Validar se já foi aprovado/rejeitado
+    if (ticket.approvalStatus === 'approved') {
+      return res.status(400).json({
+        error: 'Ticket já aprovado',
+        message: 'Este ticket já foi aprovado e não pode ser rejeitado'
+      });
+    }
+
+    if (ticket.approvalStatus === 'rejected') {
+      return res.status(400).json({
+        error: 'Ticket já rejeitado',
+        message: 'Este ticket já foi rejeitado anteriormente'
+      });
+    }
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      // Atualizar ticket
+      await ticket.update({
+        approvalStatus: 'rejected',
+        rejectionReason: reason,
+        rejectedBy: userId,
+        rejectedAt: new Date(),
+        status: 'fechado' // Fechar ticket rejeitado
+      }, { transaction });
+
+      // Registrar no histórico
+      await logTicketChange(
+        ticket.id,
+        userId,
+        'rejection',
+        null,
+        'rejected',
+        `Ticket rejeitado: ${reason}`,
+        transaction
+      );
+
+      await transaction.commit();
+
+      // Recarregar ticket com relações
+      await ticket.reload({
+        include: [
+          { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: OrganizationUser, as: 'rejectedByUser', attributes: ['id', 'name', 'email'], required: false },
+          { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name'], required: false }
+        ]
+      });
+
+      logger.info(`❌ Ticket rejeitado: ${ticket.ticketNumber} por ${req.user.name || req.user.email}`);
+
+      // Notificar requester (async)
+      try {
+        const requester = ticket.requesterClientUser || ticket.requesterOrgUser || ticket.requesterUser;
+        if (requester) {
+          await notificationService.notifyTicketRejected(ticket, requester.id, userId, req.user.name, reason);
+        }
+      } catch (notifError) {
+        logger.error('Erro ao enviar notificação de rejeição:', notifError);
+      }
+
+      res.json({
+        success: true,
+        message: 'Ticket rejeitado',
+        data: ticket
+      });
+
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+
+  } catch (error) {
+    logger.error('Erro ao rejeitar ticket:', error);
+    next(error);
+  }
+};
+
+/**
+ * 🆕 GET /api/tickets/my-tickets
+ * Listar tickets do usuário (unificado - substitui /api/catalog/requests)
+ */
+export const getMyTickets = async (req, res, next) => {
+  try {
+    const { id: userId, organizationId, role, userType } = req.user;
+    const { 
+      status, 
+      source, 
+      approvalStatus,
+      page = 1, 
+      limit = 20,
+      search 
+    } = req.query;
+
+    const where = { organizationId };
+
+    // Filtrar por requester baseado no tipo de usuário
+    if (userType === 'client' || ['client-user', 'client-admin', 'client-manager'].includes(role)) {
+      where.requesterClientUserId = userId;
+    } else if (userType === 'organization' || ['org-admin', 'org-technician', 'org-manager'].includes(role)) {
+      where[Op.or] = [
+        { requesterOrgUserId: userId },
+        { requesterUserId: userId }
+      ];
+    } else {
+      where.requesterUserId = userId;
+    }
+
+    // Filtros opcionais
+    if (status) where.status = status;
+    if (source) where.source = source;
+    if (approvalStatus) where.approvalStatus = approvalStatus;
+
+    // Busca por texto
+    if (search) {
+      where[Op.or] = [
+        { ticketNumber: { [Op.iLike]: `%${search}%` } },
+        { subject: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { rows: tickets, count } = await Ticket.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset,
+      order: [['createdAt', 'DESC']],
+      include: [
+        {
+          model: CatalogItem,
+          as: 'catalogItem',
+          attributes: ['id', 'name', 'icon', 'shortDescription'],
+          required: false
+        },
+        {
+          model: CatalogCategory,
+          as: 'catalogCategory',
+          attributes: ['id', 'name', 'icon', 'color'],
+          required: false
+        },
+        {
+          model: OrganizationUser,
+          as: 'assignee',
+          attributes: ['id', 'name', 'email', 'avatar'],
+          required: false
+        },
+        {
+          model: OrganizationUser,
+          as: 'approvedByUser',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        },
+        {
+          model: OrganizationUser,
+          as: 'rejectedByUser',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        }
+      ]
+    });
+
+    logger.info(`📋 Listando ${tickets.length} tickets para usuário ${userId}`);
+
+    res.json({
+      success: true,
+      data: tickets,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar meus tickets:', error);
+    next(error);
+  }
+};
