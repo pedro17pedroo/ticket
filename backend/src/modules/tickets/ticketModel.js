@@ -237,6 +237,71 @@ const Ticket = sequelize.define('Ticket', {
     type: DataTypes.ARRAY(DataTypes.UUID), // Array de UUIDs
     defaultValue: [],
     comment: 'Array de UUIDs de usuários da organização que devem receber notificações sobre este ticket'
+  },
+  // 🆕 CAMPOS DE APROVAÇÃO (Unificação com service_requests)
+  requiresApproval: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: 'Se o ticket requer aprovação antes de ser processado (tickets de catálogo)'
+  },
+  approvalStatus: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Status de aprovação: pending, approved, rejected'
+  },
+  approvalComments: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Comentários do aprovador'
+  },
+  approvedBy: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'organization_users',
+      key: 'id'
+    },
+    comment: 'Usuário da organização que aprovou'
+  },
+  approvedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Data/hora da aprovação'
+  },
+  rejectedBy: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'organization_users',
+      key: 'id'
+    },
+    comment: 'Usuário da organização que rejeitou'
+  },
+  rejectedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Data/hora da rejeição'
+  },
+  rejectionReason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Motivo da rejeição'
+  },
+  // 🆕 DADOS DO FORMULÁRIO (Unificação com service_requests)
+  formData: {
+    type: DataTypes.JSONB,
+    defaultValue: {},
+    comment: 'Dados do formulário do catálogo (JSONB)'
+  },
+  estimatedCost: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    comment: 'Custo estimado do serviço'
+  },
+  estimatedDeliveryDays: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Prazo estimado de entrega em dias'
   }
 }, {
   tableName: 'tickets',
