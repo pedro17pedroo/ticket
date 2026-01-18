@@ -85,7 +85,7 @@ Backup criado: 0
 
 ---
 
-### Fase 3: Backend 🟡 (14% - 1/7)
+### Fase 3: Backend 🟡 (29% - 2/7)
 
 #### ✅ TASK-6: Atualizar Modelo Ticket
 - [x] Campos de aprovação adicionados
@@ -106,8 +106,15 @@ Backup criado: 0
 - `estimatedCost` - Decimal(10,2)
 - `estimatedDeliveryDays` - Integer
 
-#### ⏳ TASK-7: Criar Método createTicketFromCatalog
-- [ ] Pendente
+#### ✅ TASK-7: Criar Método createTicketFromCatalog
+- [x] Método criado em catalogControllerEnhanced.js
+- [x] Validação de formulário
+- [x] Requester polimórfico (client/organization/provider)
+- [x] Geração automática de descrição
+- [x] Roteamento automático
+- [x] Workflow de aprovação
+- [x] form_data em JSONB
+- [x] Método antigo marcado como @deprecated
 
 #### ⏳ TASK-8: Criar Endpoint de Aprovação
 - [ ] Pendente
@@ -131,12 +138,12 @@ Backup criado: 0
 ```
 Fase 1: Preparação         [██████████] 2/2   (100%) ✅
 Fase 2: Migração Schema    [██████████] 3/3   (100%) ✅
-Fase 3: Backend            [██░░░░░░░░] 1/7   (14%)  🟡
+Fase 3: Backend            [███░░░░░░░] 2/7   (29%)  🟡
 Fase 4: Frontend           [░░░░░░░░░░] 0/5   (0%)   ⏳
 Fase 5: Testes             [░░░░░░░░░░] 0/3   (0%)   ⏳
 Fase 6: Limpeza            [░░░░░░░░░░] 0/5   (0%)   ⏳
 
-Total:                     [███░░░░░░░] 6/25  (24%)  🟡
+Total:                     [███░░░░░░░] 7/25  (28%)  🟡
 ```
 
 ---
@@ -190,6 +197,7 @@ Total:                     [███░░░░░░░] 6/25  (24%)  🟡
 
 ### Modificados
 - `backend/src/modules/tickets/ticketModel.js` - Adicionados 11 campos
+- `backend/src/modules/catalog/catalogControllerEnhanced.js` - Método createTicketFromCatalog
 
 ### Database
 - Tabela `tickets` - 11 novos campos
@@ -217,5 +225,5 @@ Total:                     [███░░░░░░░] 6/25  (24%)  🟡
 
 ---
 
-**Última atualização:** 18 de Janeiro de 2026 - 12:00
-**Próxima atualização:** Após completar TASK-7
+**Última atualização:** 18 de Janeiro de 2026 - 12:30
+**Próxima atualização:** Após completar TASK-8, 9, 10
