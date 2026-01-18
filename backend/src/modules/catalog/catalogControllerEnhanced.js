@@ -344,10 +344,163 @@ class CatalogController {
     }
   }
 
-  // ===== SERVICE REQUESTS =====
+  // ===== TICKETS (UNIFICADO) =====
+
+  /**
+   * 🆕 POST /api/catalog/items/:id/ticket
+   * Criar ticket diretamente do catálogo (sem service_request intermediário)
+   */
+  async createTicketFromCatalog(req, res) {
+    try {
+      const { id: catalogItemId } = req.params;
+      const { organizationId, id: userId, userType, role } = req.user;
+      const { formData } = req.body;
+
+      // Buscar item do catálogo
+      const item = await CatalogItem.findOne({
+        where: { id: catalogItemId, organizationId, isActive: true },
+        include: [{
+          model: CatalogCategory,
+          as: 'category',
+          attributes: ['id', 'name']
+        }]
+      });
+
+      if (!item) {
+        return res.status(404).json({ error: 'Item não encontrado' });
+      }
+
+      // Validar dados do formulário
+      if (item.customFields && item.customFields.length > 0) {
+        // Importar serviço de custom fields se existir
+        try {
+          const customFieldsService = await import('../../services/customFieldsService.js');
+          const validation = customFieldsService.default.validateFormData(
+            item.customFields, 
+            formData
+          );
+          
+          if (!validation.valid) {
+            return res.status(400).json({
+              error: 'Dados do formulário inválidos',
+              errors: validation.errors
+            });
+          }
+        } catch (err) {
+          logger.warn('Custom fields service não encontrado, pulando validação');
+        }
+      }
+
+      // Transformar dados do formulário
+      const transformedData = formData || {};
+
+      // Determinar tipo de requester
+      let requesterType = 'organization';
+      let requesterUserId = null;
+      let requesterOrgUserId = null;
+      let requesterClientUserId = null;
+      let clientId = null;
+
+      if (userType === 'client' || ['client-admin', 'client-user', 'client-manager'].includes(role)) {
+        requesterType = 'client';
+        requesterClientUserId = userId;
+        // Buscar clientId do usuário
+        const ClientUser = (await import('../models/index.js')).ClientUser;
+        const clientUser = await ClientUser.findByPk(userId, { attributes: ['clientId'] });
+        if (clientUser) {
+          clientId = clientUser.clientId;
+        }
+      } else if (userType === 'organization' || ['org-admin', 'org-technician', 'org-manager'].includes(role)) {
+        requesterType = 'organization';
+        requesterOrgUserId = userId;
+      } else {
+        requesterType = 'provider';
+        requesterUserId = userId;
+      }
+
+      // Gerar descrição do ticket
+      let description = `**Solicitação de Serviço: ${item.name}**\n\n`;
+      if (item.shortDescription) {
+        description += `${item.shortDescription}\n\n`;
+      }
+      if (Object.keys(transformedData).length > 0) {
+        description += '**Dados da Solicitação:**\n\n';
+        for (const [key, value] of Object.entries(transformedData)) {
+          if (value !== undefined && value !== null && value !== '') {
+            description += `- **${key}:** ${value}\n`;
+          }
+        }
+      }
+
+      // Criar ticket diretamente
+      const ticket = await Ticket.create({
+        organizationId,
+        clientId,
+        requesterType,
+        requesterUserId,
+        requesterOrgUserId,
+        requesterClientUserId,
+        catalogItemId: item.id,
+        catalogCategoryId: item.categoryId,
+        subject: item.name,
+        description,
+        priority: item.defaultPriority || 'media',
+        type: 'service_request',
+        source: 'portal',
+        status: item.requiresApproval ? 'aguardando_aprovacao' : 'novo',
+        // Campos de aprovação
+        requiresApproval: item.requiresApproval || false,
+        approvalStatus: item.requiresApproval ? 'pending' : null,
+        // Dados do formulário
+        formData: transformedData,
+        estimatedCost: item.estimatedCost,
+        estimatedDeliveryDays: item.estimatedDeliveryDays,
+        // Roteamento automático
+        directionId: item.defaultDirectionId,
+        departmentId: item.defaultDepartmentId,
+        sectionId: item.defaultSectionId
+      });
+
+      // Buscar ticket completo com relações
+      const fullTicket = await Ticket.findByPk(ticket.id, {
+        include: [
+          {
+            model: CatalogItem,
+            as: 'catalogItem',
+            attributes: ['id', 'name', 'icon', 'shortDescription']
+          },
+          {
+            model: CatalogCategory,
+            as: 'catalogCategory',
+            attributes: ['id', 'name', 'icon', 'color']
+          }
+        ]
+      });
+
+      logger.info(`✅ Ticket de catálogo criado: ${ticket.ticketNumber} (${item.name})`);
+      
+      res.status(201).json({
+        success: true,
+        data: fullTicket,
+        requiresApproval: item.requiresApproval,
+        message: item.requiresApproval 
+          ? 'Solicitação criada e aguardando aprovação'
+          : 'Ticket criado com sucesso'
+      });
+    } catch (error) {
+      logger.error('Erro ao criar ticket de catálogo:', error);
+      res.status(500).json({ 
+        error: 'Erro ao criar ticket',
+        details: error.message 
+      });
+    }
+  }
+
+  // ===== SERVICE REQUESTS (DEPRECATED) =====
 
   /**
    * POST /api/catalog/items/:id/request
+   * @deprecated Use createTicketFromCatalog instead
    * Criar service request a partir de um item
    */
   async createServiceRequest(req, res) {
