@@ -98,11 +98,26 @@ export const createTenantOrganization = async (req, res, next) => {
     // Buscar o plano solicitado ou usar o padrão
     let selectedPlan;
     if (plan) {
-      selectedPlan = await Plan.findOne({ where: { name: plan, isActive: true } });
+      // Tentar buscar por name (ex: 'starter', 'professional', 'enterprise')
+      selectedPlan = await Plan.findOne({ 
+        where: { 
+          [Op.or]: [
+            { name: plan },
+            { name: plan.toLowerCase() }
+          ],
+          isActive: true 
+        } 
+      });
     }
 
     if (!selectedPlan) {
+      // Se não encontrou, usar o plano padrão
       selectedPlan = await Plan.findOne({ where: { isDefault: true, isActive: true } });
+    }
+
+    if (!selectedPlan) {
+      // Se ainda não encontrou, usar o primeiro plano ativo
+      selectedPlan = await Plan.findOne({ where: { isActive: true }, order: [['sortOrder', 'ASC']] });
     }
 
     if (!selectedPlan) {

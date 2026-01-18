@@ -100,13 +100,8 @@ export const seedPlans = async () => {
     
     await sequelize.authenticate();
     
-    // Sincronizar modelo
-    await Plan.sync({ alter: true });
-    
-    // Limpar planos existentes (apenas em desenvolvimento)
-    if (process.env.NODE_ENV === 'development') {
-      await Plan.destroy({ where: {}, truncate: true });
-    }
+    // Não alterar estrutura da tabela, apenas inserir dados
+    // await Plan.sync({ alter: true });
     
     // Criar planos
     for (const planData of plansData) {

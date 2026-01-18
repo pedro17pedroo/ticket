@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Ticket } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -7,30 +7,9 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showLoginOptions, setShowLoginOptions] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
 
   const orgPortalUrl = import.meta.env.VITE_ORGANIZATION_PORTAL_URL || 'https://organizacao.tatuticket.com';
   const clientPortalUrl = import.meta.env.VITE_CLIENT_PORTAL_URL || 'https://cliente.tatuticket.com';
-
-  // Função para scroll até a seção de preços
-  const scrollToPricing = () => {
-    if (location.pathname === '/') {
-      // Se estiver na home, faz scroll até a seção de preços
-      const pricingSection = document.getElementById('pricing-section');
-      if (pricingSection) {
-        pricingSection.scrollIntoView({ behavior: 'smooth' });
-      }
-    } else {
-      // Se não estiver na home, navega para home com hash
-      navigate('/#pricing-section');
-      setTimeout(() => {
-        const pricingSection = document.getElementById('pricing-section');
-        if (pricingSection) {
-          pricingSection.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 100);
-    }
-  };
 
   const navigation = [
     { name: 'Início', href: '/' },
@@ -118,12 +97,12 @@ const Header = () => {
                 </div>
               )}
             </div>
-            <button
-              onClick={scrollToPricing}
+            <Link
+              to="/onboarding"
               className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
             >
               Começar Agora
-            </button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -197,15 +176,13 @@ const Header = () => {
                       Portal de Clientes
                     </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      scrollToPricing();
-                    }}
-                    className="w-full text-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
+                  <Link
+                    to="/onboarding"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block text-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
                   >
                     Começar Agora
-                  </button>
+                  </Link>
                 </div>
               </div>
             </motion.div>

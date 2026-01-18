@@ -191,6 +191,7 @@ export const schemas = {
     description: Joi.string().allow('', null).optional(),
     code: Joi.string().allow('', null).max(20).optional(),
     managerId: Joi.string().uuid().allow('', null).optional(),
+    email: Joi.string().email().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 
@@ -199,6 +200,7 @@ export const schemas = {
     description: Joi.string().allow('', null).optional(),
     code: Joi.string().allow('', null).max(20).optional(),
     managerId: Joi.string().uuid().allow('', null).optional(),
+    email: Joi.string().email().allow('', null).optional(),
     isActive: Joi.boolean().optional()
   }),
 
@@ -218,6 +220,7 @@ export const schemas = {
     name: Joi.string().min(2).max(100).required(),
     description: Joi.string().allow('', null).optional(),
     code: Joi.string().allow('', null).max(20).optional(),
+    email: Joi.string().email().allow('', null).optional(),
     departmentId: Joi.string().uuid().required(),
     managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()
@@ -227,6 +230,7 @@ export const schemas = {
     name: Joi.string().min(2).max(100).optional(),
     description: Joi.string().allow('', null).optional(),
     code: Joi.string().allow('', null).max(20).optional(),
+    email: Joi.string().email().allow('', null).optional(),
     departmentId: Joi.string().uuid().optional(),
     managerId: Joi.string().uuid().allow('', null).optional(),
     isActive: Joi.boolean().optional()

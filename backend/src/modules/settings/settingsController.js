@@ -304,23 +304,43 @@ export const updateIntegrationSettings = async (req, res, next) => {
 // GET /api/provider/audit-logs - Obter logs de auditoria
 export const getAuditLogs = async (req, res, next) => {
   try {
-    const { action, resource, startDate, endDate, page = 1, limit = 50 } = req.query;
+    const { action, resource, period = '7days', page = 1, limit = 50 } = req.query;
 
+    // Calcular datas baseado no período
+    const { Op } = await import('sequelize');
     const where = {};
     
     if (action && action !== 'all') {
       where.action = action;
     }
     
-    if (resource) {
-      where.entityType = resource; // Use entityType instead of resource
+    if (resource && resource !== 'all') {
+      where.entityType = resource;
     }
 
-    if (startDate || endDate) {
-      const { Op } = await import('sequelize');
-      where.createdAt = {};
-      if (startDate) where.createdAt[Op.gte] = new Date(startDate);
-      if (endDate) where.createdAt[Op.lte] = new Date(endDate);
+    // Filtrar por período
+    if (period) {
+      const now = new Date();
+      let startDate;
+      
+      switch(period) {
+        case '24hours':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7days':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30days':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90days':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      }
+      
+      where.createdAt = { [Op.gte]: startDate };
     }
 
     const { count, rows: logs } = await AuditLog.findAndCountAll({
@@ -343,6 +363,21 @@ export const getAuditLogs = async (req, res, next) => {
 
   } catch (error) {
     console.error('Erro ao obter logs de auditoria:', error);
+    
+    // Se for erro de tabela não existir, retornar array vazio
+    if (error.message && (error.message.includes('does not exist') || error.message.includes('relation'))) {
+      return res.json({
+        success: true,
+        logs: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          limit: 50,
+          pages: 0
+        }
+      });
+    }
+    
     next(error);
   }
 };

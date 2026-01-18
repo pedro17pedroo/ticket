@@ -10,7 +10,6 @@ import {
   Section,
   CatalogCategory,
   CatalogItem,
-  ServiceRequest,
   Ticket
 } from '../../src/modules/models/index.js';
 import bcrypt from 'bcryptjs';

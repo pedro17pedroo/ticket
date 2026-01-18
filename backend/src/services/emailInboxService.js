@@ -3,6 +3,7 @@ import { simpleParser } from 'mailparser';
 import logger from '../config/logger.js';
 import Ticket from '../modules/tickets/ticketModel.js';
 import User from '../modules/users/userModel.js';
+import emailRouterService from './emailRouterService.js';
 
 class EmailInboxService {
   constructor() {
@@ -175,6 +176,67 @@ class EmailInboxService {
         return;
       }
 
+      // Extract destination email from emailData.to
+      let destinationEmail = null;
+      if (emailData.to && emailData.to.value && emailData.to.value.length > 0) {
+        destinationEmail = emailData.to.value[0].address;
+        logger.debug(`Destination email extracted: ${destinationEmail}`);
+      }
+
+      // Use emailRouterService to find organizational unit
+      let organizationalUnit = null;
+      if (destinationEmail) {
+        organizationalUnit = await emailRouterService.findOrganizationalUnitByEmail(
+          destinationEmail,
+          user.organizationId
+        );
+      }
+
+      // Prepare ticket data with organizational unit assignment
+      const ticketData = {
+        organizationId: user.organizationId,
+        requesterId: user.id,
+        subject: subject.substring(0, 255), // Limitar tamanho
+        description: body.substring(0, 5000), // Limitar tamanho
+        status: 'novo',
+        priority: 'media',
+        source: 'email',
+        metadata: {
+          emailFrom: fromEmail,
+          emailTo: destinationEmail,
+          emailDate: emailData.date,
+          hasAttachments: false,
+          attachmentsCount: 0
+        }
+      };
+
+      // Generate ticket number manually (workaround for hook not firing in tests)
+      const date = new Date();
+      const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+      const random = Math.floor(1000 + Math.random() * 9000);
+      ticketData.ticketNumber = `TKT-${dateStr}-${random}`;
+
+      // Set directionId, departmentId, or sectionId based on match
+      if (organizationalUnit) {
+        switch (organizationalUnit.type) {
+          case 'direction':
+            ticketData.directionId = organizationalUnit.unit.id;
+            logger.info(`Ticket will be assigned to Direction: ${organizationalUnit.unit.name}`);
+            break;
+          case 'department':
+            ticketData.departmentId = organizationalUnit.unit.id;
+            logger.info(`Ticket will be assigned to Department: ${organizationalUnit.unit.name}`);
+            break;
+          case 'section':
+            ticketData.sectionId = organizationalUnit.unit.id;
+            logger.info(`Ticket will be assigned to Section: ${organizationalUnit.unit.name}`);
+            break;
+        }
+      } else {
+        // Handle no match scenario (unassigned or default queue)
+        logger.warn(`No organizational unit found for email: ${destinationEmail}. Ticket will be unassigned.`);
+      }
+
       // Processar anexos se houver
       const attachments = [];
       if (emailData.attachments && emailData.attachments.length > 0) {
@@ -186,24 +248,12 @@ class EmailInboxService {
             size: attachment.size
           });
         }
+        ticketData.metadata.hasAttachments = true;
+        ticketData.metadata.attachmentsCount = attachments.length;
       }
 
       // Criar ticket
-      const ticket = await Ticket.create({
-        organizationId: user.organizationId,
-        requesterId: user.id,
-        subject: subject.substring(0, 255), // Limitar tamanho
-        description: body.substring(0, 5000), // Limitar tamanho
-        status: 'novo',
-        priority: 'media',
-        source: 'email',
-        metadata: {
-          emailFrom: fromEmail,
-          emailDate: emailData.date,
-          hasAttachments: attachments.length > 0,
-          attachmentsCount: attachments.length
-        }
-      });
+      const ticket = await Ticket.create(ticketData);
 
       logger.info(`✅ Ticket #${ticket.ticketNumber} criado a partir de e-mail`);
 

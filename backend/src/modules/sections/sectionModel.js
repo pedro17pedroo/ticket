@@ -55,6 +55,23 @@ const Section = sequelize.define('Section', {
     defaultValue: true,
     field: 'is_active',
     comment: 'Secção ativa'
+  },
+  email: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    validate: {
+      isEmail: true
+    },
+    set(value) {
+      // Trim whitespace and convert empty strings to null
+      const trimmed = typeof value === 'string' ? value.trim() : value;
+      if (trimmed === '' || trimmed === null || trimmed === undefined) {
+        this.setDataValue('email', null);
+      } else {
+        this.setDataValue('email', trimmed.toLowerCase());
+      }
+    },
+    comment: 'Email address for automatic ticket routing to this section'
   }
 }, {
   tableName: 'sections',

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles, Check, Zap, Shield, Globe, Star, Heart, Clock, Users, Lock, Rocket } from 'lucide-react';
-import { getLandingPageConfig, getPublicPlans } from '../services/api';
+import { getLandingPageConfig } from '../services/api';
 
 // Mapeamento de ícones
 const iconMap = {
@@ -10,28 +10,17 @@ const iconMap = {
 
 export default function Home() {
   const [config, setConfig] = useState(null);
-  const [plans, setPlans] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
+    loadConfig();
   }, []);
 
-  const loadData = async () => {
-    // Carregar configuração da landing page e planos em paralelo
-    const [configData, plansData] = await Promise.all([
-      getLandingPageConfig(),
-      getPublicPlans()
-    ]);
-    
-    if (configData) {
-      setConfig(configData);
+  const loadConfig = async () => {
+    const data = await getLandingPageConfig();
+    if (data) {
+      setConfig(data);
     }
-    
-    if (plansData && plansData.length > 0) {
-      setPlans(plansData);
-    }
-    
     setLoading(false);
   };
 
@@ -60,9 +49,9 @@ export default function Home() {
     pricingTitle: 'Planos Flexíveis',
     pricingSubtitle: 'Escolha o melhor plano para sua empresa',
     pricingPlans: [
-      { name: 'Starter', price: '€29', features: ['Até 10 usuários', '500 tickets/mês', 'Suporte por email', 'Base de conhecimento'], highlighted: false },
-      { name: 'Professional', price: '€79', features: ['Até 50 usuários', '2000 tickets/mês', 'Suporte 24/7', 'SLA', 'Automações', 'API'], highlighted: true },
-      { name: 'Enterprise', price: '€199', features: ['Até 200 usuários', '10000 tickets/mês', 'Suporte dedicado', 'White-label', 'Integrações avançadas'], highlighted: false }
+      { name: 'Starter', price: '€49', features: ['Até 10 usuários', '1000 tickets/mês', 'Suporte por email'], highlighted: false },
+      { name: 'Professional', price: '€149', features: ['Até 50 usuários', '10000 tickets/mês', 'Suporte 24/7', 'API access'], highlighted: true },
+      { name: 'Enterprise', price: 'Contacte-nos', features: ['Usuários ilimitados', 'Tickets ilimitados', 'Suporte dedicado', 'White-label'], highlighted: false }
     ],
     ctaTitle: 'Pronto para começar?',
     ctaDescription: 'Experimente gratuitamente por 14 dias. Sem cartão de crédito.',
@@ -185,16 +174,14 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {/* Usar planos reais do banco se disponíveis, senão usar config da landing page */}
-            {(plans || c.pricingPlans).map((plan, index) => (
+            {c.pricingPlans.map((plan, index) => (
               <PricingCard
-                key={plan.id || index}
+                key={index}
+                planId={plan.name.toLowerCase()}
                 name={plan.name}
                 price={plan.price}
                 features={plan.features}
                 highlighted={plan.highlighted}
-                planId={plan.planId || plan.name.toLowerCase().replace(/\s+/g, '-')}
-                trialDays={plan.trialDays || 0}
               />
             ))}
           </div>
@@ -235,10 +222,7 @@ export default function Home() {
             {c.ctaTitle}
           </h2>
           <p className="text-xl text-blue-100 mb-10">
-            {plans && plans.some(p => p.trialDays > 0) 
-              ? `Experimente gratuitamente por ${Math.max(...plans.map(p => p.trialDays || 0))} dias. Sem cartão de crédito.`
-              : c.ctaDescription
-            }
+            {c.ctaDescription}
           </p>
           <Link
             to={c.ctaButtonLink}
@@ -374,10 +358,7 @@ function FeatureCard({ icon, title, description }) {
   );
 }
 
-function PricingCard({ name, price, features, highlighted, planId, trialDays }) {
-  // Verificar se é preço especial (Contacte-nos, Grátis)
-  const isSpecialPrice = price === 'Contacte-nos' || price === 'Grátis';
-  
+function PricingCard({ planId, name, price, features, highlighted }) {
   return (
     <div className={`rounded-xl p-8 ${
       highlighted 
@@ -385,19 +366,10 @@ function PricingCard({ name, price, features, highlighted, planId, trialDays }) 
         : 'bg-white text-gray-900 shadow-lg'
     }`}>
       <h3 className="text-2xl font-bold mb-2">{name}</h3>
-      <p className={`text-4xl font-bold mb-2 ${highlighted ? 'text-white' : 'text-blue-600'}`}>
+      <p className={`text-4xl font-bold mb-6 ${highlighted ? 'text-white' : 'text-blue-600'}`}>
         {price}
-        {!isSpecialPrice && <span className="text-lg">/mês</span>}
+        {price !== 'Contacte-nos' && <span className="text-lg">/mês</span>}
       </p>
-      {trialDays > 0 && (
-        <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-4 ${
-          highlighted 
-            ? 'bg-green-400 text-green-900' 
-            : 'bg-green-100 text-green-700'
-        }`}>
-          {trialDays} dias grátis
-        </div>
-      )}
       <ul className="space-y-3 mb-8">
         {features.map((feature, i) => (
           <li key={i} className="flex items-center gap-2">
@@ -407,7 +379,7 @@ function PricingCard({ name, price, features, highlighted, planId, trialDays }) 
         ))}
       </ul>
       <Link
-        to={`/onboarding?plan=${planId || 'starter'}`}
+        to={`/onboarding?plan=${planId}`}
         className={`block text-center px-6 py-3 rounded-lg font-semibold transition-colors ${
           highlighted
             ? 'bg-white text-blue-600 hover:bg-blue-50'

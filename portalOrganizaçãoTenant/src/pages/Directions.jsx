@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, Building, X, Users, Save, FileText, User, Settings } from 'lucide-react'
+import { Plus, Edit2, Trash2, Building, X, Users, Save, FileText, User, Settings, Mail } from 'lucide-react'
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
 import Modal from '../components/Modal'
@@ -16,6 +16,7 @@ const Directions = () => {
     description: '',
     code: '',
     managerId: '',
+    email: '',
     isActive: true
   })
 
@@ -41,35 +42,33 @@ const Directions = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      // Construir payload apenas com campos preenchidos
+      // Construir payload - garantir que email seja sempre string
       const payload = {
         name: formData.name,
-        isActive: formData.isActive
-      }
-      
-      // Adicionar campos opcionais apenas se preenchidos
-      if (formData.description && formData.description.trim()) {
-        payload.description = formData.description
-      }
-      if (formData.code && formData.code.trim()) {
-        payload.code = formData.code
-      }
-      if (formData.managerId && formData.managerId.trim()) {
-        payload.managerId = formData.managerId
+        isActive: formData.isActive,
+        description: formData.description || '',
+        code: formData.code || '',
+        managerId: formData.managerId || '',
+        email: String(formData.email || '').trim()  // Garantir que é string
       }
 
       console.log('📤 Enviando payload:', payload)
+      console.log('📧 Email tipo:', typeof payload.email, 'valor:', payload.email)
 
       if (editingDirection) {
-        await api.put(`/directions/${editingDirection.id}`, payload)
+        const response = await api.put(`/directions/${editingDirection.id}`, payload)
+        console.log('✅ Resposta do servidor:', response.data)
         showSuccess('Atualizado!', 'Direção atualizada com sucesso')
       } else {
         await api.post('/directions', payload)
         showSuccess('Criado!', 'Direção criada com sucesso')
       }
+      
+      // Recarregar dados ANTES de fechar o modal
+      await loadData()
+      
       setShowModal(false)
       resetForm()
-      loadData()
     } catch (error) {
       console.error('❌ Erro detalhado:', error.response?.data)
       showError('Erro ao salvar', error.response?.data?.error || error.message)
@@ -83,6 +82,7 @@ const Directions = () => {
       description: direction.description || '',
       code: direction.code || '',
       managerId: direction.managerId || '',
+      email: direction.email || '',
       isActive: direction.isActive
     })
     setShowModal(true)
@@ -111,6 +111,7 @@ const Directions = () => {
       description: '',
       code: '',
       managerId: '',
+      email: '',
       isActive: true
     })
     setEditingDirection(null)
@@ -168,6 +169,18 @@ const Directions = () => {
             </div>
             {direction.description && (
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{direction.description}</p>
+            )}
+            {direction.email && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3 bg-gray-50 dark:bg-gray-700/50 px-3 py-2 rounded-lg">
+                <Mail className="w-4 h-4 text-primary-500" />
+                <span>{direction.email}</span>
+              </div>
+            )}
+            {!direction.email && (
+              <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 mb-3">
+                <Mail className="w-4 h-4" />
+                <span>—</span>
+              </div>
             )}
             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
               <span className="flex items-center gap-1">
@@ -264,6 +277,23 @@ const Directions = () => {
                       className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none text-base"
                       placeholder="Descreva o propósito e responsabilidades desta direção..."
                     />
+                  </div>
+
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-1">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      Email da Direção
+                    </label>
+                    <input 
+                      type="email" 
+                      value={formData.email} 
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
+                      className="w-full min-w-[500px] px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-base"
+                      placeholder="direcao@exemplo.com"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Emails enviados para este endereço criarão tickets automaticamente
+                    </p>
                   </div>
                 </div>
 

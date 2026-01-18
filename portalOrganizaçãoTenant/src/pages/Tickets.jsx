@@ -484,7 +484,7 @@ const Tickets = () => {
                     onClick={() => navigate(`/tickets/${ticket.id}`)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      #{ticket.id?.slice(0, 8)}
+                      {ticket.ticketNumber}
                     </td>
                     <td className="px-6 py-4 max-w-xs">
                       <div className="flex items-center gap-2">

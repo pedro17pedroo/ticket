@@ -10,6 +10,7 @@ export const TimeEntry = sequelize.define('TimeEntry', {
   organizationId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'organization_id',
     references: {
       model: 'organizations',
       key: 'id'
@@ -18,6 +19,7 @@ export const TimeEntry = sequelize.define('TimeEntry', {
   ticketId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'ticket_id',
     references: {
       model: 'tickets',
       key: 'id'
@@ -26,48 +28,70 @@ export const TimeEntry = sequelize.define('TimeEntry', {
   userId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'user_id',
     references: {
-      model: 'users',
+      model: 'organization_users',
       key: 'id'
     }
   },
   description: {
-    type: DataTypes.TEXT
+    type: DataTypes.TEXT,
+    field: 'description'
   },
   startTime: {
     type: DataTypes.DATE,
-    allowNull: false
+    allowNull: false,
+    field: 'start_time'
   },
   endTime: {
-    type: DataTypes.DATE
+    type: DataTypes.DATE,
+    field: 'end_time'
   },
   duration: {
     type: DataTypes.INTEGER,
+    field: 'duration',
     comment: 'Duration in seconds'
   },
-  isBillable: {
+  billable: {
     type: DataTypes.BOOLEAN,
-    defaultValue: true
+    defaultValue: true,
+    field: 'billable'
   },
   isActive: {
     type: DataTypes.BOOLEAN,
-    defaultValue: false,
+    defaultValue: true,
+    field: 'is_active',
     comment: 'True if timer is currently running'
   },
   status: {
-    type: DataTypes.ENUM('running', 'paused', 'stopped'),
+    type: DataTypes.STRING(20),
     defaultValue: 'running',
+    field: 'status',
     comment: 'Timer status: running, paused, or stopped'
   },
   totalPausedTime: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+    field: 'total_paused_time',
     comment: 'Total paused time in seconds'
   },
-  lastPauseStart: {
+  pauseCount: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    field: 'pause_count',
+    comment: 'Number of times timer was paused'
+  },
+  lastPauseAt: {
     type: DataTypes.DATE,
     allowNull: true,
+    field: 'last_pause_at',
     comment: 'Timestamp when timer was last paused'
+  },
+  lastResumeAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'last_resume_at',
+    comment: 'Timestamp when timer was last resumed'
   }
 }, {
   tableName: 'time_entries',

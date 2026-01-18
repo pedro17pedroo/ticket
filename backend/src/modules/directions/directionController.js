@@ -1,4 +1,5 @@
 import { Direction, User, Department } from '../models/index.js';
+import emailValidationService from '../../services/emailValidationService.js';
 
 // GET /api/directions - Listar direções (apenas internas do tenant, não de clientes)
 export const getDirections = async (req, res, next) => {
@@ -80,7 +81,7 @@ export const getDirectionById = async (req, res, next) => {
 // POST /api/directions - Criar direção
 export const createDirection = async (req, res, next) => {
   try {
-    const { name, description, code, managerId, isActive } = req.body;
+    const { name, description, code, managerId, isActive, email } = req.body;
     const organizationId = req.user.organizationId;
 
     // Apenas admin pode criar direções
@@ -91,11 +92,27 @@ export const createDirection = async (req, res, next) => {
       });
     }
 
+    // Validate email uniqueness if provided
+    if (email) {
+      const validation = await emailValidationService.validateEmailUniqueness(
+        email,
+        organizationId
+      );
+      
+      if (!validation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: validation.error
+        });
+      }
+    }
+
     const direction = await Direction.create({
       name,
       description: description && description.trim() !== '' ? description : null,
       code: code && code.trim() !== '' ? code : null,
       managerId: managerId && managerId.trim() !== '' ? managerId : null, // Converter string vazia para null
+      email: email && email.trim() !== '' ? email : null,
       organizationId,
       clientId: null, // Direção interna do tenant, não de cliente
       isActive: isActive !== undefined ? isActive : true
@@ -115,8 +132,19 @@ export const createDirection = async (req, res, next) => {
 export const updateDirection = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, code, managerId, isActive } = req.body;
-    const organizationId = req.user.organizationId;
+    
+    console.log('🔍 ========== DEBUG UPDATE DIRECTION ==========');
+    console.log('🔍 req.body COMPLETO:', JSON.stringify(req.body, null, 2));
+    console.log('🔍 req.body.email:', req.body.email);
+    console.log('🔍 typeof req.body.email:', typeof req.body.email);
+    console.log('🔍 Object.keys(req.body):', Object.keys(req.body));
+    console.log('🔍 req.headers["content-type"]:', req.headers['content-type']);
+    console.log('🔍 ============================================');
+    
+    const { name, description, code, managerId, isActive, email } = req.body;
+
+    console.log('📥 Recebido para atualização:', { id, name, description, code, managerId, isActive, email });
+    console.log('📧 Email específico:', email, 'Tipo:', typeof email);
 
     if (req.user.role !== 'org-admin') {
       return res.status(403).json({
@@ -128,7 +156,7 @@ export const updateDirection = async (req, res, next) => {
     const direction = await Direction.findOne({
       where: {
         id,
-        organizationId,
+        organizationId: req.user.organizationId,
         clientId: null // Apenas direções internas
       }
     });
@@ -140,13 +168,41 @@ export const updateDirection = async (req, res, next) => {
       });
     }
 
-    await direction.update({
-      name,
-      description: description !== undefined ? (description && description.trim() !== '' ? description : null) : undefined,
-      code: code !== undefined ? (code && code.trim() !== '' ? code : null) : undefined,
-      managerId: managerId !== undefined ? (managerId && managerId.trim() !== '' ? managerId : null) : undefined,
-      isActive
-    });
+    // Validate email uniqueness if provided and changed
+    if (email !== undefined && email !== null && email.trim() !== '') {
+      const validation = await emailValidationService.validateEmailUniqueness(
+        email,
+        req.user.organizationId,
+        { type: 'direction', id }
+      );
+      
+      if (!validation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: validation.error
+        });
+      }
+    }
+
+    // Preparar dados para atualização
+    const updateData = {};
+    
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description && description.trim() !== '' ? description : null;
+    if (code !== undefined) updateData.code = code && code.trim() !== '' ? code : null;
+    if (managerId !== undefined) updateData.managerId = managerId && managerId.trim() !== '' ? managerId : null;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    
+    // Email: aceitar string vazia como null, mas preservar valores válidos
+    if (email !== undefined) {
+      updateData.email = (email && email.trim() !== '') ? email.trim() : null;
+    }
+
+    console.log('📤 Dados para atualizar:', updateData);
+
+    await direction.update(updateData);
+
+    console.log('✅ Direção após atualização:', direction.toJSON());
 
     res.json({
       success: true,

@@ -1,4 +1,5 @@
-import { CatalogCategory, CatalogItem, ServiceRequest } from './catalogModelSimple.js';
+import { CatalogCategory, ServiceRequest } from './catalogModelSimple.js';
+import { Ticket, ClientUser, OrganizationUser, User, CatalogItem } from '../models/index.js';
 import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
 
@@ -458,36 +459,154 @@ class CatalogController {
 
   /**
    * GET /api/catalog/requests
-   * Listar minhas service requests
+   * Listar minhas service requests E tickets criados diretamente (ex: por email)
    */
   async getMyRequests(req, res) {
     try {
-      const { id: userId, organizationId } = req.user;
+      const { id: userId, organizationId, role } = req.user;
       const { status } = req.query;
 
-      const where = { organizationId, requesterId: userId };
-      
+      // 1. Buscar service requests (solicitações via catálogo)
+      const requestWhere = { organizationId, userId };
       if (status) {
-        where.status = status;
+        requestWhere.status = status;
       }
 
-      const requests = await ServiceRequest.findAll({
-        where,
+      const serviceRequests = await ServiceRequest.findAll({
+        where: requestWhere,
         order: [['createdAt', 'DESC']],
         include: [
           {
             model: CatalogItem,
             as: 'catalogItem',
             attributes: ['id', 'name', 'icon']
+          },
+          {
+            model: Ticket,
+            as: 'ticket',
+            attributes: ['id', 'ticketNumber', 'status'],
+            required: false
           }
         ]
       });
 
-      res.json({ success: true, data: requests });
+      // 2. Buscar tickets criados diretamente (ex: por email) SEM service_request
+      const ticketWhere = {
+        organizationId,
+        [Op.or]: []
+      };
+
+      // Identificar se é cliente ou usuário da organização
+      if (role === 'client' || role === 'client-user' || role === 'client-admin') {
+        ticketWhere[Op.or].push({ requesterClientUserId: userId });
+      } else {
+        ticketWhere[Op.or].push({ requesterUserId: userId });
+        ticketWhere[Op.or].push({ requesterOrgUserId: userId });
+      }
+
+      // Buscar tickets que NÃO têm service_request associado
+      const directTickets = await Ticket.findAll({
+        where: ticketWhere,
+        order: [['createdAt', 'DESC']],
+        include: [
+          {
+            model: CatalogItem,
+            as: 'catalogItem',
+            attributes: ['id', 'name', 'icon'],
+            required: false // LEFT JOIN - permite tickets sem catalog_item
+          },
+          {
+            model: ClientUser,
+            as: 'requesterClientUser',
+            attributes: ['id', 'name', 'email'],
+            required: false
+          },
+          {
+            model: OrganizationUser,
+            as: 'requesterOrgUser',
+            attributes: ['id', 'name', 'email'],
+            required: false
+          },
+          {
+            model: User,
+            as: 'requesterUser',
+            attributes: ['id', 'name', 'email'],
+            required: false
+          }
+        ]
+      });
+
+      // Filtrar apenas tickets que não têm service_request
+      const ticketsWithoutRequest = [];
+      for (const ticket of directTickets) {
+        const hasRequest = await ServiceRequest.findOne({
+          where: { ticketId: ticket.id }
+        });
+        if (!hasRequest) {
+          ticketsWithoutRequest.push(ticket);
+        }
+      }
+
+      // 3. Converter tickets diretos para formato de service_request (para compatibilidade com frontend)
+      const directTicketsAsRequests = ticketsWithoutRequest.map(ticket => {
+        // Determinar o requester correto baseado no tipo
+        const requester = ticket.requesterClientUser || ticket.requesterOrgUser || ticket.requesterUser || {};
+        
+        return {
+          id: ticket.id,
+          organizationId: ticket.organizationId,
+          catalogItemId: ticket.catalogItemId,
+          requesterId: userId,
+          status: this.mapTicketStatusToRequestStatus(ticket.status),
+          ticketId: ticket.id,
+          createdAt: ticket.createdAt,
+          updatedAt: ticket.updatedAt,
+          catalogItem: ticket.catalogItem || {
+            id: null,
+            name: ticket.subject || 'Ticket sem título',
+            icon: 'Mail' // Ícone de email para tickets sem catálogo
+          },
+          ticket: {
+            id: ticket.id,
+            ticketNumber: ticket.ticketNumber,
+            status: ticket.status
+          },
+          // Informações adicionais
+          requester: {
+            name: requester.name || 'Cliente',
+            email: requester.email || ''
+          },
+          // Marcar como ticket direto
+          isDirect: true,
+          source: ticket.source || 'email'
+        };
+      });
+
+      // 4. Combinar e ordenar por data
+      const allRequests = [...serviceRequests, ...directTicketsAsRequests]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      res.json({ success: true, data: allRequests });
     } catch (error) {
       logger.error('Erro ao buscar requests:', error);
       res.status(500).json({ error: 'Erro ao buscar requests' });
     }
+  }
+
+  /**
+   * Mapear status de ticket para status de request
+   */
+  mapTicketStatusToRequestStatus(ticketStatus) {
+    const statusMap = {
+      'novo': 'approved',
+      'aguardando_aprovacao': 'pending_approval',
+      'em_progresso': 'in_progress',
+      'aguardando_cliente': 'in_progress',
+      'resolvido': 'completed',
+      'fechado': 'completed',
+      'cancelado': 'cancelled'
+    };
+    return statusMap[ticketStatus] || 'in_progress';
   }
 
   /**

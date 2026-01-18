@@ -15,6 +15,13 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  
+  // 🔍 DEBUG: Log do payload antes de enviar
+  if (config.url?.includes('/directions/') && config.method === 'put') {
+    console.log('🔍 AXIOS REQUEST - URL:', config.url)
+    console.log('🔍 AXIOS REQUEST - Data ANTES:', JSON.stringify(config.data, null, 2))
+  }
+  
   return config
 })
 

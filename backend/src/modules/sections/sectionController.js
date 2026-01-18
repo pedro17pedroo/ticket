@@ -1,4 +1,5 @@
 import { Section, User, Department } from '../models/index.js';
+import emailValidationService from '../../services/emailValidationService.js';
 
 // GET /api/sections - Listar secções (apenas internas do tenant)
 export const getSections = async (req, res, next) => {
@@ -86,7 +87,7 @@ export const getSectionById = async (req, res, next) => {
 // POST /api/sections - Criar secção
 export const createSection = async (req, res, next) => {
   try {
-    const { name, description, code, departmentId, managerId, isActive } = req.body;
+    const { name, description, code, departmentId, managerId, isActive, email } = req.body;
     const organizationId = req.user.organizationId;
 
     // Apenas admin pode criar secções
@@ -113,12 +114,28 @@ export const createSection = async (req, res, next) => {
       });
     }
 
+    // Validate email uniqueness if provided
+    if (email) {
+      const validation = await emailValidationService.validateEmailUniqueness(
+        email,
+        organizationId
+      );
+      
+      if (!validation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: validation.error
+        });
+      }
+    }
+
     const section = await Section.create({
       name,
       description: description && description.trim() !== '' ? description : null,
       code: code && code.trim() !== '' ? code : null,
       departmentId,
       managerId: managerId && managerId.trim() !== '' ? managerId : null,
+      email: email && email.trim() !== '' ? email : null,
       organizationId,
       clientId: null, // Secção interna do tenant
       isActive: isActive !== undefined ? isActive : true
@@ -138,7 +155,7 @@ export const createSection = async (req, res, next) => {
 export const updateSection = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, code, departmentId, managerId, isActive } = req.body;
+    const { name, description, code, departmentId, managerId, isActive, email } = req.body;
     const organizationId = req.user.organizationId;
 
     if (req.user.role !== 'org-admin') {
@@ -181,12 +198,29 @@ export const updateSection = async (req, res, next) => {
       }
     }
 
+    // Validate email uniqueness if provided and changed
+    if (email !== undefined) {
+      const validation = await emailValidationService.validateEmailUniqueness(
+        email,
+        organizationId,
+        { type: 'section', id }
+      );
+      
+      if (!validation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: validation.error
+        });
+      }
+    }
+
     await section.update({
       name,
       description: description !== undefined ? (description && description.trim() !== '' ? description : null) : undefined,
       code: code !== undefined ? (code && code.trim() !== '' ? code : null) : undefined,
       departmentId,
       managerId: managerId !== undefined ? (managerId && managerId.trim() !== '' ? managerId : null) : undefined,
+      email: email !== undefined ? (email && email.trim() !== '' ? email : null) : undefined,
       isActive
     });
 

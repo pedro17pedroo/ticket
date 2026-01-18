@@ -187,7 +187,7 @@ const TicketDetail = () => {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold">#{ticket.id?.slice(0, 8)}</h1>
+            <h1 className="text-2xl font-bold">{ticket.ticketNumber}</h1>
             {getStatusBadge(ticket.status)}
           </div>
           <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>

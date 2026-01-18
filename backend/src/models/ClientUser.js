@@ -59,6 +59,33 @@ const ClientUser = sequelize.define('ClientUser', {
     type: DataTypes.STRING,
     field: 'department_name'
   },
+  directionId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'direction_id',
+    references: {
+      model: 'directions',
+      key: 'id'
+    }
+  },
+  departmentId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'department_id',
+    references: {
+      model: 'departments',
+      key: 'id'
+    }
+  },
+  sectionId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'section_id',
+    references: {
+      model: 'sections',
+      key: 'id'
+    }
+  },
   location: {
     type: DataTypes.JSONB
   },

@@ -379,6 +379,7 @@ const OnboardingNew = () => {
   const [emailToken, setEmailToken] = useState('');
   const [plans, setPlans] = useState([]);
   const [selectedPlanData, setSelectedPlanData] = useState(null);
+  const [showPlanModal, setShowPlanModal] = useState(false);
   
   // Obter plano da URL (ex: /onboarding?plan=professional)
   const selectedPlan = searchParams.get('plan') || 'starter';
@@ -422,14 +423,30 @@ const OnboardingNew = () => {
         const response = await saasAPI.getPlans();
         if (response.plans && response.plans.length > 0) {
           setPlans(response.plans);
-          // Encontrar o plano selecionado
-          const planData = response.plans.find(p => p.planId === selectedPlan || p.name?.toLowerCase() === selectedPlan);
+          // Encontrar o plano selecionado (comparar com planId que vem da URL)
+          const planData = response.plans.find(p => 
+            p.planId === selectedPlan || 
+            p.planId?.toLowerCase() === selectedPlan?.toLowerCase() ||
+            p.name?.toLowerCase() === selectedPlan?.toLowerCase()
+          );
           if (planData) {
             setSelectedPlanData(planData);
+          } else {
+            // Se não encontrar, usar o primeiro plano como fallback
+            setSelectedPlanData(response.plans[0]);
           }
         }
       } catch (error) {
         console.error('Erro ao carregar planos:', error);
+        // Em caso de erro, usar dados padrão
+        const fallbackPlan = {
+          planId: selectedPlan || 'starter',
+          name: selectedPlan ? selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1) : 'Starter',
+          priceValue: 0,
+          currencySymbol: '€',
+          trialDays: 14
+        };
+        setSelectedPlanData(fallbackPlan);
       }
     };
     loadPlans();
@@ -483,18 +500,108 @@ const OnboardingNew = () => {
   // Função para obter nome do plano formatado com preço e moeda
   const getPlanDisplayName = () => {
     if (selectedPlanData) {
-      const { name, price, currencySymbol, priceValue } = selectedPlanData;
+      const { name, priceValue, currencySymbol } = selectedPlanData;
       if (priceValue === 0) return `${name} - Grátis`;
       if (priceValue === -1) return `${name} - Contacte-nos`;
-      return `${name} - ${currencySymbol || '€'}${priceValue}/mês`;
+      return `${name} - ${currencySymbol}${priceValue}/mês`;
     }
     // Fallback se não tiver dados do plano
-    const fallbackNames = {
-      'starter': 'Starter',
-      'professional': 'Professional',
-      'enterprise': 'Enterprise'
-    };
-    return fallbackNames[selectedPlan] || selectedPlan;
+    return selectedPlan ? selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1) : 'Starter';
+  };
+
+  // Função para alterar o plano selecionado
+  const handleChangePlan = (plan) => {
+    setSelectedPlanData(plan);
+    setShowPlanModal(false);
+    // Atualizar URL sem recarregar a página
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set('plan', plan.planId);
+    window.history.pushState({}, '', newUrl);
+  };
+
+  // Modal de seleção de plano
+  const PlanSelectionModal = () => {
+    if (!showPlanModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">Escolha seu Plano</h2>
+              <button
+                onClick={() => setShowPlanModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-gray-600 mt-2">Selecione o plano que melhor se adequa às suas necessidades</p>
+          </div>
+
+          <div className="p-6">
+            <div className="grid md:grid-cols-3 gap-6">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
+                    selectedPlanData?.id === plan.id
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
+                  }`}
+                  onClick={() => handleChangePlan(plan)}
+                >
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                    <div className="text-3xl font-bold text-blue-600 mb-4">
+                      {plan.priceValue === 0 ? 'Grátis' : 
+                       plan.priceValue === -1 ? 'Contacte-nos' : 
+                       `${plan.currencySymbol}${plan.priceValue}`}
+                      {plan.priceValue > 0 && <span className="text-lg">/mês</span>}
+                    </div>
+                    
+                    {plan.trialDays > 0 && (
+                      <div className="mb-4">
+                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                          {plan.trialDays} dias grátis
+                        </span>
+                      </div>
+                    )}
+
+                    <ul className="text-left space-y-2 mb-4">
+                      {plan.features.slice(0, 5).map((feature, i) => (
+                        <li key={i} className="flex items-start text-sm text-gray-600">
+                          <Check className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {selectedPlanData?.id === plan.id && (
+                      <div className="mt-4 flex items-center justify-center text-blue-600 font-semibold">
+                        <Check className="w-5 h-5 mr-1" />
+                        Selecionado
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-6 border-t border-gray-200 bg-gray-50">
+            <button
+              onClick={() => setShowPlanModal(false)}
+              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+            >
+              Confirmar Plano
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Step 0: Company Information
@@ -509,9 +616,12 @@ const OnboardingNew = () => {
 
     return (
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Plano Selecionado */}
+        {/* Plano Selecionado - Clicável */}
         {selectedPlan && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-2">
+          <div 
+            onClick={() => setShowPlanModal(true)}
+            className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-2 cursor-pointer hover:border-blue-400 transition-all"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <CreditCard className="h-5 w-5 text-blue-600 mr-2" />
@@ -527,11 +637,19 @@ const OnboardingNew = () => {
                   </p>
                 </div>
               </div>
-              {selectedPlanData?.trialDays > 0 && (
-                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                  {selectedPlanData.trialDays} dias grátis
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedPlanData?.trialDays > 0 && (
+                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                    {selectedPlanData.trialDays} dias grátis
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium underline"
+                >
+                  Alterar
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -926,12 +1044,17 @@ const OnboardingNew = () => {
         const companyData = companyForm.getValues();
         const adminData = adminForm.getValues();
         
+        // Usar o planId correto (campo 'name' do modelo Plan, ex: 'starter', 'professional')
+        const planToSend = selectedPlanData?.planId || selectedPlan || 'starter';
+        
         const payload = {
           ...companyData,
           ...adminData,
           adminPassword: data.password,
-          plan: selectedPlan // Usar plano selecionado da URL
+          plan: planToSend
         };
+        
+        console.log('📤 Enviando payload para criação:', { ...payload, adminPassword: '***' });
         
         const result = await saasAPI.createOrganization(payload);
         setOrganizationData(result.data);
@@ -946,15 +1069,32 @@ const OnboardingNew = () => {
 
     return (
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Plano Selecionado */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        {/* Plano Selecionado - Clicável */}
+        <div 
+          onClick={() => setShowPlanModal(true)}
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-6 cursor-pointer hover:border-blue-400 transition-all"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <CreditCard className="h-5 w-5 text-blue-600 mr-2" />
-              <p className="text-sm text-blue-800">
-                Plano selecionado: <strong className="text-blue-900">{getPlanDisplayName()}</strong>
-              </p>
+              <div>
+                <p className="text-sm text-blue-800">
+                  Plano selecionado: <strong className="text-blue-900">{getPlanDisplayName()}</strong>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  {selectedPlanData?.trialDays > 0 
+                    ? `${selectedPlanData.trialDays} dias de trial grátis incluídos`
+                    : 'O plano será associado à sua organização'
+                  }
+                </p>
+              </div>
             </div>
+            <button
+              type="button"
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium underline"
+            >
+              Alterar
+            </button>
           </div>
         </div>
 
@@ -1158,6 +1298,9 @@ const OnboardingNew = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Modal de Seleção de Plano */}
+      <PlanSelectionModal />
+      
       {/* Header com link de volta */}
       <div className="bg-white border-b border-gray-200 py-4">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

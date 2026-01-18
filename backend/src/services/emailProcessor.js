@@ -7,6 +7,7 @@ import { User } from '../modules/models/index.js';
 import { Comment } from '../modules/models/index.js';
 import { Attachment } from '../modules/models/index.js';
 import { EmailTemplate } from '../modules/models/index.js';
+import emailRouterService from './emailRouterService.js';
 import logger from '../config/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -49,7 +50,7 @@ class EmailProcessor {
     this.connection = null;
     this.processedEmails = new Set(); // Para evitar duplicados
     this.emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    this.ticketRefRegex = /\[#(\d+)\]/g;
+    this.ticketRefRegex = /\[#?(TKT-\d+)\]/gi;
   }
 
   async initialize() {
@@ -64,6 +65,9 @@ class EmailProcessor {
       // Iniciar monitoramento IMAP
       await this.startImapMonitoring();
       
+      // Limpar emails processados antigos a cada hora
+      setInterval(() => this.cleanup(), 3600000);
+      
       return true;
     } catch (error) {
       logger.error('❌ Erro ao inicializar serviço de e-mail:', error);
@@ -72,29 +76,87 @@ class EmailProcessor {
   }
 
   async startImapMonitoring() {
+    if (!process.env.IMAP_USER || !process.env.IMAP_PASS) {
+      logger.info('📧 IMAP monitoring desativado (credenciais não configuradas)');
+      return;
+    }
+
     try {
+      logger.info('📧 Tentando conectar ao IMAP...', {
+        host: this.config.imap.host,
+        port: this.config.imap.port,
+        user: this.config.imap.user
+      });
+
       this.connection = await Imap.connect({
         imap: this.config.imap
       });
 
-      logger.info('📥 Conectado ao servidor IMAP');
+      logger.info('📥 Conectado ao servidor IMAP com sucesso');
 
-      // Processar e-mails não lidos
-      setInterval(async () => {
+      // Configurar event handlers para a conexão
+      if (this.connection.imap) {
+        this.connection.imap.on('error', (err) => {
+          logger.error('❌ Erro na conexão IMAP:', err.message);
+          this.handleConnectionError();
+        });
+
+        this.connection.imap.on('end', () => {
+          logger.warn('⚠️ Conexão IMAP encerrada');
+          this.handleConnectionError();
+        });
+
+        this.connection.imap.on('close', () => {
+          logger.warn('⚠️ Conexão IMAP fechada');
+          this.handleConnectionError();
+        });
+      }
+
+      // Processar e-mails não lidos a cada minuto
+      this.emailCheckInterval = setInterval(async () => {
         await this.checkNewEmails();
-      }, 60000); // Verificar a cada minuto
+      }, 60000);
 
       // Processar e-mails iniciais
       await this.checkNewEmails();
     } catch (error) {
-      logger.error('❌ Erro ao conectar IMAP:', error);
-      setTimeout(() => this.startImapMonitoring(), 30000); // Retry em 30s
+      logger.error('❌ Erro ao conectar IMAP:', {
+        message: error.message,
+        code: error.code,
+        host: this.config.imap.host,
+        port: this.config.imap.port
+      });
+      
+      this.handleConnectionError();
+    }
+  }
+
+  handleConnectionError() {
+    // Limpar conexão existente
+    this.connection = null;
+    
+    // Limpar intervalo existente
+    if (this.emailCheckInterval) {
+      clearInterval(this.emailCheckInterval);
+      this.emailCheckInterval = null;
+    }
+    
+    // Tentar reconectar após 5 minutos
+    if (!this.reconnectTimeout) {
+      this.reconnectTimeout = setTimeout(() => {
+        this.reconnectTimeout = null;
+        logger.info('🔄 Tentando reconectar ao IMAP...');
+        this.startImapMonitoring();
+      }, 300000);
     }
   }
 
   async checkNewEmails() {
     try {
-      if (!this.connection) return;
+      if (!this.connection) {
+        logger.warn('⚠️ Conexão IMAP não disponível, pulando verificação');
+        return;
+      }
 
       await this.connection.openBox('INBOX');
       
@@ -105,6 +167,10 @@ class EmailProcessor {
       };
 
       const messages = await this.connection.search(searchCriteria, fetchOptions);
+
+      if (messages.length > 0) {
+        logger.info(`📬 ${messages.length} novos emails encontrados`);
+      }
 
       for (const message of messages) {
         try {
@@ -121,11 +187,28 @@ class EmailProcessor {
           // Processar e-mail
           await this.processIncomingEmail(parsed);
         } catch (error) {
-          logger.error('Erro ao processar e-mail:', error);
+          logger.error('Erro ao processar e-mail individual:', error.message);
         }
       }
     } catch (error) {
-      logger.error('Erro ao verificar novos e-mails:', error);
+      // Se erro de autenticação, tentar reconectar
+      if (error.message?.includes('Not authenticated') || error.message?.includes('ENOTFOUND')) {
+        logger.warn('⚠️ Conexão IMAP perdida, tentando reconectar...');
+        this.connection = null;
+        
+        // Limpar intervalo existente
+        if (this.emailCheckInterval) {
+          clearInterval(this.emailCheckInterval);
+          this.emailCheckInterval = null;
+        }
+        
+        // Tentar reconectar após 2 minutos
+        setTimeout(() => {
+          this.startImapMonitoring();
+        }, 120000);
+      } else {
+        logger.error('Erro ao verificar novos e-mails:', error.message);
+      }
     }
   }
 
@@ -197,7 +280,7 @@ class EmailProcessor {
 
   async processIncomingEmail(email) {
     try {
-      logger.info(`📧 Processando e-mail de: ${email.from}`);
+      logger.info(`📧 Processando e-mail de: ${email.from} para: ${email.to}`);
 
       // 1. Verificar se é resposta a ticket existente
       const existingTicket = await this.findRelatedTicket(email);
@@ -207,11 +290,17 @@ class EmailProcessor {
         return await this.addCommentToTicket(existingTicket, email);
       }
 
-      // 2. Buscar ou criar usuário
-      const user = await this.findOrCreateUser(email);
+      // 2. Buscar utilizador (NÃO criar automaticamente)
+      const userInfo = await this.findOrCreateUser(email);
+      
+      if (!userInfo) {
+        logger.info(`ℹ️ Email processado mas ticket não criado: Utilizador ${email.from} não está registado`);
+        // Email de notificação já foi enviado no findOrCreateUser
+        return null;
+      }
 
-      // 3. Criar novo ticket
-      const ticket = await this.createTicketFromEmail(email, user);
+      // 3. Criar novo ticket (com roteamento por email)
+      const ticket = await this.createTicketFromEmail(email, userInfo);
       logger.info(`✅ Novo ticket criado: #${ticket.ticketNumber}`);
 
       // 4. Processar anexos
@@ -219,13 +308,14 @@ class EmailProcessor {
         await this.processAttachments(ticket, email.attachments);
       }
 
-      // 5. Enviar auto-resposta
+      // 5. Enviar auto-resposta (confirmação de criação do ticket)
       await this.sendAutoResponse(ticket, email.from);
 
       return ticket;
     } catch (error) {
       logger.error('Erro ao processar e-mail:', error);
-      throw error;
+      // Não fazer throw - apenas logar o erro
+      return null;
     }
   }
 
@@ -265,40 +355,178 @@ class EmailProcessor {
   }
 
   async findOrCreateUser(email) {
-    let user = await User.findOne({
+    // Buscar em todas as tabelas de utilizadores
+    const { OrganizationUser, ClientUser } = await import('../modules/models/index.js');
+    
+    // 1. Tentar encontrar em organization_users
+    let user = await OrganizationUser.findOne({
       where: { email: email.from }
     });
 
-    if (!user) {
-      // Criar usuário como cliente
-      user = await User.create({
-        name: email.fromName || email.from.split('@')[0],
-        email: email.from,
-        password: crypto.randomBytes(16).toString('hex'), // Senha aleatória
-        role: 'cliente-org',
-        active: true,
-        organizationId: 1 // TODO: Determinar organização baseado no domínio
-      });
-      
-      logger.info(`👤 Novo usuário criado via e-mail: ${user.email}`);
+    if (user) {
+      logger.info(`👤 Utilizador encontrado (organization_users): ${user.email}`);
+      return {
+        user,
+        type: 'organization',
+        organizationId: user.organizationId
+      };
     }
 
-    return user;
+    // 2. Tentar encontrar em client_users
+    user = await ClientUser.findOne({
+      where: { email: email.from }
+    });
+
+    if (user) {
+      logger.info(`👤 Utilizador encontrado (client_users): ${user.email}`);
+      return {
+        user,
+        type: 'client',
+        organizationId: user.organizationId
+      };
+    }
+
+    // 3. Utilizador não encontrado - enviar email de notificação
+    logger.warn(`⚠️ Email recebido de utilizador não registado: ${email.from}`);
+    await this.sendUserNotRegisteredEmail(email.from, email.subject);
+    
+    return null;
   }
 
-  async createTicketFromEmail(email, user) {
-    const ticket = await Ticket.create({
+  async sendUserNotRegisteredEmail(recipientEmail, originalSubject) {
+    try {
+      const mailOptions = {
+        from: `"${process.env.SYSTEM_NAME || 'TatuTicket'}" <${process.env.SMTP_USER}>`,
+        to: recipientEmail,
+        subject: `Re: ${originalSubject} - Registo Necessário`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">⚠️ Registo Necessário</h1>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+              <p style="font-size: 16px; color: #333; line-height: 1.6;">Olá,</p>
+              
+              <p style="font-size: 16px; color: #333; line-height: 1.6;">
+                Recebemos o seu email mas <strong>não foi possível criar um ticket</strong> porque o seu endereço de email 
+                <strong>${recipientEmail}</strong> não está registado no nosso sistema.
+              </p>
+              
+              <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; color: #856404; font-size: 14px;">
+                  <strong>📋 Assunto do seu email:</strong><br>
+                  ${originalSubject}
+                </p>
+              </div>
+              
+              <h3 style="color: #667eea; margin-top: 30px;">Como proceder:</h3>
+              
+              <ol style="font-size: 15px; color: #555; line-height: 1.8;">
+                <li>Contacte o administrador do sistema para solicitar o registo</li>
+                <li>Após o registo, poderá enviar emails para criar tickets automaticamente</li>
+                <li>Ou aceda ao portal para criar tickets manualmente</li>
+              </ol>
+              
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.ORGANIZATION_PORTAL_URL || 'http://localhost:5173'}" 
+                   style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                          color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+                  Aceder ao Portal
+                </a>
+              </div>
+              
+              <p style="font-size: 14px; color: #666; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                Se acredita que isto é um erro, por favor contacte o suporte.
+              </p>
+            </div>
+          </div>
+        `
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      logger.info(`📧 Email de notificação enviado para: ${recipientEmail}`);
+    } catch (error) {
+      logger.error('Erro ao enviar email de notificação:', error);
+    }
+  }
+
+  async createTicketFromEmail(email, userInfo) {
+    const { user, type, organizationId } = userInfo;
+    
+    // Tentar rotear baseado no email de destino
+    let routingInfo = null;
+    if (email.to) {
+      try {
+        routingInfo = await emailRouterService.findOrganizationalUnitByEmail(
+          email.to,
+          organizationId
+        );
+        
+        if (routingInfo) {
+          logger.info(`📍 Email roteado para ${routingInfo.type}: ${routingInfo.unit.name}`);
+        }
+      } catch (error) {
+        logger.error('Erro ao rotear email:', error);
+        // Continuar sem roteamento se houver erro
+      }
+    }
+
+    // Preparar dados do ticket
+    const ticketData = {
       ticketNumber: await this.generateTicketNumber(),
       subject: email.subject,
       description: email.body,
       status: 'novo',
       priority: await this.detectPriority(email),
       type: 'suporte', // Default
-      requesterId: user.id,
-      organizationId: user.organizationId,
+      organizationId: organizationId,
       source: 'email',
       emailMessageId: email.messageId
-    });
+    };
+
+    // Definir requester baseado no tipo de utilizador
+    if (type === 'organization') {
+      ticketData.requesterOrgUserId = user.id;
+      ticketData.requesterType = 'organization';
+    } else if (type === 'client') {
+      ticketData.requesterClientUserId = user.id;
+      ticketData.requesterType = 'client';
+      ticketData.clientId = user.clientId;
+    }
+
+    // Adicionar roteamento se encontrado
+    if (routingInfo) {
+      switch (routingInfo.type) {
+        case 'section':
+          ticketData.sectionId = routingInfo.unit.id;
+          ticketData.departmentId = routingInfo.unit.departmentId;
+          // Buscar directionId do departamento
+          if (routingInfo.unit.departmentId) {
+            const Department = (await import('../modules/departments/departmentModel.js')).default;
+            const dept = await Department.findByPk(routingInfo.unit.departmentId);
+            if (dept) ticketData.directionId = dept.directionId;
+          }
+          break;
+        case 'department':
+          ticketData.departmentId = routingInfo.unit.id;
+          ticketData.directionId = routingInfo.unit.directionId;
+          break;
+        case 'direction':
+          ticketData.directionId = routingInfo.unit.id;
+          break;
+      }
+      
+      // Atribuir ao gestor se existir (OPCIONAL - não bloqueia criação)
+      if (routingInfo.unit.managerId) {
+        ticketData.assigneeId = routingInfo.unit.managerId;
+        logger.info(`👤 Ticket atribuído ao gestor: ${routingInfo.unit.managerId}`);
+      } else {
+        logger.info(`⚠️ Unidade ${routingInfo.unit.name} não tem gestor definido - ticket ficará não atribuído`);
+      }
+    }
+
+    const ticket = await Ticket.create(ticketData);
 
     // Criar primeiro comentário com o conteúdo do e-mail
     await Comment.create({
@@ -306,7 +534,8 @@ class EmailProcessor {
       ticketId: ticket.id,
       userId: user.id,
       isPublic: true,
-      emailMessageId: email.messageId
+      emailMessageId: email.messageId,
+      organizationId: organizationId
     });
 
     return ticket;
@@ -314,11 +543,19 @@ class EmailProcessor {
 
   async generateTicketNumber() {
     const lastTicket = await Ticket.findOne({
-      order: [['ticketNumber', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      attributes: ['ticketNumber']
     });
 
-    const lastNumber = lastTicket ? parseInt(lastTicket.ticketNumber) : 0;
-    return String(lastNumber + 1).padStart(6, '0');
+    if (!lastTicket || !lastTicket.ticketNumber) {
+      return 'TKT-000001';
+    }
+
+    // Extrair número do último ticket (formato: TKT-XXXXXX)
+    const lastNumber = parseInt(lastTicket.ticketNumber.split('-')[1] || '0');
+    const nextNumber = (lastNumber + 1).toString().padStart(6, '0');
+
+    return `TKT-${nextNumber}`;
   }
 
   async detectPriority(email) {
@@ -339,14 +576,22 @@ class EmailProcessor {
   }
 
   async addCommentToTicket(ticket, email) {
-    const user = await this.findOrCreateUser(email);
+    const userInfo = await this.findOrCreateUser(email);
+    
+    if (!userInfo) {
+      logger.error(`❌ Comentário NÃO adicionado: Utilizador ${email.from} não está registado no sistema`);
+      return ticket;
+    }
+
+    const { user, organizationId } = userInfo;
 
     const comment = await Comment.create({
       content: email.body,
       ticketId: ticket.id,
       userId: user.id,
       isPublic: true,
-      emailMessageId: email.messageId
+      emailMessageId: email.messageId,
+      organizationId: organizationId
     });
 
     // Atualizar status do ticket se estava fechado
@@ -433,18 +678,59 @@ class EmailProcessor {
       return template.content;
     }
 
-    // Template padrão
+    // Template padrão melhorado
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #4F46E5;">Recebemos sua solicitação</h2>
-        <p>Olá,</p>
-        <p>Recebemos sua solicitação e criamos o ticket <strong>#{{ticketNumber}}</strong>.</p>
-        <p><strong>Assunto:</strong> {{subject}}</p>
-        <p><strong>Status:</strong> {{status}}</p>
-        <p>Nossa equipe analisará sua solicitação e responderá o mais breve possível.</p>
-        <p>Você pode acompanhar o status do seu ticket através do nosso portal:</p>
-        <p><a href="{{portalUrl}}/tickets/{{ticketNumber}}" style="display: inline-block; padding: 10px 20px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px;">Ver Ticket</a></p>
-        <p>Atenciosamente,<br>Equipe de Suporte</p>
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">✅ Ticket Criado com Sucesso</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <p style="font-size: 16px; color: #333; line-height: 1.6;">Olá,</p>
+          
+          <p style="font-size: 16px; color: #333; line-height: 1.6;">
+            Recebemos a sua solicitação e criámos o ticket <strong style="color: #667eea;">#{{ticketNumber}}</strong>.
+          </p>
+          
+          <div style="background: white; border-left: 4px solid #667eea; padding: 20px; margin: 20px 0; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;"><strong>📋 Assunto:</strong></p>
+            <p style="margin: 0 0 15px 0; color: #333; font-size: 16px;">{{subject}}</p>
+            
+            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;"><strong>📊 Status:</strong></p>
+            <p style="margin: 0; color: #333; font-size: 16px;">
+              <span style="background: #e3f2fd; color: #1976d2; padding: 5px 15px; border-radius: 20px; font-size: 14px;">
+                {{status}}
+              </span>
+            </p>
+          </div>
+          
+          <p style="font-size: 15px; color: #555; line-height: 1.6;">
+            A nossa equipa analisará a sua solicitação e responderá o mais breve possível.
+          </p>
+          
+          <p style="font-size: 15px; color: #555; line-height: 1.6;">
+            Pode acompanhar o progresso do seu ticket através do nosso portal:
+          </p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="{{portalUrl}}/tickets/{{ticketNumber}}" 
+               style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+              Ver Ticket #{{ticketNumber}}
+            </a>
+          </div>
+          
+          <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+            <p style="margin: 0; color: #856404; font-size: 14px;">
+              <strong>💡 Dica:</strong> Para adicionar mais informações, basta responder a este email.
+            </p>
+          </div>
+          
+          <p style="font-size: 14px; color: #666; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+            Atenciosamente,<br>
+            <strong>Equipa de Suporte</strong>
+          </p>
+        </div>
       </div>
     `;
   }
@@ -547,11 +833,30 @@ class EmailProcessor {
   }
 
   async stop() {
+    // Limpar intervalo de verificação de emails
+    if (this.emailCheckInterval) {
+      clearInterval(this.emailCheckInterval);
+      this.emailCheckInterval = null;
+    }
+
+    // Limpar timeout de reconexão
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
+    // Fechar conexão IMAP
     if (this.connection) {
-      await this.connection.end();
-      logger.info('📧 Conexão IMAP encerrada');
+      try {
+        await this.connection.end();
+        logger.info('📧 Conexão IMAP encerrada');
+      } catch (error) {
+        logger.error('Erro ao encerrar conexão IMAP:', error.message);
+      }
+      this.connection = null;
     }
     
+    // Fechar transporter SMTP
     if (this.transporter) {
       this.transporter.close();
       logger.info('📧 Transporter SMTP encerrado');

@@ -23,8 +23,24 @@ const AuditLogs = () => {
     try {
       setLoading(true);
       const data = await dashboardService.getAuditLogs({ period: dateRange });
-      setLogs(data.logs || []);
+      
+      // Mapear dados do backend para o formato esperado pelo frontend
+      const mappedLogs = (data.logs || []).map(log => ({
+        timestamp: log.createdAt,
+        user: {
+          name: log.userName || 'Sistema',
+          email: log.userEmail || '-'
+        },
+        action: log.action,
+        resourceType: log.entityType,
+        resourceId: log.entityId,
+        details: log.reason || log.metadata?.description || '-',
+        ipAddress: log.ipAddress || '-'
+      }));
+      
+      setLogs(mappedLogs);
     } catch (error) {
+      console.error('Erro ao carregar logs:', error);
       showError('Erro ao carregar logs de auditoria');
     } finally {
       setLoading(false);
@@ -99,37 +115,7 @@ const AuditLogs = () => {
     }
   ];
 
-  const mockLogs = [
-    {
-      timestamp: new Date().toISOString(),
-      user: { name: 'Admin User', email: 'admin@tatuticket.com' },
-      action: 'create',
-      resourceType: 'Organization',
-      resourceId: 'org-123',
-      details: 'Criou organização Tech Solutions',
-      ipAddress: '192.168.1.100'
-    },
-    {
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-      user: { name: 'João Silva', email: 'joao@tatuticket.com' },
-      action: 'update',
-      resourceType: 'User',
-      resourceId: 'user-456',
-      details: 'Atualizou perfil de usuário',
-      ipAddress: '192.168.1.101'
-    },
-    {
-      timestamp: new Date(Date.now() - 7200000).toISOString(),
-      user: { name: 'Maria Santos', email: 'maria@tatuticket.com' },
-      action: 'delete',
-      resourceType: 'Plan',
-      resourceId: 'plan-789',
-      details: 'Removeu plano Basic',
-      ipAddress: '192.168.1.102'
-    }
-  ];
-
-  const filteredLogs = (logs.length > 0 ? logs : mockLogs).filter(log => {
+  const filteredLogs = logs.filter(log => {
     const matchesSearch = 
       log.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
       log.user?.email?.toLowerCase().includes(search.toLowerCase()) ||

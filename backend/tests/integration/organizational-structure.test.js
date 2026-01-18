@@ -124,6 +124,70 @@ describe('Organizational Structure API Integration Tests', () => {
 
         expect(res.status).to.equal(401);
       });
+
+      // Email field tests
+      it('deve criar direção com email válido', async () => {
+        const res = await request(app)
+          .post('/api/directions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção com Email',
+            description: 'Direção com email para roteamento',
+            email: 'direcao@test.com'
+          });
+
+        expect(res.status).to.equal(201);
+        expect(res.body.success).to.be.true;
+        expect(res.body.direction.email).to.equal('direcao@test.com');
+      });
+
+      it('deve rejeitar criação com email duplicado', async () => {
+        // Create first direction with email
+        await request(app)
+          .post('/api/directions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção Email 1',
+            email: 'duplicate@test.com'
+          });
+
+        // Try to create second direction with same email
+        const res = await request(app)
+          .post('/api/directions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção Email 2',
+            email: 'duplicate@test.com'
+          });
+
+        expect(res.status).to.equal(400);
+        expect(res.body.error).to.include('email');
+      });
+
+      it('deve rejeitar criação com email inválido', async () => {
+        const res = await request(app)
+          .post('/api/directions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção Email Inválido',
+            email: 'not-an-email'
+          });
+
+        expect(res.status).to.equal(400);
+      });
+
+      it('deve aceitar criação sem email (opcional)', async () => {
+        const res = await request(app)
+          .post('/api/directions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção Sem Email',
+            description: 'Direção sem email'
+          });
+
+        expect(res.status).to.equal(201);
+        expect(res.body.direction.email).to.be.null;
+      });
     });
 
     describe('GET /api/directions', () => {
@@ -137,6 +201,17 @@ describe('Organizational Structure API Integration Tests', () => {
         expect(res.body.directions).to.be.an('array');
         expect(res.body.directions.length).to.be.at.least(2);
         expect(res.body.total).to.equal(res.body.directions.length);
+      });
+
+      it('deve incluir campo email na resposta', async () => {
+        const res = await request(app)
+          .get('/api/directions')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).to.equal(200);
+        res.body.directions.forEach(direction => {
+          expect(direction).to.have.property('email');
+        });
       });
 
       it('deve listar apenas direções ativas', async () => {
@@ -203,6 +278,75 @@ describe('Organizational Structure API Integration Tests', () => {
         expect(res.body.success).to.be.true;
         expect(res.body.direction.name).to.equal('Direção de TI Atualizada');
         expect(res.body.direction.code).to.equal('DTI-UPD');
+      });
+
+      it('deve atualizar email da direção', async () => {
+        const res = await request(app)
+          .put(`/api/directions/${testDirection.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção de TI Atualizada',
+            email: 'updated@test.com'
+          });
+
+        expect(res.status).to.equal(200);
+        expect(res.body.direction.email).to.equal('updated@test.com');
+      });
+
+      it('deve permitir atualizar email para o mesmo valor', async () => {
+        // First set an email
+        await request(app)
+          .put(`/api/directions/${testDirection.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção de TI Atualizada',
+            email: 'same@test.com'
+          });
+
+        // Update with same email (should succeed)
+        const res = await request(app)
+          .put(`/api/directions/${testDirection.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção de TI Atualizada',
+            email: 'same@test.com'
+          });
+
+        expect(res.status).to.equal(200);
+        expect(res.body.direction.email).to.equal('same@test.com');
+      });
+
+      it('deve rejeitar atualização com email duplicado de outra direção', async () => {
+        // Create another direction with an email
+        const otherDirection = await Direction.create({
+          organizationId: testOrg.id,
+          name: 'Outra Direção',
+          email: 'other@test.com'
+        });
+
+        // Try to update testDirection with the same email
+        const res = await request(app)
+          .put(`/api/directions/${testDirection.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção de TI Atualizada',
+            email: 'other@test.com'
+          });
+
+        expect(res.status).to.equal(400);
+        expect(res.body.error).to.include('email');
+      });
+
+      it('deve rejeitar atualização com email inválido', async () => {
+        const res = await request(app)
+          .put(`/api/directions/${testDirection.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção de TI Atualizada',
+            email: 'invalid-email'
+          });
+
+        expect(res.status).to.equal(400);
       });
 
       it('deve rejeitar atualização com nome duplicado', async () => {
@@ -765,6 +909,280 @@ describe('Organizational Structure API Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).to.equal(400);
+    });
+  });
+
+  describe('Section Email Integration Tests', () => {
+    describe('POST /api/sections - Email Validation', () => {
+      it('deve criar secção com email válido', async () => {
+        const res = await request(app)
+          .post('/api/sections')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            departmentId: testDepartment.id,
+            name: 'Secção com Email',
+            email: 'section-test@example.com'
+          });
+
+        expect(res.status).to.equal(201);
+        expect(res.body.success).to.be.true;
+        expect(res.body.section.email).to.equal('section-test@example.com');
+      });
+
+      it('deve rejeitar criação com email duplicado (já usado em outra secção)', async () => {
+        // Criar primeira secção com email
+        await request(app)
+          .post('/api/sections')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            departmentId: testDepartment.id,
+            name: 'Secção Email 1',
+            email: 'duplicate-section@example.com'
+          });
+
+        // Tentar criar segunda secção com mesmo email
+        const res = await request(app)
+          .post('/api/sections')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            departmentId: testDepartment.id,
+            name: 'Secção Email 2',
+            email: 'duplicate-section@example.com'
+          });
+
+        expect(res.status).to.equal(400);
+        expect(res.body.success).to.be.false;
+        expect(res.body.error).to.include('Secção');
+      });
+
+      it('deve rejeitar criação com email duplicado (já usado em direção)', async () => {
+        // Criar direção com email
+        await request(app)
+          .post('/api/directions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Direção com Email',
+            email: 'direction-email@example.com'
+          });
+
+        // Tentar criar secção com mesmo email
+        const res = await request(app)
+          .post('/api/sections')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            departmentId: testDepartment.id,
+            name: 'Secção Conflito',
+            email: 'direction-email@example.com'
+          });
+
+        expect(res.status).to.equal(400);
+        expect(res.body.success).to.be.false;
+        expect(res.body.error).to.include('Direção');
+      });
+
+      it('deve rejeitar criação com email duplicado (já usado em departamento)', async () => {
+        // Criar departamento com email
+        const dept = await Department.create({
+          organizationId: testOrg.id,
+          directionId: testDirection.id,
+          name: 'Departamento com Email',
+          email: 'department-email@example.com'
+        });
+
+        // Tentar criar secção com mesmo email
+        const res = await request(app)
+          .post('/api/sections')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            departmentId: dept.id,
+            name: 'Secção Conflito Dept',
+            email: 'department-email@example.com'
+          });
+
+        expect(res.status).to.equal(400);
+        expect(res.body.success).to.be.false;
+        expect(res.body.error).to.include('Departamento');
+      });
+
+      it('deve aceitar email null', async () => {
+        const res = await request(app)
+          .post('/api/sections')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            departmentId: testDepartment.id,
+            name: 'Secção Sem Email',
+            email: null
+          });
+
+        expect(res.status).to.equal(201);
+        expect(res.body.section.email).to.be.null;
+      });
+
+      it('deve aceitar email vazio (convertido para null)', async () => {
+        const res = await request(app)
+          .post('/api/sections')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            departmentId: testDepartment.id,
+            name: 'Secção Email Vazio',
+            email: ''
+          });
+
+        expect(res.status).to.equal(201);
+        expect(res.body.section.email).to.be.null;
+      });
+    });
+
+    describe('PUT /api/sections/:id - Email Update', () => {
+      let sectionForUpdate;
+
+      beforeEach(async () => {
+        sectionForUpdate = await Section.create({
+          organizationId: testOrg.id,
+          departmentId: testDepartment.id,
+          name: 'Secção para Atualizar Email',
+          email: 'original-section@example.com'
+        });
+      });
+
+      it('deve atualizar secção com novo email válido', async () => {
+        const res = await request(app)
+          .put(`/api/sections/${sectionForUpdate.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Secção Atualizada',
+            email: 'updated-section@example.com'
+          });
+
+        expect(res.status).to.equal(200);
+        expect(res.body.success).to.be.true;
+        expect(res.body.section.email).to.equal('updated-section@example.com');
+      });
+
+      it('deve rejeitar atualização com email duplicado', async () => {
+        // Criar outra secção com email
+        await Section.create({
+          organizationId: testOrg.id,
+          departmentId: testDepartment.id,
+          name: 'Outra Secção',
+          email: 'other-section@example.com'
+        });
+
+        // Tentar atualizar para email duplicado
+        const res = await request(app)
+          .put(`/api/sections/${sectionForUpdate.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Secção Atualizada',
+            email: 'other-section@example.com'
+          });
+
+        expect(res.status).to.equal(400);
+        expect(res.body.success).to.be.false;
+        expect(res.body.error).to.include('Secção');
+      });
+
+      it('deve permitir atualização com mesmo email (idempotência)', async () => {
+        const res = await request(app)
+          .put(`/api/sections/${sectionForUpdate.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Secção Atualizada',
+            email: 'original-section@example.com' // Mesmo email
+          });
+
+        expect(res.status).to.equal(200);
+        expect(res.body.success).to.be.true;
+        expect(res.body.section.email).to.equal('original-section@example.com');
+      });
+
+      it('deve permitir remover email (set to null)', async () => {
+        const res = await request(app)
+          .put(`/api/sections/${sectionForUpdate.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Secção Sem Email',
+            email: null
+          });
+
+        expect(res.status).to.equal(200);
+        expect(res.body.section.email).to.be.null;
+      });
+
+      it('deve permitir remover email (set to empty string)', async () => {
+        const res = await request(app)
+          .put(`/api/sections/${sectionForUpdate.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'Secção Sem Email',
+            email: ''
+          });
+
+        expect(res.status).to.equal(200);
+        expect(res.body.section.email).to.be.null;
+      });
+    });
+
+    describe('GET /api/sections - Email in Response', () => {
+      it('deve incluir campo email na listagem de secções', async () => {
+        // Criar secção com email
+        await Section.create({
+          organizationId: testOrg.id,
+          departmentId: testDepartment.id,
+          name: 'Secção com Email Lista',
+          email: 'list-section@example.com'
+        });
+
+        const res = await request(app)
+          .get('/api/sections')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).to.equal(200);
+        expect(res.body.sections).to.be.an('array');
+        
+        const sectionWithEmail = res.body.sections.find(s => s.email === 'list-section@example.com');
+        expect(sectionWithEmail).to.exist;
+        expect(sectionWithEmail).to.have.property('email');
+      });
+
+      it('deve incluir campo email (null) para secções sem email', async () => {
+        // Criar secção sem email
+        const section = await Section.create({
+          organizationId: testOrg.id,
+          departmentId: testDepartment.id,
+          name: 'Secção Sem Email Lista'
+        });
+
+        const res = await request(app)
+          .get('/api/sections')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).to.equal(200);
+        
+        const foundSection = res.body.sections.find(s => s.id === section.id);
+        expect(foundSection).to.exist;
+        expect(foundSection).to.have.property('email');
+        expect(foundSection.email).to.be.null;
+      });
+    });
+
+    describe('GET /api/sections/:id - Email in Response', () => {
+      it('deve incluir campo email ao obter secção por ID', async () => {
+        const section = await Section.create({
+          organizationId: testOrg.id,
+          departmentId: testDepartment.id,
+          name: 'Secção Get By ID',
+          email: 'getbyid-section@example.com'
+        });
+
+        const res = await request(app)
+          .get(`/api/sections/${section.id}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).to.equal(200);
+        expect(res.body.section).to.have.property('email');
+        expect(res.body.section.email).to.equal('getbyid-section@example.com');
+      });
     });
   });
 

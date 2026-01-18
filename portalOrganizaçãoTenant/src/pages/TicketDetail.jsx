@@ -227,7 +227,7 @@ const TicketDetail = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold">#{ticket.id.substring(0, 8)}</h1>
+            <h1 className="text-2xl font-bold">{ticket.ticketNumber}</h1>
             <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>
           </div>
         </div>

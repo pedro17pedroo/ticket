@@ -9,6 +9,7 @@
  */
 
 import { CatalogCategory, CatalogItem } from './catalogModel.js';
+import { ServiceRequest } from './catalogModelSimple.js';
 import catalogService from '../../services/catalogService.js';
 import catalogAccessService from '../../services/catalogAccessService.js';
 import logger from '../../config/logger.js';

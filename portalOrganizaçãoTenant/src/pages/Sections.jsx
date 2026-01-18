@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, Trash2, Grid3x3, X, Save, FileText, Building2, User, Settings, FolderTree, Users } from 'lucide-react'
+import { Plus, Edit2, Trash2, Grid3x3, X, Save, FileText, Building2, User, Settings, FolderTree, Users, Mail } from 'lucide-react'
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
 import Modal from '../components/Modal'
@@ -18,6 +18,7 @@ const Sections = () => {
     code: '',
     departmentId: '',
     managerId: '',
+    email: '',
     isActive: true
   })
 
@@ -68,6 +69,9 @@ const Sections = () => {
       if (formData.managerId && formData.managerId.trim()) {
         payload.managerId = formData.managerId
       }
+      if (formData.email && formData.email.trim()) {
+        payload.email = formData.email
+      }
 
       console.log('📤 Enviando payload:', payload)
 
@@ -95,6 +99,7 @@ const Sections = () => {
       code: section.code || '',
       departmentId: section.departmentId || '',
       managerId: section.managerId || '',
+      email: section.email || '',
       isActive: section.isActive
     })
     setShowModal(true)
@@ -124,6 +129,7 @@ const Sections = () => {
       code: '',
       departmentId: '',
       managerId: '',
+      email: '',
       isActive: true
     })
     setEditingSection(null)
@@ -172,6 +178,19 @@ const Sections = () => {
 
             {section.description && (
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{section.description}</p>
+            )}
+
+            {section.email && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-4 bg-gray-50 dark:bg-gray-700/50 px-3 py-2 rounded-lg">
+                <Mail className="w-4 h-4 text-primary-500" />
+                <span>{section.email}</span>
+              </div>
+            )}
+            {!section.email && (
+              <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 mb-4">
+                <Mail className="w-4 h-4" />
+                <span>—</span>
+              </div>
             )}
 
             <div className="space-y-2 mb-4 text-sm">
@@ -293,6 +312,23 @@ const Sections = () => {
                       className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
                       placeholder="Descreva as atividades desta secção..."
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      Email da Secção
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="seccao@exemplo.com"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Emails enviados para este endereço criarão tickets automaticamente
+                    </p>
                   </div>
                 </div>
 

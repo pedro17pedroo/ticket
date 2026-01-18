@@ -266,41 +266,43 @@ export const getTicketById = async (req, res, next) => {
         {
           model: OrganizationUser,
           as: 'assignee',
-          attributes: ['id', 'name', 'email', 'avatar']
+          attributes: ['id', 'name', 'email', 'avatar'],
+          required: false
         },
         {
           model: Direction,
           as: 'direction',
-          attributes: ['id', 'name', 'description']
+          attributes: ['id', 'name', 'description'],
+          required: false
         },
         {
           model: Department,
           as: 'department',
-          attributes: ['id', 'name', 'email']
+          attributes: ['id', 'name', 'email'],
+          required: false
         },
         {
           model: Section,
           as: 'section',
-          attributes: ['id', 'name', 'description']
+          attributes: ['id', 'name', 'description'],
+          required: false
         },
         {
           model: CatalogCategory,
           as: 'catalogCategory',
-          attributes: ['id', 'name', 'color', 'icon']
+          attributes: ['id', 'name', 'color', 'icon'],
+          required: false
         },
         {
           model: CatalogItem,
           as: 'catalogItem',
-          attributes: ['id', 'name', 'shortDescription'],
-          include: [{
-            model: Priority,
-            as: 'priority',
-            attributes: ['id', 'name', 'order']
-          }]
+          attributes: ['id', 'name', 'shortDescription', 'priorityId'],
+          required: false
         },
         {
           model: Comment,
           as: 'comments',
+          separate: true,
           include: [
             // Autor polimórfico
             {

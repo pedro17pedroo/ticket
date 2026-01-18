@@ -3,9 +3,9 @@ import { sequelize } from '../../config/database.js';
 
 const Attachment = sequelize.define('Attachment', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   ticketId: {
     type: DataTypes.UUID,

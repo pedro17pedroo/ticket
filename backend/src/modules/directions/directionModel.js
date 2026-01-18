@@ -49,6 +49,15 @@ const Direction = sequelize.define('Direction', {
     defaultValue: true,
     field: 'is_active',
     comment: 'Direção ativa'
+  },
+  email: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    field: 'email',
+    validate: {
+      isEmail: true
+    },
+    comment: 'Email address for automatic ticket routing to this direction'
   }
 }, {
   tableName: 'directions',
