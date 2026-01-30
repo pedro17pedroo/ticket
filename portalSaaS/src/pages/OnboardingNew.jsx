@@ -271,14 +271,14 @@ const CompanyStepComponent = memo(({
             }}
           />
           <div className="px-3 py-3 bg-gray-50 text-gray-600 text-sm flex items-center">
-            .tatuticket.com
+            .t-desk.com
           </div>
         </div>
         {errors.slug && (
           <p className="mt-1 text-sm text-red-600">{errors.slug.message}</p>
         )}
         {!errors.slug && (
-          <p className="mt-1 text-sm text-green-600">✓ Domínio disponível: mir.tatuticket.com</p>
+          <p className="mt-1 text-sm text-green-600">✓ Domínio disponível: mir.t-desk.com</p>
         )}
       </div>
 
@@ -1306,12 +1306,11 @@ const OnboardingNew = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center space-x-2 group">
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-2 rounded-xl shadow-lg">
-                <Ticket className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                TatuTicket
-              </span>
+              <img 
+                src="/TDESK.png" 
+                alt="T-Desk" 
+                className="h-10 w-auto"
+              />
             </Link>
             <Link 
               to="/" 

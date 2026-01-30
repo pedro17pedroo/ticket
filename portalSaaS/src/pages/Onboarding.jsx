@@ -63,7 +63,7 @@ const Onboarding = () => {
     {
       id: 4,
       title: 'Sucesso',
-      description: 'Bem-vindo ao TatuTicket!',
+      description: 'Bem-vindo ao T-Desk!',
       icon: Rocket,
       component: SuccessStep
     }
@@ -147,7 +147,7 @@ const Onboarding = () => {
       updateOnboardingData({
         organizationId: result.organization.id,
         adminUserId: result.user.id,
-        loginUrl: `https://${onboardingData.slug}.tatuticket.com`,
+        loginUrl: `https://${onboardingData.slug}.t-desk.com`,
         createdAt: new Date().toISOString()
       });
 
@@ -175,11 +175,35 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* Header Bar */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <a href="/" className="flex items-center">
+              <img 
+                src="/TDESK.png" 
+                alt="T-Desk" 
+                className="h-10 w-auto"
+              />
+            </a>
+            
+            {/* Voltar ao Início */}
+            <a
+              href="/"
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              ← Voltar ao Início
+            </a>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Bem-vindo ao TatuTicket
+            Bem-vindo ao T-Desk
           </h1>
           <p className="text-gray-600">
             Vamos configurar sua organização em poucos passos

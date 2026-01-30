@@ -33,10 +33,12 @@ export default function Login() {
       <div className="max-w-md w-full">
         {/* Logo e Título */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-            <Building2 className="w-8 h-8 text-blue-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">TatuTicket Provider</h1>
+          <img 
+            src="/TDESK.png" 
+            alt="T-Desk" 
+            className="h-16 w-auto mx-auto mb-4"
+          />
+          <h1 className="text-3xl font-bold text-white mb-2">T-Desk Provider</h1>
           <p className="text-blue-100">Gestão de Tenants SaaS</p>
         </div>
 
@@ -109,14 +111,14 @@ export default function Login() {
           {/* Credenciais Demo */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <p className="text-xs text-gray-600 font-semibold mb-2">Credenciais Demo:</p>
-            <p className="text-xs text-gray-600">Email: superadmin@tatuticket.com</p>
+            <p className="text-xs text-gray-600">Email: superadmin@t-desk.com</p>
             <p className="text-xs text-gray-600">Senha: Super@123</p>
           </div>
         </div>
 
         {/* Footer */}
         <p className="text-center text-blue-100 text-sm mt-8">
-          © 2025 TatuTicket. Todos os direitos reservados.
+          © 2025 T-Desk. Todos os direitos reservados.
         </p>
       </div>
     </div>
