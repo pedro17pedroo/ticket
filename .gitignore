@@ -35,6 +35,9 @@ yarn-error.log*
 *.bak
 *.tmp
 
+# Archive (documentação e scripts antigos)
+archive/
+
 # Arquivos de IDE
 .vscode/settings.json
 .idea/
