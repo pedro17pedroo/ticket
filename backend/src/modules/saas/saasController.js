@@ -5,12 +5,13 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendEmailVerification, sendWelcomeEmail } from '../../services/emailService.js';
 import organizationSeedService from '../../services/organizationSeedService.js';
+import { debug, info, warn, error } from '../../utils/debugLogger.js';
 
 // POST /api/saas/onboarding - Criar nova organização tenant com usuário admin
 export const createTenantOrganization = async (req, res, next) => {
   try {
-    console.log('🚀 ===== INÍCIO CRIAÇÃO ORGANIZAÇÃO TENANT =====');
-    console.log('📥 POST /api/saas/onboarding - Body:', JSON.stringify(req.body, null, 2));
+    debug('🚀 ===== INÍCIO CRIAÇÃO ORGANIZAÇÃO TENANT =====');
+    debug('📥 POST /api/saas/onboarding - Body:', JSON.stringify(req.body, null, 2));
 
     let {
       // Dados da organização
@@ -54,7 +55,7 @@ export const createTenantOrganization = async (req, res, next) => {
 
       // Adicionar timestamp para garantir unicidade
       slug = `${generatedSlug}-${Date.now()}`;
-      console.log('🏷️ Slug gerado automaticamente:', slug);
+      debug('🏷️ Slug gerado automaticamente:', slug);
     }
 
     // Verificar se slug já existe
@@ -127,7 +128,7 @@ export const createTenantOrganization = async (req, res, next) => {
       });
     }
 
-    console.log('📋 Plano selecionado:', {
+    debug('📋 Plano selecionado:', {
       name: selectedPlan.name,
       displayName: selectedPlan.displayName,
       monthlyPrice: selectedPlan.monthlyPrice
@@ -162,7 +163,7 @@ export const createTenantOrganization = async (req, res, next) => {
       isActive: true
     });
 
-    console.log('✅ Organização criada:', {
+    debug('✅ Organização criada:', {
       id: organization.id,
       name: organization.name,
       slug: organization.slug
@@ -188,7 +189,7 @@ export const createTenantOrganization = async (req, res, next) => {
       }
     });
 
-    console.log('✅ Subscription criada:', {
+    debug('✅ Subscription criada:', {
       id: subscription.id,
       plan: selectedPlan.displayName,
       status: subscription.status,
@@ -199,8 +200,8 @@ export const createTenantOrganization = async (req, res, next) => {
     const emailVerificationToken = crypto.randomBytes(32).toString('hex');
 
     // Criar usuário admin da organização
-    console.log('🔄 Criando usuário admin...');
-    console.log('📋 Dados do usuário:', {
+    debug('🔄 Criando usuário admin...');
+    debug('📋 Dados do usuário:', {
       organizationId: organization.id,
       name: adminName,
       email: adminEmail,
@@ -236,15 +237,15 @@ export const createTenantOrganization = async (req, res, next) => {
         isActive: true
       });
 
-      console.log('✅ Usuário admin criado com sucesso:', {
+      debug('✅ Usuário admin criado com sucesso:', {
         id: adminUser.id,
         email: adminUser.email,
         organizationId: adminUser.organizationId
       });
 
     } catch (userError) {
-      console.error('❌ ERRO ao criar usuário admin:', userError);
-      console.error('📋 Detalhes do erro:', {
+      error('❌ ERRO ao criar usuário admin:', userError);
+      error('📋 Detalhes do erro:', {
         name: userError.name,
         message: userError.message,
         errors: userError.errors
@@ -285,25 +286,25 @@ export const createTenantOrganization = async (req, res, next) => {
         companyName,
         portalUrl
       );
-      console.log(`📧 Email de boas-vindas enviado para: ${adminEmail}`);
+      debug(`📧 Email de boas-vindas enviado para: ${adminEmail}`);
     } catch (emailError) {
-      console.error('⚠️ Erro ao enviar email de boas-vindas:', emailError);
+      error('⚠️ Erro ao enviar email de boas-vindas:', emailError);
       // Não falhamos a criação se o email não for enviado
     }
 
     // Seed default data (priorities, types, categories, SLAs, catalog categories)
     let seedStats = null;
     try {
-      console.log('🌱 Iniciando seed de dados padrão...');
+      debug('🌱 Iniciando seed de dados padrão...');
       seedStats = await organizationSeedService.seedOrganizationDefaults(organization.id);
-      console.log('✅ Seed de dados padrão concluído:', seedStats);
+      debug('✅ Seed de dados padrão concluído:', seedStats);
     } catch (seedError) {
-      console.error('⚠️ Erro no seed de dados padrão (não crítico):', seedError);
+      error('⚠️ Erro no seed de dados padrão (não crítico):', seedError);
       // Não falhamos a criação se o seed não funcionar
     }
 
-    console.log(`✅ Organização criada: ${organization.name} (${organization.slug})`);
-    console.log(`✅ Admin criado: ${adminUser.name} (${adminUser.email})`);
+    debug(`✅ Organização criada: ${organization.name} (${organization.slug})`);
+    debug(`✅ Admin criado: ${adminUser.name} (${adminUser.email})`);
 
     res.status(201).json({
       success: true,
@@ -334,7 +335,7 @@ export const createTenantOrganization = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro ao criar organização:', error);
+    error('❌ Erro ao criar organização:', error);
     next(error);
   }
 };
@@ -424,7 +425,7 @@ export const sendVerificationEmail = async (req, res, next) => {
       });
     }
 
-    console.log(`✅ Email de verificação enviado para: ${adminEmail}`);
+    debug(`✅ Email de verificação enviado para: ${adminEmail}`);
 
     res.json({
       success: true,
@@ -436,7 +437,7 @@ export const sendVerificationEmail = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro ao enviar email de verificação:', error);
+    error('❌ Erro ao enviar email de verificação:', error);
     next(error);
   }
 };
@@ -483,7 +484,7 @@ export const verifyEmail = async (req, res, next) => {
     // Token válido - remover da memória
     emailVerificationTokens.delete(email);
 
-    console.log(`✅ Email verificado com sucesso: ${email}`);
+    debug(`✅ Email verificado com sucesso: ${email}`);
 
     res.json({
       success: true,
@@ -496,7 +497,7 @@ export const verifyEmail = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro na verificação de email:', error);
+    error('❌ Erro na verificação de email:', error);
     next(error);
   }
 };

@@ -1,5 +1,6 @@
 import { Plan, Subscription, Organization } from '../models/index.js';
 import { Op } from 'sequelize';
+import { debug, info, warn, error } from '../../utils/debugLogger.js';
 
 // Mapeamento de símbolos de moeda
 const currencySymbols = {
@@ -70,7 +71,7 @@ export const getPlans = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Erro ao listar planos:', error);
+    error('Erro ao listar planos:', error);
     next(error);
   }
 };
@@ -131,7 +132,7 @@ export const getPublicPlans = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Erro ao listar planos públicos:', error);
+    error('Erro ao listar planos públicos:', error);
     next(error);
   }
 };
@@ -188,7 +189,7 @@ export const getPlanById = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Erro ao buscar plano:', error);
+    error('Erro ao buscar plano:', error);
     next(error);
   }
 };
@@ -257,7 +258,7 @@ export const createPlan = async (req, res, next) => {
       sortOrder: sortOrder || 0
     });
 
-    console.log(`✅ Plano criado: ${plan.displayName}`);
+    debug(`✅ Plano criado: ${plan.displayName}`);
 
     res.status(201).json({
       success: true,
@@ -266,7 +267,7 @@ export const createPlan = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Erro ao criar plano:', error);
+    error('Erro ao criar plano:', error);
     next(error);
   }
 };
@@ -293,7 +294,7 @@ export const updatePlan = async (req, res, next) => {
 
     await plan.update(updates);
 
-    console.log(`✅ Plano atualizado: ${plan.displayName}`);
+    debug(`✅ Plano atualizado: ${plan.displayName}`);
 
     res.json({
       success: true,
@@ -302,7 +303,7 @@ export const updatePlan = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Erro ao atualizar plano:', error);
+    error('Erro ao atualizar plano:', error);
     next(error);
   }
 };
@@ -335,7 +336,7 @@ export const deletePlan = async (req, res, next) => {
 
     await plan.destroy();
 
-    console.log(`✅ Plano excluído: ${plan.displayName}`);
+    debug(`✅ Plano excluído: ${plan.displayName}`);
 
     res.json({
       success: true,
@@ -343,7 +344,7 @@ export const deletePlan = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Erro ao excluir plano:', error);
+    error('Erro ao excluir plano:', error);
     next(error);
   }
 };
@@ -371,7 +372,7 @@ export const activatePlan = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Erro ao ativar plano:', error);
+    error('Erro ao ativar plano:', error);
     next(error);
   }
 };
@@ -411,7 +412,7 @@ export const deactivatePlan = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Erro ao desativar plano:', error);
+    error('Erro ao desativar plano:', error);
     next(error);
   }
 };
@@ -451,7 +452,7 @@ export const getPlanSubscriptions = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Erro ao listar assinaturas:', error);
+    error('Erro ao listar assinaturas:', error);
     next(error);
   }
 };

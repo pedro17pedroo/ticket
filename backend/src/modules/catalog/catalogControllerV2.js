@@ -18,6 +18,7 @@ import { User, ClientUser, OrganizationUser } from '../models/index.js';
 import * as notificationService from '../notifications/notificationService.js';
 import { sequelize } from '../../config/database.js';
 import Ticket from '../tickets/ticketModel.js';
+import { debug, info, warn, error } from '../../utils/debugLogger.js';
 
 // ==================== CATEGORIAS DO CATÁLOGO ====================
 
@@ -713,18 +714,18 @@ export const createServiceRequest = async (req, res, next) => {
       clientWatchers // Novos watchers do cliente
     } = req.body;
 
-    console.log('📥 Request body recebido:', req.body);
-    console.log('📋 catalogItemId:', catalogItemId);
-    console.log('📝 formData:', formData);
-    console.log('📝 typeof formData:', typeof formData);
-    console.log('📋 additionalDetails:', additionalDetails);
-    console.log('⚠️  userPriority:', userPriority);
-    console.log('📅 expectedResolutionTime:', expectedResolutionTime);
-    console.log('📎 attachments:', attachments?.length || 0);
-    console.log('👥 clientWatchers:', clientWatchers);
+    debug('📥 Request body recebido:', req.body);
+    debug('📋 catalogItemId:', catalogItemId);
+    debug('📝 formData:', formData);
+    debug('📝 typeof formData:', typeof formData);
+    debug('📋 additionalDetails:', additionalDetails);
+    debug('⚠️  userPriority:', userPriority);
+    debug('📅 expectedResolutionTime:', expectedResolutionTime);
+    debug('📎 attachments:', attachments?.length || 0);
+    debug('👥 clientWatchers:', clientWatchers);
 
     if (!catalogItemId) {
-      console.log('❌ Validação falhou - catalogItemId ausente');
+      debug('❌ Validação falhou - catalogItemId ausente');
       return res.status(400).json({
         error: 'catalogItemId é obrigatório'
       });
@@ -732,7 +733,7 @@ export const createServiceRequest = async (req, res, next) => {
 
     // formData pode ser um objeto vazio {} se não houver custom fields
     if (formData === undefined || formData === null) {
-      console.log('❌ Validação falhou - formData ausente');
+      debug('❌ Validação falhou - formData ausente');
       return res.status(400).json({
         error: 'formData é obrigatório'
       });

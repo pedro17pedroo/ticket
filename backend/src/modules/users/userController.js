@@ -1,6 +1,7 @@
 import { OrganizationUser, Organization, Direction, Department, Section } from '../models/index.js';
 import { Op } from 'sequelize';
 import logger from '../../config/logger.js';
+import { debug, info, warn, error } from '../../utils/debugLogger.js';
 
 // GET /api/users - Listar usuários da organização tenant (organization_users)
 export const getUsers = async (req, res, next) => {
@@ -133,7 +134,7 @@ export const getUserById = async (req, res, next) => {
 // POST /api/users - Criar usuário
 export const createUser = async (req, res, next) => {
   try {
-    console.log('📥 POST /api/users - Body:', JSON.stringify(req.body, null, 2));
+    debug('📥 POST /api/users - Body:', JSON.stringify(req.body, null, 2));
     
     const { name, email, phone, password, role, directionId, departmentId, sectionId } = req.body;
     const organizationId = req.user.organizationId;

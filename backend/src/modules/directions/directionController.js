@@ -1,5 +1,6 @@
 import { Direction, User, Department } from '../models/index.js';
 import emailValidationService from '../../services/emailValidationService.js';
+import { debug, info, warn, error } from '../../utils/debugLogger.js';
 
 // GET /api/directions - Listar direções (apenas internas do tenant, não de clientes)
 export const getDirections = async (req, res, next) => {
@@ -133,18 +134,18 @@ export const updateDirection = async (req, res, next) => {
   try {
     const { id } = req.params;
     
-    console.log('🔍 ========== DEBUG UPDATE DIRECTION ==========');
-    console.log('🔍 req.body COMPLETO:', JSON.stringify(req.body, null, 2));
-    console.log('🔍 req.body.email:', req.body.email);
-    console.log('🔍 typeof req.body.email:', typeof req.body.email);
-    console.log('🔍 Object.keys(req.body):', Object.keys(req.body));
-    console.log('🔍 req.headers["content-type"]:', req.headers['content-type']);
-    console.log('🔍 ============================================');
+    debug('🔍 ========== DEBUG UPDATE DIRECTION ==========');
+    debug('🔍 req.body COMPLETO:', JSON.stringify(req.body, null, 2));
+    debug('🔍 req.body.email:', req.body.email);
+    debug('🔍 typeof req.body.email:', typeof req.body.email);
+    debug('🔍 Object.keys(req.body):', Object.keys(req.body));
+    debug('🔍 req.headers["content-type"]:', req.headers['content-type']);
+    debug('🔍 ============================================');
     
     const { name, description, code, managerId, isActive, email } = req.body;
 
-    console.log('📥 Recebido para atualização:', { id, name, description, code, managerId, isActive, email });
-    console.log('📧 Email específico:', email, 'Tipo:', typeof email);
+    debug('📥 Recebido para atualização:', { id, name, description, code, managerId, isActive, email });
+    debug('📧 Email específico:', email, 'Tipo:', typeof email);
 
     if (req.user.role !== 'org-admin') {
       return res.status(403).json({
@@ -198,11 +199,11 @@ export const updateDirection = async (req, res, next) => {
       updateData.email = (email && email.trim() !== '') ? email.trim() : null;
     }
 
-    console.log('📤 Dados para atualizar:', updateData);
+    debug('📤 Dados para atualizar:', updateData);
 
     await direction.update(updateData);
 
-    console.log('✅ Direção após atualização:', direction.toJSON());
+    debug('✅ Direção após atualização:', direction.toJSON());
 
     res.json({
       success: true,

@@ -3,13 +3,14 @@ import { User, Organization, Department, OrganizationUser, ClientUser, Client } 
 import { generateToken } from '../../middleware/auth.js';
 import logger from '../../config/logger.js';
 import { sendPasswordResetEmail } from '../../services/emailService.js';
+import { debug, info, warn, error } from '../../utils/debugLogger.js';
 
 // Login Multi-Tabela (Provider, Org Staff, Client Users)
 export const login = async (req, res, next) => {
   try {
     const { email, password, portalType } = req.body;
 
-    console.log('🔐 Login attempt:', email, 'Portal:', portalType || 'agent-desktop');
+    debug('🔐 Login attempt:', email, 'Portal:', portalType || 'agent-desktop');
 
     let user = null;
     let userType = null;
@@ -46,7 +47,7 @@ export const login = async (req, res, next) => {
             user = foundUser;
             userType = 'provider';
             organization = foundUser.organization;
-            console.log('✅ Login como Provider SaaS User');
+            debug('✅ Login como Provider SaaS User');
           }
         }
       }
@@ -67,7 +68,7 @@ export const login = async (req, res, next) => {
             user = foundUser;
             userType = 'organization';
             organization = foundUser.organization;
-            console.log('✅ Login como Organization User (Tenant Staff)');
+            debug('✅ Login como Organization User (Tenant Staff)');
           }
         }
       }
@@ -96,7 +97,7 @@ export const login = async (req, res, next) => {
             userType = 'client';
             organization = foundUser.organization;
             client = foundUser.client;
-            console.log('✅ Login como Client User', {
+            debug('✅ Login como Client User', {
               userId: foundUser.id,
               clientId: foundUser.clientId,
               clientFromInclude: client?.id,
@@ -109,7 +110,7 @@ export const login = async (req, res, next) => {
 
     // Se não encontrou em nenhuma tabela ou senha inválida
     if (!user) {
-      console.log('❌ User not found or invalid password');
+      debug('❌ User not found or invalid password');
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
@@ -124,7 +125,7 @@ export const login = async (req, res, next) => {
       const expectedUserType = portalTypeToUserType[portalType];
 
       if (expectedUserType && userType !== expectedUserType) {
-        console.log(`❌ Acesso negado: Usuário tipo '${userType}' tentando acessar portal '${portalType}'`);
+        debug(`❌ Acesso negado: Usuário tipo '${userType}' tentando acessar portal '${portalType}'`);
         return res.status(403).json({
           error: 'Você não tem permissão para acessar este portal',
           details: 'Por favor, utilize o portal apropriado para seu tipo de conta'

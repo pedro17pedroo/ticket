@@ -1,5 +1,6 @@
 import { DataTypes } from 'sequelize';
 import { sequelize } from '../../config/database.js';
+import { debug, info, warn, error } from '../../utils/debugLogger.js';
 
 const Ticket = sequelize.define('Ticket', {
   id: {
@@ -339,10 +340,10 @@ const Ticket = sequelize.define('Ticket', {
           });
           if (clientUser && clientUser.clientId) {
             ticket.clientId = clientUser.clientId;
-            console.log(`✅ Auto-preenchido clientId: ${ticket.clientId} para ticket de cliente`);
+            debug(`✅ Auto-preenchido clientId: ${ticket.clientId} para ticket de cliente`);
           }
         } catch (error) {
-          console.error('⚠️ Erro ao auto-preencher clientId:', error.message);
+          error('⚠️ Erro ao auto-preencher clientId:', error.message);
         }
       }
     }

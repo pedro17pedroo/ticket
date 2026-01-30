@@ -1,5 +1,6 @@
 import { Subscription, Plan, Organization } from '../models/index.js';
 import { Op } from 'sequelize';
+import { debug, info, warn, error } from '../../utils/debugLogger.js';
 
 // Mapeamento de símbolos de moeda
 const currencySymbols = {
@@ -65,7 +66,7 @@ export const getSubscriptions = async (req, res, next) => {
       totalPages: Math.ceil(count / limit)
     });
   } catch (error) {
-    console.error('Erro ao listar subscrições:', error);
+    error('Erro ao listar subscrições:', error);
     next(error);
   }
 };
@@ -183,7 +184,7 @@ export const changePlan = async (req, res, next) => {
       }
     });
 
-    console.log(`✅ Plano alterado: ${oldPlanName} → ${newPlan.displayName} (Motivo: ${reason || 'N/A'})`);
+    debug(`✅ Plano alterado: ${oldPlanName} → ${newPlan.displayName} (Motivo: ${reason || 'N/A'})`);
 
     res.json({
       success: true,
@@ -231,7 +232,7 @@ export const approveSubscription = async (req, res, next) => {
       notes: notes || subscription.notes
     });
 
-    console.log(`✅ Subscrição aprovada: ${subscription.organization?.name} - ${subscription.plan?.displayName}`);
+    debug(`✅ Subscrição aprovada: ${subscription.organization?.name} - ${subscription.plan?.displayName}`);
 
     res.json({
       success: true,
