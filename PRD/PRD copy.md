@@ -1,0 +1,162 @@
+# Product Requirements Document (PRD) - TatuTicket
+
+## 1. Introdução
+
+### 1.1 Objetivo
+
+Este documento define os requisitos aprimorados para o **TatuTicket**, uma plataforma de gestão de tickets baseada em nuvem, projetada para superar os sistemas existentes no mercado, como Zendesk, Freshdesk e ServiceNow, ao oferecer a melhor experiência em service desk. O sistema é modular, multi-tenant, altamente escalável e seguro, com interfaces responsivas otimizadas para desktop, tablets e dispositivos móveis de todos os tamanhos. Ele suporta criação de tickets omnicanal (incluindo e-mail, chat, telefone, redes sociais, formulários web e integrações API), gestão avançada de SLAs com métricas personalizáveis e alertas em tempo real, rastreamento de tempo com timers automáticos e manuais, alocação de custos por atividade, análises avançadas com dashboards interativos e relatórios exportáveis, e automação com IA para categorização automática, sugestões de respostas, roteamento inteligente e detecção de anomalias. Integrando-se a sistemas internos (ex.: CRM como Salesforce, ERP como SAP) e externos (ex.: Slack, Jira, Microsoft Teams, WhatsApp Business) via APIs RESTful e webhooks. Como plataforma SaaS (Software as a Service), o TatuTicket oferece acesso remoto e escalável, com suporte a instalação on-premise na infraestrutura do cliente para empresas que preferem evitar modelos baseados em nuvem por razões de conformidade, controle de dados ou restrições regulatórias. Essa flexibilidade garante que o sistema atenda a diversas preferências operacionais, com módulos independentes que podem ser ativados ou desativados conforme necessário, controlados por um sistema de gerenciamento de acesso avançado baseado em roles, permissões e planos de assinatura. Embora o sistema seja único e integrado, as funcionalidades são filtradas e apresentadas de forma personalizada com base nos perfis de usuário, roles (ex.: agente, gerente, admin), permissões granulares (ex.: ler/escrever/excluir em módulos específicos) e planos contratados pela empresa (tenant), que definem o acesso a módulos como IA avançada ou integrações premium. Isso significa que não há portais separados fisicamente, mas sim uma única aplicação com rotas e interfaces dinâmicas que se adaptam ao contexto do usuário, garantindo isolamento lógico e usabilidade otimizada. O gerenciamento de acesso é robusto, permitindo que administradores globais controlem todos os aspectos, incluindo criação de tenants, atribuição de planos e auditoria, enquanto tenants (empresas) gerenciam seus próprios usuários e customizações internas. O alto nível de customização por tenant inclui temas personalizados, workflows configuráveis, campos personalizados em tickets e integrações específicas, tornando cada instância única sem comprometer a escalabilidade.
+
+### 1.2 Escopo
+
+O TatuTicket será uma Progressive Web App (PWA) acessível em navegadores modernos (como Chrome, Firefox, Safari e Edge, com suporte a versões recentes), eliminando a necessidade de aplicativos nativos, mas com suporte a instalação on-premise para cenários não-SaaS, incluindo exportação de configurações e dados via ferramentas de migração seguras. Ele atenderá a empresas de todos os tamanhos, oferecendo personalização granular em níveis como campos customizados, workflows automatizados, temas de interface (incluindo upload de logos e paletas de cores), conformidade com LGPD, GDPR, HIPAA e ISO 27001, e uma experiência de usuário premium com suporte a múltiplos idiomas (português e inglês selecionáveis via menu de configurações, com tradução dinâmica de interfaces e conteúdos gerados por usuários). Este PRD cobre funcionalidades existentes, adicionadas e sugeridas, com ênfase na unificação em um único sistema: as visões de "portais" são abstrações lógicas baseadas em autenticação e permissões, não sistemas separados. Por exemplo, um usuário prospectivo acessa rotas públicas para onboarding, enquanto um agente de uma empresa acessa rotas restritas ao seu tenant. A arquitetura técnica garante que o gerenciamento de acesso centralizado permita configurar, monitorar e gerenciar todas as funcionalidades dinamicamente. Requisitos não funcionais incluem desempenho otimizado para alto tráfego, segurança de nível enterprise com criptografia end-to-end e autenticação multi-fator (MFA), planos financeiros e de subscrição com suporte a moedas múltiplas (BRL, USD, EUR) e integrações com gateways de pagamento globais, e um plano de melhorias contínuas com atualizações automáticas via CI/CD. O foco é em modularidade, permitindo que módulos como gestão de SLAs, bolsa de horas, automação de IA ou gamificação sejam ativados/desativados por tenant ou usuário, com dependências gerenciadas para evitar conflitos (ex.: módulo de IA requer módulo de tickets básico). Adições em falta incluem suporte a acessibilidade avançada (ex.: leitores de tela, navegação por teclado), integração com ferramentas de colaboração em tempo real (ex.: co-edição de tickets) e métricas de desempenho do sistema visíveis para admins.
+
+### 1.3 Público-Alvo
+
+- **Usuários Prospectivos (Acesso Público Inicial)**: Empresas interessadas em informações, planos e criação de contas. Dores incluem falta de clareza em onboarding, resolvidas com processos guiados interativos, tours virtuais e chatbots de pré-venda com respostas em tempo real baseadas em IA.
+- **Usuários Internos de Empresas (Tenants)**: Equipes internas (agentes, gerentes, administradores do tenant) que gerenciam operações e clientes. Dores como complexidade em estruturas organizacionais são mitigadas com configurações granulares, árvores hierárquicas interativas para departamentos e integrações com AD/LDAP para sincronização de usuários.
+- **Usuários Clientes Finais (Sub-Usuários de Tenants)**: Clientes das empresas que criam e acompanham tickets. Dores incluem visibilidade limitada, resolvidas com dashboards personalizados, notificações push via PWA e opções de autoatendimento com sugestões de soluções baseadas em histórico.
+- **Usuários Administradores Globais**: Super administradores que gerenciam o sistema inteiro. Eles controlam todos os acessos, abordando dores de centralização com ferramentas de auditoria em tempo real, relatórios agregados multi-tenant e simulações de acessos para testes.
+
+Adições: Incluir suporte a usuários com necessidades especiais (ex.: alto contraste para daltonismo) e segmentação por indústria (ex.: customizações pré-configuradas para IT, varejo ou saúde).
+
+## 2. Visão do Produto
+
+O TatuTicket redefine a gestão de tickets, oferecendo uma plataforma web fluida, personalizável e impulsionada por IA, com transparência financeira e operacional total. Acessível via navegador ou instalado on-premise, promove satisfação do cliente, eficiência e lucratividade, com interfaces modernas, rápidas e acessíveis, incluindo modo escuro automático baseado em preferências do sistema operacional, responsividade para telas de 320px a 4K, e interatividade com animações suaves, tooltips explicativos e navegação intuitiva. Como SaaS, ele reduz custos de manutenção com escalabilidade automática, mas a opção on-premise atende a requisitos específicos via pacotes Dockerizados. A filtragem por roles e planos garante que cada usuário veja apenas o necessário, com o gerenciamento de acesso atuando como hub central para personalizações por tenant, incluindo upload de assets personalizados (ex.: ícones, fontes) e configuração de workflows visuais via drag-and-drop. Adições: Suporte a temas personalizados por tenant com pré-visualização em tempo real, integração com ferramentas de análise de usuário (ex.: heatmaps para otimizar UX) e foco em sustentabilidade com otimização de recursos para reduzir pegada de carbono.
+
+## 3. Objetivos do Produto
+
+- Entregar uma aplicação web modular e personalizável, adaptada aos fluxos de suporte, com opções SaaS ou on-premise, e funcionalidades filtradas por roles, permissões e planos de assinatura.
+- Implementar IA para priorização, automações, detecção de fraudes e sugestões personalizadas, mitigando ineficiências, acessíveis via configurações granulares.
+- Suportar criação omnicanal de tickets, com roteamento baseado em estruturas organizacionais, regras condicionais (ex.: se prioridade alta, rotear para equipe sênior) e integração com canais como Telegram ou Facebook Messenger.
+- Oferecer SLAs com métricas como MTTR (Mean Time to Resolution) e FCR (First Contact Resolution), rastreamento de tempo com relógios integrados e pausas automáticas, custos com cálculos baseados em taxas horárias variáveis, e modelos financeiros flexíveis (ex.: assinatura mensal, pay-per-use), configuráveis por tenant.
+- Garantir compatibilidade com navegadores e PWA, com instalação offline para on-premise, e controle total via gerenciamento de acesso.
+- Alcançar 99.99% de disponibilidade com monitoramento proativo, conformidade regulatória auditável e backups automáticos diários.
+- Reduzir custos por ticket em 50% através de automações, aumentar CSAT para >95% com enquetes automáticas pós-resolução, e métricas monitoradas centralmente com alertas via e-mail/SMS/Slack.
+- Adições: Melhorar retenção de usuários com gamificação avançada (ex.: badges, leaderboards com prêmios reais) e expandir para suporte global com fuso horário automático e suporte a RTL para idiomas futuros.
+
+## 4. Requisitos Funcionais
+
+Todos os requisitos são modulares e configuráveis via gerenciamento de acesso centralizado, que permite ativar/desativar módulos por tenant, role ou permissão. Categorias, tipos, prioridades, status, departamentos, equipes, subdivisões e seções são tabelas configuráveis com interfaces CRUD (Create, Read, Update, Delete) intuitivas, suporte a importação/exportação CSV/JSON e validações (ex.: campos obrigatórios, unicidade). A filtragem por roles garante isolamento lógico: cada usuário acessa uma interface personalizada via uma única URL base (ex.: app.tatuticket.com), com autenticação JWT e MFA, e permissões RBAC (Role-Based Access Control) combinadas com ABAC (Attribute-Based Access Control) para condições como "acesso apenas durante horário comercial". O gerenciamento de acesso central gerencia todos os tenants, incluindo criação de contas, configurações e auditoria completa com logs imutáveis. Adições: Suporte a workflows personalizados com editores visuais, integração com assinatura eletrônica para aprovações, e notificações personalizáveis (ex.: templates de e-mail com variáveis dinâmicas).
+
+### 4.1 Funcionalidades de Prospecção e Onboarding (Acesso Público e Inicial)
+
+Essas funcionalidades são acessíveis sem login inicial para prospects, mas guiam para criação de contas com filtragem por plano selecionado. Funcionalidades detalhadas:
+- **Informações sobre TatuTicket**: Páginas estáticas/dinâmicas com conteúdo rico (imagens, vídeos embedados, infográficos interativos) explicando como funciona, módulos disponíveis (ex.: SLAs com exemplos de configuração, IA com demos de categorização, integrações com tutoriais passo-a-passo), benefícios quantificados (ex.: "redução de 40% no tempo de resolução"), casos de uso por indústria (ex.: suporte IT com roteamento por severidade) e depoimentos com avaliações verificadas e filtros por tamanho de empresa.
+- **Suporte e FAQs**: Seção de perguntas frequentes com busca full-text, categorização por tópicos (ex.: planos, integrações), chat de suporte pré-venda via chatbot IA com fallback para agente humano (integração com ferramentas como Intercom), formulário de contato com campos validados (nome, e-mail corporativo, mensagem, anexos até 10MB) e integração com e-mail/SMS para respostas automáticas e follow-ups programados.
+- **Planos Disponíveis**: Tabela comparativa interativa de planos (Freemium com limites como 100 tickets/mês, Pro com IA básica, Enterprise com customizações ilimitadas e suporte prioritário), com detalhes de funcionalidades (ex.: módulos ativados por plano), preços dinâmicos baseados em moeda/localização, limites configuráveis (ex.: usuários simultâneos, armazenamento), opções de customização (SaaS vs. on-premise com custos de setup) e botões para upgrade/downgrade com simulação de custos.
+- **Criação de Conta e Onboarding**: Processo guiado com passos progressivos e barra de progresso:
+  - Formulário de registro: Campos como nome da empresa, e-mail verificado, senha forte (com medidor de força), plano selecionado, dados de pagamento (integração com gateways como Stripe, PagSeguro para cartão, boleto, Pix, com suporte a recorrência e faturamento anual com desconto).
+  - Validação OTP: Envio de código de 6 dígitos via e-mail/SMS (com provedores como Twilio), expiração configurável (padrão 5min), reenvio limitado (máx. 3 tentativas) e suporte a autenticação biométrica para dispositivos compatíveis.
+  - Pagamento Inicial: Processamento seguro com PCI DSS compliance, opções de teste gratuito (ex.: 14 dias com todos os módulos ativados, mas limite de dados), cupons de desconto e relatórios de transações para admins.
+  - Onboarding Interativo: Após registro, wizard guiado com vídeos tutoriais embedados (YouTube/Vimeo), checklists interativas (ex.: "configurar departamentos: arraste e solte itens"), assistente IA para setup inicial (ex.: "baseado no seu setor, sugiro esses SLAs") e integração com calendário para agendamento de sessões de treinamento ao vivo.
+- **Entrar/Login**: Formulário de autenticação com suporte a SSO (ex.: Google, Microsoft, Okta), recuperação de senha via OTP com link temporário, redirecionamento automático para dashboard personalizado baseado em role, e detecção de sessões múltiplas com logout forçado.
+- **Contato e Demo**: Botão para agendar demo via calendário integrado (ex.: Calendly), formulário de lead capture com campos como tamanho da empresa e dores específicas, integração com CRM (ex.: HubSpot) para tracking automático e nutrição de leads via e-mails sequenciais.
+
+O gerenciamento de acesso central gerencia conteúdos (ex.: atualizar FAQs via editor WYSIWYG), planos (ex.: adicionar novos tiers) e integrações de pagamento, com auditoria de alterações.
+
+### 4.2 Funcionalidades de Gestão Interna (Acesso Restrito a Tenants)
+
+Essas funcionalidades são acessíveis apenas após login por usuários de empresas clientes (tenants), filtradas por roles (ex.: agente pode apenas visualizar tickets, gerente pode configurar SLAs). Funcionalidades detalhadas:
+- **Gestão de Estrutura Organizacional**: Configuração de departamentos, equipes, subdivisões, seções via interfaces de árvore hierárquica interativa com drag-and-drop, suporte a níveis ilimitados (ex.: departamento > equipe > subdivisão > seção), mapeamento para roteamento de tickets (ex.: regras condicionais como "se categoria = finanças e prioridade = alta, rotear para equipe contas a pagar sênior"), importação de estruturas via API ou CSV e relatórios de utilização por estrutura.
+- **Gestão de Usuários Internos**: Criação/edição de contas para agentes, gerentes e admins do tenant com fields como nome, e-mail, role, permissões granulares (ex.: "gerenciar SLAs em departamento específico", "exportar relatórios sensíveis"), suporte a hierarquia (ex.: gerente aprova novos usuários via workflow de aprovação com notificações), integração com diretórios externos (ex.: Active Directory) para sincronização automática e relatórios de atividade por usuário.
+- **Gestão de Clientes Finais**: Cadastro e gerenciamento de sub-clientes (clientes da empresa) com perfis detalhados (ex.: contato principal, endereço, histórico de interações), atribuição de bolsas de horas personalizadas (ex.: 100 horas/mês com rollover opcional), SLAs por cliente (ex.: tempo de resposta <4h), tiers de prioridade (ex.: gold/silver) e estruturas internas (ex.: filiais com sub-usuários), incluindo importação em massa e segmentação para campanhas de suporte.
+- **Gestão de Tickets**: Criação/atribuição/monitoramento omnicanal com integração de canais (ex.: parse de e-mails para tickets automáticos, chat em tempo real com WebSockets), roteamento inteligente por estrutura/rules/IA (ex.: machine learning para prever melhor agente baseado em histórico), mesclagem/divisão de tickets com histórico preservado, chats interativos com emojis/anexos/mentions, upload de arquivos (suporte a até 50MB por ticket, com preview de imagens/PDFs), histórico completo com timestamps e diffs de edições, interfaces Kanban/tabela/Gantt filtradas por departamento/prioridade/status/data, busca avançada com filtros (ex.: "tickets abertos por >7 dias") e exportação para PDF/Excel.
+- **Gestão de SLAs e Bolsa de Horas**: Configuração personalizada por cliente/departamento/ticket com métricas editáveis (ex.: tempo de primeira resposta, resolução total, pausas por feriados), monitoramento em tempo real com dashboards gráficos (ex.: gráficos de barras para conformidade SLA), alertas via notificações push/e-mail (ex.: "SLA violado em 10%"), relatórios históricos com tendências, suporte a modelos (SLA-based com custos fixos por performance e penalidades automáticas; Bolsa com rastreamento de horas consumidas e alertas de limite baixo; Híbrido com switches configuráveis) e explicações nos dashboards: "SLA: custos fixos por performance com cálculo automático de multas; Bolsa: pagamento por uso com faturamento detalhado; Híbrido: combinação para flexibilidade com relatórios unificados".
+- **Rastreamento de Tempo e Custos**: Timers automáticos/manuais por ticket/atividade com pausas e categorias (ex.: pesquisa, resolução), alocação de custos por agente/departamento com taxas variáveis (ex.: R$50/h para júnior, R$100/h para sênior), análises de lucratividade com fórmulas (ex.: custo total = tempo * taxa + overhead), previsões orçamentárias baseadas em IA (ex.: "próximo mês: custo estimado R$10k baseado em tendências") e integrações com ferramentas de contabilidade.
+- **Automação com IA**: Categorização automática de tickets via NLP (ex.: detectar "problema de pagamento" e atribuir categoria), sugestões de respostas baseadas em base de conhecimento/histórico (com edição antes de envio), alertas preditivos (ex.: "risco de churn detectado por análise de sentimento"), análise de sentimento em tempo real (ex.: positivo/negativo/neutro com scores), chatbots para autoatendimento inicial, configuração por tenant (ex.: treinar modelo com dados próprios) e relatórios de eficiência (ex.: "IA resolveu 30% dos tickets").
+- **Base de Conhecimento**: Criação/edição de artigos com editor rico (Markdown/HTML, anexos, embeds), versionamento com diffs e restauração, aprovação por gerente via workflow (ex.: revisão obrigatória para artigos públicos), busca semântica com IA, categorização por tags/categorias, acesso controlado (público/privado por tenant) e métricas de uso (ex.: visualizações, ratings).
+- **Relatórios e Análises**: Dashboards interativos com widgets customizáveis (ex.: gráficos de pizza para distribuição de tickets por departamento), filtros por equipe/subdivisão/data/cliente, relatórios personalizados com templates (ex.: relatório semanal de CSAT com exportação automática), métricas como NPS/CSAT com enquetes integradas, análises preditivas (ex.: "previsão de pico de tickets baseado em histórico sazonal") e integração com BI tools (ex.: Tableau).
+- **Integrações e Configurações**: Setup de APIs/webhooks com autenticação OAuth2, integrações prontas (ex.: Zapier para automações no-code), SSO com provedores múltiplos, temas personalizados (ex.: upload de CSS personalizado, modo escuro com toggle), gamificação para agentes (ex.: pontos por tickets resolvidos, badges desbloqueáveis, leaderboards filtrados por equipe) e configurações de notificações (ex.: canais preferidos por usuário).
+- **Gestão Financeira**: Configuração de taxas por serviço/adicional, métodos de pagamento múltiplos (ex.: cartão recorrente, boleto com lembrete automático), gerenciamento de subscrições com prorrogações/renovações, relatórios de receita/custo por cliente/departamento/ticket (ex.: ROI por cliente) e automação de faturamento (ex.: gerar invoices PDF com envio via e-mail).
+
+O gerenciamento de acesso central pode override configurações, auditar ações (ex.: logs de quem alterou um SLA) e gerenciar tenants, com ferramentas para migração de dados entre planos.
+
+### 4.3 Funcionalidades de Autoatendimento (Acesso Restrito a Clientes Finais)
+
+Essas funcionalidades são acessíveis por clientes das empresas (sub-usuários), filtradas para simplicidade e limitadas por permissões (ex.: sem acesso a configurações internas). Requer login via convite e-mail/SMS ou auto-registro validado por código. Funcionalidades detalhadas:
+- **Gestão de Tickets**: Criação via omnicanal com formulários intuitivos (ex.: campos dinâmicos baseados em categoria), acompanhamento de status/histórico com timelines interativas, chats interativos com agentes (suporte a rich text, anexos), upload de arquivos com validação de tipos (ex.: PDF, JPG), sugestões de autoatendimento via IA (ex.: "baseado no seu problema, tente isso") e feedback pós-resolução.
+- **Visualização de SLAs e Bolsa de Horas**: Dashboards com gráficos de consumo de bolsa (ex.: barra de progresso com horas restantes), timers de SLA em tempo real (ex.: contagem regressiva para resolução), alertas de limites (ex.: "bolsa baixa: recarregue agora") sem configuração, apenas visualização read-only com explicações tooltips.
+- **Base de Conhecimento e FAQs**: Busca em artigos públicos/privados da empresa com autocomplete e resultados ranqueados por relevância, recomendações automáticas baseadas em ticket atual (ex.: "artigos relacionados ao seu problema") e ratings para feedback.
+- **Gestão de Usuários Próprios**: Criação/edição de sub-usuários na estrutura do cliente (ex.: adicionar funcionário de filial com e-mail verificado), com permissões limitadas (ex.: ver apenas tickets próprios ou da filial), suporte a grupos (ex.: departamento interno do cliente) e relatórios de atividade pessoal.
+- **Relatórios Básicos**: Métricas pessoais com gráficos (ex.: tickets resolvidos por mês, CSAT médio), enquetes pós-resolução automáticas (ex.: estrelas 1-5 com comentários opcionais) e exportação simples para PDF.
+- **Pagamentos e Financeiro**: Visualização de faturas/bolsas com histórico detalhado (ex.: transações com datas/valores), pagamento de excedentes via gateways integrados (ex.: recarregar bolsa com opções de valores pré-definidos), suporte a múltiplas moedas e recibos automáticos.
+- **Onboarding e Suporte**: Tutoriais guiados com vídeos passo-a-passo, chat com suporte da empresa (com fila de espera e estimativa de tempo), contato para escalonamento (ex.: botão "escalar para gerente") e feedback loops para melhoria contínua.
+
+O gerenciamento de acesso central e dos tenants gerenciam acessos (ex.: revogar convite), conteúdos (ex.: aprovar artigos visíveis) e limites (ex.: máximo de tickets por cliente), com isolamento de dados por tenant.
+
+### 4.4 Funcionalidades de Gerenciamento Global (Acesso Restrito a Admins Globais)
+
+Essas funcionalidades são restritas a super administradores, servindo como hub central para gerenciar todos os acessos, tenants e configurações. Funcionalidades detalhadas:
+- **Gestão Multi-Tenant**: Criação/edição/exclusão de tenants (empresas) com wizards (ex.: importar dados iniciais), incluindo atribuição de planos (ex.: upgrade automático com migração de dados), gerenciamento de subscrições/pagamentos (ex.: pausar conta por inadimplência) e migração para on-premise (ex.: exportar banco de dados criptografado).
+- **Gestão de Usuários Globais**: Controle de todos os usuários (admins de tenants, agentes, clientes finais) com busca avançada (ex.: por e-mail/role), RBAC granular (ex.: bloquear acesso a módulo específico por IP), bulk actions (ex.: reset de senhas em massa) e integração com ferramentas de IAM (Identity and Access Management).
+- **Configurações Globais**: Ativação de módulos por tenant/role (ex.: toggle para IA com dependências verificadas), configuração de tabelas mestras (categorias, prioridades, status com validações customizadas), integrações (APIs com testes de endpoint, SSO com configuração de providers), temas globais (ex.: definir paleta padrão com override por tenant), suporte multilíngue (ex.: tradução automática via API como Google Translate para conteúdos dinâmicos) e configurações de performance (ex.: caching levels).
+- **Auditoria e Monitoramento**: Logs completos de ações em todo o sistema com filtros (ex.: por usuário/data/ação), relatórios agregados (ex.: uso por tenant com gráficos de tendência), alertas de segurança (ex.: detecção de login suspeito via IA) e ferramentas de debugging (ex.: replay de sessões).
+- **Gestão Financeira Central**: Configuração de planos com editores (ex.: adicionar features a tiers), métodos de pagamento globais (ex.: suporte a criptomoedas opcionais), relatórios de receita global com breakdowns (ex.: por plano/região), processamento de reembolsos/penalidades automáticas e integrações com contabilidade (ex.: QuickBooks).
+- **Gestão de Conteúdos e Interfaces**: Edição de páginas públicas (ex.: FAQs com versionamento), override de configurações em tenants (ex.: forçar atualização de SLA), deployment de atualizações via CI/CD (ex.: rollout progressivo por tenant) e ferramentas de A/B testing para features.
+- **Relatórios Avançados**: Dashboards multi-tenant com agregação (ex.: CSAT global vs. por tenant), análises preditivas (ex.: churn prediction via ML), exportações em múltiplos formatos (CSV, JSON, API) e integrações com data warehouses.
+- **Suporte a On-Premise**: Ferramentas para exportar configurações/instalações (ex.: pacotes Docker com compose files), gerenciamento remoto de instâncias on-premise (ex.: atualizações over-the-air com consentimento), monitoramento de saúde (ex.: métricas de uptime enviadas para central) e suporte híbrido (ex.: sync de dados entre on-prem e cloud).
+- **Segurança e Conformidade**: Configuração de criptografia (ex.: chaves rotacionadas automaticamente), backups (ex.: diários com retenção de 90 dias, restauração seletiva), conformidade com auditorias (ex.: relatórios gerados para GDPR), gerenciamento de OTP/MFA global (ex.: enforce para todos os usuários) e scans de vulnerabilidades automáticos.
+
+Todas as funcionalidades de outros contextos podem ser acessadas/simuladas via este hub para testes/auditoria, com modo "impersonate" para logar como outro usuário sem alterar senha.
+
+### 4.5 Outras Funcionalidades (Distribuídas por Contextos)
+
+- **Gamificação**: Disponível para agentes internos com configuração por tenant (ex.: definir recompensas como dias off, integração com HR systems).
+- **Integrações**: Configuráveis globalmente e por tenant, com marketplace de integrações (ex.: apps prontos para download/ativação).
+- **Aprovações e Notificações**: Workflows multi-nível com condições (ex.: aprovação sequencial ou paralela), notificações personalizáveis (ex.: templates com placeholders, canais como app push, webhook para sistemas externos).
+- Adições: Suporte a colaboração em tempo real (ex.: edição simultânea de tickets via WebSockets), integração com voz/áudio (ex.: transcrição de chamadas para tickets via API como AssemblyAI), módulos de compliance automatizados (ex.: detecção de dados sensíveis em tickets e mascaramento) e expansão para e-commerce de add-ons (ex.: loja interna para comprar módulos extras).
+
+## 5. Requisitos Não Funcionais
+
+### 5.1 Desempenho
+
+- Suportar 50.000 usuários simultâneos globalmente, com tempo de resposta <500ms para 95% das requisições, medido via ferramentas como New Relic.
+- Carregamento inicial de páginas <1s, com lazy loading para componentes pesados e otimização de imagens via CDN.
+- Adições: Suporte a caching distribuído (ex.: Redis) para consultas frequentes, auto-scaling baseado em load (ex.: Kubernetes pods).
+
+### 5.2 Segurança
+
+- Criptografia AES-256 para dados em repouso e trânsito; isolamento multi-tenant com bancos de dados lógicos separados (ex.: schemas no PostgreSQL, collections no MongoDB).
+- Audit logs imutáveis com retenção de 365 dias, acessíveis via gerenciamento central, incluindo rastreamento de IP e dispositivo.
+- Adições: Proteção contra ataques comuns (ex.: OWASP top 10, com WAF integrado), autenticação biométrica opcional, e scans regulares com relatórios automáticos.
+
+### 5.3 Escalabilidade
+
+- Horizontal via microsserviços Dockerizados, com suporte multi-tenant e on-premise, usando orquestração como Kubernetes para auto-scaling.
+- Adições: Suporte a regiões múltiplas (ex.: AWS regions para baixa latência global), sharding de dados para grandes tenants.
+
+### 5.4 Confiabilidade
+
+- Uptime >99.99% com redundância (ex.: multi-AZ deployment), backups automáticos com RPO <5min e RTO <1h.
+- Adições: Failover automático, monitoramento 24/7 com alertas PagerDuty, e testes de resiliência regulares.
+
+### 5.5 Acessibilidade
+
+- Conformidade com WCAG 2.1 AA em todas as interfaces, incluindo alt texts para imagens, navegação por teclado, contraste ajustável e suporte a screen readers (ex.: ARIA labels).
+- Adições: Modo alto contraste, zoom até 400% sem perda de funcionalidade, e testes com usuários reais para validação.
+
+### 5.6 Usabilidade e Interface
+
+- Interface moderna, interativa e intuitiva com cores bem definidas (ex.: paleta primária azul para ações positivas, vermelho para alertas), animações sutis (ex.: transições CSS suaves) e tooltips explicativos.
+- Suporte a modo escuro (toggle manual ou auto), responsividade para todas as telas (ex.: mobile-first design com breakpoints em 320px, 768px, 1024px+), e seleção de idioma (português/inglês) com persistência via local storage.
+
+### 5.7 Internacionalização
+
+- Suporte nativo a múltiplos idiomas e moedas, com detecção automática baseada em navegador/localização.
+
+## 6. Arquitetura Técnica
+
+- **Frontend**: Desenvolvido com React, Next.js para SSR/SSG otimizado, Tailwind CSS para estilização responsiva e temática (incluindo modo escuro via classes), executando na porta 3002 em desenvolvimento/produção. Suporte a PWA com manifest.json para instalação, service workers para offline caching de assets estáticos, e internacionalização via i18next para português/inglês.
+- **Backend**: Desenvolvido com Node.js e Express, executando na porta 4003, com arquitetura modular e limpa (ex.: pastas por módulo como tickets, users, com injeção de dependências), bancos de dados híbridos: PostgreSQL para dados relacionais estruturados (ex.: usuários, tickets) com ORM como Prisma, MongoDB para dados não estruturados (ex.: logs, anexos) com Mongoose. Uso de CI/CD via GitHub Actions/Jenkins para builds/testes/deploys automáticos, e Docker para containerização (ex.: docker-compose para ambientes locais, imagens leves para produção).
+- **Modularidade**: Microsserviços por módulo (ex.: serviço de tickets, serviço de IA), com API gateway (ex.: Express ou Nginx) para roteamento e autenticação centralizada.
+- **Camadas**: Cliente (PWA com React/Next), Aplicação (lógica de negócio em Node/Express, com middlewares para auth/logging), Dados (PostgreSQL/MongoDB com replicação para HA), IA (integração com bibliotecas como TensorFlow.js ou APIs externas) e Integrações (webhooks com validação de signatures).
+- **Gerenciamento**: Gerenciamento de acesso como orquestrador central, com queues (ex.: RabbitMQ) para tarefas assíncronas como envios de e-mail.
+- Adições: Uso de GraphQL para queries flexíveis opcionais, caching com Redis, logging centralizado (ex.: ELK stack), e testes unitários/integração/end-to-end com cobertura >80%.
+
+## 7. Sugestões de Funcionalidades Adicionais
+
+- Integração com apps móveis nativos (ex.: React Native wrapper para PWA, com push notifications via Firebase).
+- Análise de voz em tickets (ex.: transcrição e análise de sentimento para chamadas integradas via Twilio).
+- Módulos de compliance automatizados (ex.: scanning de tickets para PII e anonimização automática).
+- Expansão para e-commerce de add-ons no acesso público (ex.: loja com carrinho para comprar módulos extras, com integração Stripe).
+- Adições: Suporte a VR/AR para treinamentos de onboarding, integração com blockchain para audit logs imutáveis, e módulos de sustentabilidade (ex.: relatórios de uso de energia por tenant).

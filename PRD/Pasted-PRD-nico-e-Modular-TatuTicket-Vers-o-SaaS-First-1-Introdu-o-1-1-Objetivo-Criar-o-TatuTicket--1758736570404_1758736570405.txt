@@ -1,0 +1,218 @@
+PRD Único e Modular – TatuTicket (Versão SaaS First)
+1. Introdução
+1.1 Objetivo
+
+Criar o TatuTicket, uma plataforma SaaS de gestão de tickets, multi-tenant, modular e escalável, que permita:
+
+Empresas se inscreverem online, escolherem planos e usarem o sistema imediatamente.
+
+Essas empresas (tenants) cadastrarem seus clientes e prestarem suporte via tickets.
+
+Evoluir depois com módulos avançados e, em uma fase futura, suporte a instalação on-premise.
+
+1.2 Público-Alvo
+
+Empresas (tenants) → contratam planos SaaS e usam o sistema para gerenciar seus clientes.
+
+Clientes das empresas → abrem tickets, consomem bolsas de horas e recebem suporte.
+
+Agentes e técnicos → prestam o atendimento.
+
+Admins globais → gestão da plataforma SaaS (planos, billing, auditoria).
+
+1.3 Escopo
+
+Fase 1 e 2 → SaaS completo e utilizável.
+
+Fases seguintes → funcionalidades avançadas (autoatendimento, integrações, IA, on-premise).
+
+2. Fases de Desenvolvimento
+🔹 Fase 1 – Núcleo do SaaS (MVP Usável e Comercial)
+
+Objetivo: entregar a base do SaaS, permitindo que empresas se cadastrem, contratem planos e usem o sistema.
+
+Requisitos
+
+Landing Page Institucional
+
+Apresentação do sistema: como funciona, principais módulos.
+
+Comparação de planos (Free, Pro, Enterprise, etc.).
+
+Perguntas frequentes (FAQ).
+
+Página de contato.
+
+Blog/Artigos (opcional, pode vir depois).
+
+Onboarding de Empresas (Tenants)
+
+Cadastro de empresa (self-service).
+
+Escolha de plano.
+
+Registro de informações básicas: nome, NIF/empresa, e-mail admin.
+
+Envio de e-mail de boas-vindas e ativação.
+
+Criação automática do tenant.
+
+Gestão de Planos SaaS
+
+Definição de limites por plano (nº de usuários, nº de tickets, armazenamento, módulos incluídos).
+
+Pagamentos: integração inicial com gateway (Stripe/PayPal).
+
+Gestão de faturas e cobrança recorrente.
+
+Gestão de Acesso e Autenticação
+
+Login, logout, recuperação de senha.
+
+Criação de usuários (admin, agente, cliente).
+
+Roles e permissões (RBAC básico).
+
+Gestão de Tickets – Omnicanal (básico)
+
+Criação de tickets manual e via e-mail.
+
+Status: novo, em progresso, resolvido, fechado.
+
+Prioridades e categorias configuráveis.
+
+Anexos até 20MB.
+
+Interface: tabela + Kanban.
+
+Gestão de Estrutura Organizacional (Tenant)
+
+Departamentos e equipes.
+
+Roteamento manual de tickets.
+
+Gestão de Usuários e Clientes (Tenant)
+
+Cadastro de clientes do tenant.
+
+Permissões diferenciadas (cliente pode abrir tickets, acompanhar status).
+
+Base de Conhecimento (Inicial)
+
+CRUD de artigos internos e externos.
+
+Busca por texto simples.
+
+Editor básico.
+
+Relatórios Básicos
+
+Volume de tickets por status.
+
+Tickets por cliente/departamento.
+
+Exportação CSV/PDF.
+
+✅ Com Fase 1 concluída → já temos um SaaS funcional: empresas entram via landing page, contratam um plano, começam a cadastrar seus clientes e atender tickets.
+
+🔹 Fase 2 – Gestão Comercial e Expansão Interna (Crítico)
+
+Objetivo: consolidar o SaaS para operações contratuais reais.
+
+Requisitos
+
+Gestão de SLAs
+
+Tempos de resposta e resolução por tipo de ticket.
+
+Alertas automáticos.
+
+Dashboards SLA por cliente.
+
+Gestão de Bolsa de Horas (Clientes dos Tenants)
+
+Clientes compram pacotes de horas com o tenant.
+
+Registro de horas/minutos adquiridos, validade e custo.
+
+Consumo automático via timer em tickets.
+
+Consumo manual (fallback).
+
+Relatórios: saldo, consumo por cliente, agente, equipe.
+
+Alertas: 80% consumido, expiração, saldo zerado.
+
+Renovação rápida.
+
+Integração com billing/faturas.
+
+Gestão de Custos Internos
+
+Custo/hora por agente.
+
+Relatórios de rentabilidade (bolsa vs. custo interno).
+
+Relatórios Avançados
+
+Dashboards customizáveis.
+
+SLA, produtividade, feedback do cliente.
+
+Customização por Tenant
+
+Campos customizados em tickets.
+
+Logo, cores e tema.
+
+✅ Com Fase 2 → o SaaS está pronto para operação comercial real com contratos (SLAs + bolsas de horas).
+
+🔹 Fase 3 – Autoatendimento e Engajamento
+
+Portal de clientes finais: abrir/acompanhamento de tickets, saldo de horas.
+
+Autoatendimento: FAQ avançado, sugestões automáticas.
+
+Gestão financeira básica: histórico de faturas, pagamentos de renovação.
+
+🔹 Fase 4 – Integrações Externas
+
+Slack, Teams, Jira, Trello.
+
+WhatsApp, Telegram, Messenger.
+
+Stripe, PayPal, PagSeguro (financeiro avançado).
+
+🔹 Fase 5 – Automação e Inteligência Artificial
+
+Classificação automática de tickets.
+
+Sugestões de resposta.
+
+Análise de sentimento.
+
+Chatbot de triagem.
+
+Detecção de fraudes/spam.
+
+🔹 Fase 6 – Gestão Global e On-Premise (opcional, futuro)
+
+Multi-tenant avançado (auditoria, impersonate).
+
+Logs imutáveis, monitoramento global.
+
+Instalação on-premise com pacotes Docker.
+
+Sincronização cloud ↔ on-premise.
+
+3. Requisitos Não Funcionais
+
+Performance: <500ms para 95% das requisições.
+
+Segurança: MFA, AES-256, logs imutáveis.
+
+Escalabilidade: microsserviços, Kubernetes.
+
+Conformidade: LGPD, GDPR, ISO 27001.
+
+Acessibilidade: leitores de tela, alto contraste.

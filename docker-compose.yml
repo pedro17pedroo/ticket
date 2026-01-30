@@ -4,7 +4,7 @@ services:
   # PostgreSQL - Banco de dados principal
   postgres:
     image: postgres:15-alpine
-    container_name: tatuticket-postgres
+    container_name: tdesk-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: tatuticket
@@ -23,10 +23,10 @@ services:
   # MongoDB - Logs e auditoria
   mongodb:
     image: mongo:7
-    container_name: tatuticket-mongodb
+    container_name: tdesk-mongodb
     restart: unless-stopped
     environment:
-      MONGO_INITDB_DATABASE: tatuticket_logs
+      MONGO_INITDB_DATABASE: tdesk_logs
     ports:
       - "27017:27017"
     volumes:
@@ -40,7 +40,7 @@ services:
   # Redis - Cache e sessões
   redis:
     image: redis:7-alpine
-    container_name: tatuticket-redis
+    container_name: tdesk-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -57,7 +57,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: tatuticket-backend
+    container_name: tdesk-backend
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -69,7 +69,7 @@ services:
       POSTGRES_DB: tatuticket
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres123
-      MONGODB_URI: mongodb://mongodb:27017/tatuticket_logs
+      MONGODB_URI: mongodb://mongodb:27017/tdesk_logs
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
@@ -90,7 +90,7 @@ services:
     build:
       context: ./portalOrganizaçãoTenant
       dockerfile: Dockerfile
-    container_name: tatuticket-portal-org
+    container_name: tdesk-portal-org
     restart: unless-stopped
     ports:
       - "8080:80"
@@ -104,7 +104,7 @@ services:
     build:
       context: ./portalClientEmpresa
       dockerfile: Dockerfile
-    container_name: tatuticket-portal-client
+    container_name: tdesk-portal-client
     restart: unless-stopped
     ports:
       - "8081:80"
@@ -120,4 +120,4 @@ volumes:
 
 networks:
   default:
-    name: tatuticket-network
+    name: tdesk-network
