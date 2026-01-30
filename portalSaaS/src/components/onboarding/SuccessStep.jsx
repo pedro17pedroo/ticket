@@ -239,11 +239,11 @@ const SuccessStep = ({ data }) => {
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href="mailto:suporte@tatuticket.com"
+            href="mailto:suporte@t-desk.com"
             className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
           >
             <Mail className="h-4 w-4 mr-2" />
-            suporte@tatuticket.com
+            suporte@t-desk.com
           </a>
           <a
             href="/contact"

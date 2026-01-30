@@ -1,11 +1,11 @@
 {
-  "name": "portal-saas-tatuticket",
+  "name": "portal-saas-t-desk",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Portal SaaS - Landing Page e Onboarding TatuTicket",
+  "description": "Portal SaaS - Landing Page e Onboarding T-Desk",
   "scripts": {
-    "dev": "vite --port 5175",
+    "dev": "vite --port 5176",
     "build": "vite build",
     "preview": "vite preview"
   },

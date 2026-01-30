@@ -15,7 +15,7 @@ const Products = () => {
   const products = [
     {
       id: 'core',
-      name: 'TatuTicket Core',
+      name: 'T-Desk Core',
       description: 'Sistema principal de gestão de tickets com funcionalidades completas',
       icon: Ticket,
       color: 'from-blue-500 to-indigo-600',

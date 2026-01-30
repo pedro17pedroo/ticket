@@ -1,6 +1,6 @@
-# 🚀 Portal SaaS TatuTicket
+# 🚀 Portal SaaS T-Desk
 
-Portal SaaS completo para onboarding de organizações tenant no TatuTicket.
+Portal SaaS completo para onboarding de organizações tenant no T-Desk.
 
 ## 📋 Funcionalidades Implementadas
 
@@ -68,7 +68,7 @@ Portal SaaS completo para onboarding de organizações tenant no TatuTicket.
 
 ### Pré-requisitos
 - Node.js 18+
-- Backend TatuTicket rodando na porta 3000
+- Backend T-Desk rodando na porta 3000
 
 ### Instalação
 ```bash
@@ -140,7 +140,7 @@ portalSaaS/
 ### Variáveis de Ambiente
 ```env
 VITE_API_URL=http://localhost:3000/api
-VITE_SAAS_NAME=TatuTicket
+VITE_SAAS_NAME=T-Desk
 VITE_SAAS_DOMAIN=tatuticket.com
 ```
 
@@ -212,4 +212,4 @@ Para dúvidas sobre implementação:
 
 ---
 
-**Portal SaaS TatuTicket** - Sistema completo de onboarding multi-tenant B2B2C
+**Portal SaaS T-Desk** - Sistema completo de onboarding multi-tenant B2B2C

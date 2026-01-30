@@ -35,7 +35,7 @@ const SummaryStep = ({ data, onUpdate, onValidationChange }) => {
       color: 'bg-blue-500',
       items: [
         { label: 'Nome da Organização', value: data.organizationName },
-        { label: 'Domínio', value: `${data.slug}.tatuticket.com` },
+        { label: 'Domínio', value: `${data.slug}.t-desk.com` },
         { label: 'Setor', value: data.industry },
         { label: 'Tamanho', value: data.companySize },
         { label: 'Telefone', value: data.phone || 'Não informado' },
@@ -148,7 +148,7 @@ const SummaryStep = ({ data, onUpdate, onValidationChange }) => {
             <div>
               <h5 className="font-medium text-blue-900">Acesso ao Portal</h5>
               <p className="text-sm text-blue-800">
-                Você receberá as credenciais e poderá acessar <strong>{data.slug}.tatuticket.com</strong>
+                Você receberá as credenciais e poderá acessar <strong>{data.slug}.t-desk.com</strong>
               </p>
             </div>
           </div>

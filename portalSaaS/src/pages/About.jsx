@@ -59,7 +59,7 @@ const About = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-6">
-              Sobre o TatuTicket
+              Sobre o T-Desk
             </h1>
             <p className="text-xl text-gray-600 mb-8">
               Somos uma empresa focada em simplificar a gestão de atendimento ao cliente 
@@ -198,7 +198,7 @@ const About = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Fundação da TatuTicket
+                  Fundação da T-Desk
                 </h3>
                 <p className="text-gray-600">
                   Iniciamos com a missão de criar a melhor plataforma de gestão de tickets do mercado, 
@@ -247,7 +247,7 @@ const About = () => {
             Pronto para transformar seu atendimento?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Junte-se a centenas de empresas que já escolheram o TatuTicket
+            Junte-se a centenas de empresas que já escolheram o T-Desk
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a

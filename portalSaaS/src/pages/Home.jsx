@@ -39,7 +39,7 @@ export default function Home() {
       { value: '99.9%', label: 'Uptime' },
       { value: '24/7', label: 'Suporte' }
     ],
-    featuresTitle: 'Por que escolher TatuTicket?',
+    featuresTitle: 'Por que escolher T-Desk?',
     featuresSubtitle: 'A solução mais completa do mercado para gestão de tickets',
     features: [
       { icon: 'Zap', title: 'Ultra Rápido', description: 'Performance otimizada para milhões de usuários simultâneos' },
@@ -202,7 +202,7 @@ export default function Home() {
                 {c.testimonialsTitle || 'O que nossos clientes dizem'}
               </h2>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                {c.testimonialsSubtitle || 'Veja como o TatuTicket transformou o atendimento dessas empresas'}
+                {c.testimonialsSubtitle || 'Veja como o T-Desk transformou o atendimento dessas empresas'}
               </p>
             </div>
 

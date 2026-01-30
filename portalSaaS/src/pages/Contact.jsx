@@ -11,7 +11,7 @@ const Contact = () => {
     {
       icon: Mail,
       title: 'E-mail',
-      value: 'contato@tatuticket.com',
+      value: 'contato@t-desk.com',
       description: 'Resposta em até 24 horas'
     },
     {
@@ -39,19 +39,19 @@ const Contact = () => {
       icon: MessageCircle,
       title: 'Suporte Técnico',
       description: 'Problemas com a plataforma ou dúvidas técnicas',
-      email: 'suporte@tatuticket.com'
+      email: 'suporte@t-desk.com'
     },
     {
       icon: Building,
       title: 'Vendas',
       description: 'Informações sobre planos e pricing',
-      email: 'vendas@tatuticket.com'
+      email: 'vendas@t-desk.com'
     },
     {
       icon: HelpCircle,
       title: 'Geral',
       description: 'Dúvidas gerais ou parcerias',
-      email: 'contato@tatuticket.com'
+      email: 'contato@t-desk.com'
     }
   ];
 
@@ -78,7 +78,7 @@ const Contact = () => {
             </h1>
             <p className="text-xl text-gray-600">
               Estamos aqui para ajudar! Entre em contato conosco para tirar dúvidas, 
-              solicitar demos ou discutir como o TatuTicket pode transformar seu atendimento.
+              solicitar demos ou discutir como o T-Desk pode transformar seu atendimento.
             </p>
           </div>
         </div>

@@ -136,7 +136,7 @@ const useSaasStore = create(
       }
     }),
     {
-      name: 'tatuticket-saas-store',
+      name: 't-desk-saas-store',
       partialize: (state) => ({
         // Persistir apenas dados essenciais
         onboardingStep: state.onboardingStep,

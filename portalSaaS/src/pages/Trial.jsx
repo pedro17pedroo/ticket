@@ -59,7 +59,7 @@ export default function Trial() {
               <strong>Seu URL:</strong>
             </p>
             <p className="text-blue-600 font-mono font-semibold">
-              https://{formData.slug}.tatuticket.com
+              https://{formData.slug}.t-desk.com
             </p>
           </div>
           <Link
@@ -154,7 +154,7 @@ export default function Trial() {
                       required
                       pattern="[a-z0-9-]+"
                     />
-                    <span className="text-gray-500">.tatuticket.com</span>
+                    <span className="text-gray-500">.t-desk.com</span>
                   </div>
                 </div>
               </div>

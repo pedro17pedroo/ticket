@@ -114,7 +114,7 @@ const Organizations = () => {
                       </div>
                       <div>
                         <div className="text-sm font-medium text-gray-900">{org.name}</div>
-                        <div className="text-sm text-gray-500">{org.slug}.tatuticket.com</div>
+                        <div className="text-sm text-gray-500">{org.slug}.t-desk.com</div>
                       </div>
                     </div>
                   </td>

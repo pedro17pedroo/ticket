@@ -158,7 +158,7 @@ const CompanyInfoStep = ({ data, onUpdate, onValidationChange }) => {
             placeholder="minha-empresa"
           />
           <div className="px-4 py-3 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-gray-600">
-            .tatuticket.com
+            .t-desk.com
           </div>
         </div>
         
@@ -189,7 +189,7 @@ const CompanyInfoStep = ({ data, onUpdate, onValidationChange }) => {
           <p className="mt-1 text-sm text-red-600">{errors.slug.message}</p>
         )}
         <p className="mt-1 text-xs text-gray-500">
-          Seus usuários acessarão: <strong>{slug || 'seu-dominio'}.tatuticket.com</strong>
+          Seus usuários acessarão: <strong>{slug || 'seu-dominio'}.t-desk.com</strong>
         </p>
       </div>
 

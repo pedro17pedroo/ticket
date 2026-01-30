@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Ticket } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Header = () => {
@@ -8,8 +8,8 @@ const Header = () => {
   const [showLoginOptions, setShowLoginOptions] = useState(false);
   const location = useLocation();
 
-  const orgPortalUrl = import.meta.env.VITE_ORGANIZATION_PORTAL_URL || 'https://organizacao.tatuticket.com';
-  const clientPortalUrl = import.meta.env.VITE_CLIENT_PORTAL_URL || 'https://cliente.tatuticket.com';
+  const orgPortalUrl = import.meta.env.VITE_ORGANIZATION_PORTAL_URL || 'https://organizacao.t-desk.com';
+  const clientPortalUrl = import.meta.env.VITE_CLIENT_PORTAL_URL || 'https://cliente.t-desk.com';
 
   const navigation = [
     { name: 'Início', href: '/' },
@@ -26,12 +26,11 @@ const Header = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-2 rounded-xl shadow-lg">
-              <Ticket className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              TatuTicket
-            </span>
+            <img 
+              src="/TDESK.png" 
+              alt="T-Desk" 
+              className="h-10 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}

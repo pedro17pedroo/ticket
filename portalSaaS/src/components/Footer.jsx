@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Ticket, Mail, Phone, MapPin } from 'lucide-react';
+import { Mail, Phone, MapPin } from 'lucide-react';
 import { getLandingPageConfig } from '../services/api';
 
 const Footer = () => {
@@ -23,12 +23,12 @@ const Footer = () => {
 
   // Valores padrão
   const c = config || {
-    brandName: 'TatuTicket',
+    brandName: 'T-Desk',
     footerDescription: 'A plataforma de gestão de tickets mais completa do mercado. Simplifique o atendimento, automatize processos e encante seus clientes.',
-    footerEmail: 'contato@tatuticket.com',
+    footerEmail: 'contato@t-desk.com',
     footerPhone: '+55 (11) 99999-9999',
     footerAddress: 'São Paulo, Brasil',
-    footerText: '© 2025 TatuTicket. Todos os direitos reservados.',
+    footerText: '© 2025 T-Desk. Todos os direitos reservados.',
     newsletterTitle: 'Newsletter',
     newsletterDescription: 'Receba as últimas novidades sobre gestão de tickets e tecnologia.',
     footerLinks: {
@@ -81,10 +81,11 @@ const Footer = () => {
           {/* Brand Section */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center space-x-2 mb-4">
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-2 rounded-xl shadow-lg">
-                <Ticket className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">{c.brandName}</span>
+              <img 
+                src="/TDESK.png" 
+                alt="T-Desk" 
+                className="h-10 w-auto"
+              />
             </Link>
             <p className="text-gray-400 mb-6 max-w-md text-sm leading-relaxed">
               {c.footerDescription}

@@ -125,7 +125,7 @@ const SaasDashboard = () => {
                 {user?.name || 'Admin'}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {user?.email || 'admin@tatuticket.com'}
+                {user?.email || 'admin@t-desk.com'}
               </p>
             </div>
           </div>
