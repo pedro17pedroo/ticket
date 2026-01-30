@@ -52,7 +52,7 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
   // Features Section
   featuresTitle: {
     type: DataTypes.STRING,
-    defaultValue: 'Por que escolher TatuTicket?'
+    defaultValue: 'Por que escolher T-Desk?'
   },
   featuresSubtitle: {
     type: DataTypes.STRING,
@@ -105,7 +105,7 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
   },
   testimonialsSubtitle: {
     type: DataTypes.STRING,
-    defaultValue: 'Veja como o TatuTicket transformou o atendimento dessas empresas'
+    defaultValue: 'Veja como o T-Desk transformou o atendimento dessas empresas'
   },
   testimonials: {
     type: DataTypes.JSONB,
@@ -115,7 +115,7 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
         role: 'Diretor de TI', 
         company: 'TechCorp', 
         avatar: '/avatars/avatar1.jpg',
-        text: 'O TatuTicket revolucionou nosso atendimento. Reduzimos o tempo de resposta em 60% e a satisfação dos clientes aumentou significativamente.',
+        text: 'O T-Desk revolucionou nosso atendimento. Reduzimos o tempo de resposta em 60% e a satisfação dos clientes aumentou significativamente.',
         rating: 5
       },
       { 
@@ -156,7 +156,7 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
   // Footer
   footerText: {
     type: DataTypes.STRING,
-    defaultValue: '© 2025 TatuTicket. Todos os direitos reservados.'
+    defaultValue: '© 2025 T-Desk. Todos os direitos reservados.'
   },
   footerDescription: {
     type: DataTypes.TEXT,
@@ -164,7 +164,7 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
   },
   footerEmail: {
     type: DataTypes.STRING,
-    defaultValue: 'contato@tatuticket.com'
+    defaultValue: 'contato@t-desk.com'
   },
   footerPhone: {
     type: DataTypes.STRING,
@@ -210,9 +210,9 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
   footerSocial: {
     type: DataTypes.JSONB,
     defaultValue: {
-      twitter: 'https://twitter.com/tatuticket',
-      linkedin: 'https://linkedin.com/company/tatuticket',
-      github: 'https://github.com/tatuticket'
+      twitter: 'https://twitter.com/tdesk',
+      linkedin: 'https://linkedin.com/company/tdesk',
+      github: 'https://github.com/tdesk'
     }
   },
   footerLegal: {
@@ -238,12 +238,12 @@ const LandingPageConfig = sequelize.define('LandingPageConfig', {
   },
   brandName: {
     type: DataTypes.STRING,
-    defaultValue: 'TatuTicket'
+    defaultValue: 'T-Desk'
   },
   // SEO
   metaTitle: {
     type: DataTypes.STRING,
-    defaultValue: 'TatuTicket - Gestão de Tickets Multi-Tenant'
+    defaultValue: 'T-Desk - Gestão de Tickets Multi-Tenant'
   },
   metaDescription: {
     type: DataTypes.TEXT,

@@ -6,11 +6,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Configurações padrão do provider
 const defaultSettings = {
-  companyName: 'TatuTicket',
-  companyEmail: 'contato@tatuticket.com',
+  companyName: 'T-Desk',
+  companyEmail: 'contato@t-desk.com',
   companyPhone: '',
   companyAddress: '',
-  supportEmail: 'suporte@tatuticket.com',
+  supportEmail: 'suporte@t-desk.com',
   supportPhone: '',
   timezone: 'Europe/Lisbon',
   language: 'pt-PT',
@@ -388,7 +388,7 @@ const defaultEmailSettings = {
   smtpPort: '587',
   smtpUser: '',
   smtpSecure: true,
-  fromName: 'TatuTicket',
+  fromName: 'T-Desk',
   fromEmail: '',
   replyToEmail: ''
 };
