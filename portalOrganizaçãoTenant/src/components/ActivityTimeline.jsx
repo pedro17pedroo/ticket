@@ -13,11 +13,14 @@ const ActivityTimeline = ({ ticket }) => {
     // Comentários
     if (ticket.comments) {
       ticket.comments.forEach(comment => {
+        // Detectar autor correto (novo sistema polimórfico)
+        const author = comment.authorOrgUser || comment.authorClientUser || comment.authorUser || comment.user || { name: 'Sistema' };
+        
         activities.push({
           id: `comment-${comment.id}`,
           type: 'comment',
           timestamp: new Date(comment.createdAt),
-          user: comment.user,
+          user: author,
           data: comment
         });
       });
