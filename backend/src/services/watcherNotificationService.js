@@ -145,7 +145,7 @@ const getNotificationType = (eventType) => {
   const types = {
     created: 'ticket_created',
     updated: 'ticket_updated', 
-    commented: 'ticket_commented',
+    commented: 'comment_added',
     status_changed: 'ticket_status_changed',
     assigned: 'ticket_assigned',
     resolved: 'ticket_resolved',
@@ -224,7 +224,7 @@ const generateWatcherEmailBody = (ticket, eventType, watcherType, additionalData
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: white;">
       <div style="background: #2563eb; color: white; padding: 20px; text-align: center;">
         <h1 style="margin: 0; font-size: 24px;">${getEmailSubject(eventType)}</h1>
-        <p style="margin: 8px 0 0 0; opacity: 0.9;">TatuTicket Sistema</p>
+        <p style="margin: 8px 0 0 0; opacity: 0.9;">T-Desk Sistema</p>
       </div>
       
       <div style="padding: 30px 20px;">
@@ -251,7 +251,7 @@ const generateWatcherEmailBody = (ticket, eventType, watcherType, additionalData
         
         <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 30px; color: #6b7280; font-size: 14px;">
           <p>Você está recebendo este email porque foi adicionado como observador deste ticket.</p>
-          <p>© 2025 TatuTicket - Sistema de Gestão de Tickets</p>
+          <p>© 2025 T-Desk - Sistema de Gestão de Tickets</p>
         </div>
       </div>
     </div>

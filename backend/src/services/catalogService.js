@@ -17,6 +17,7 @@ import logger from '../config/logger.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../config/database.js';
 import { notifyTicketWatchers } from './watcherNotificationService.js';
+import * as notificationService from '../modules/notifications/notificationService.js';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -315,6 +316,11 @@ class CatalogService {
 
       await notifyTicketWatchers(fullTicket, 'created');
       logger.info(`✅ Watchers notificados para ticket ${fullTicket.ticketNumber}`);
+      
+      // Notificar criação do ticket (cliente + admins/managers)
+      const creatorType = isClientUser ? 'client' : 'organization';
+      await notificationService.notifyTicketCreated(fullTicket, userId, creatorType);
+      logger.info(`✅ Notificações de criação enviadas para ticket ${fullTicket.ticketNumber}`);
     } catch (error) {
       logger.error(`❌ Erro ao notificar watchers:`, error);
     }

@@ -220,39 +220,81 @@ const sendNotificationEmail = async (notification) => {
       return;
     }
 
-    // Montar e-mail
-    const emailData = {
+    // Criar HTML do email
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 8px 8px; }
+          .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin-top: 15px; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+          .priority-high { border-left: 4px solid #ef4444; padding-left: 12px; }
+          .priority-normal { border-left: 4px solid #3b82f6; padding-left: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2 style="margin: 0;">T-Desk</h2>
+          </div>
+          <div class="content">
+            <p>Olá <strong>${recipient.name}</strong>,</p>
+            <div class="priority-${notification.priority === 'high' ? 'high' : 'normal'}">
+              <h3>${notification.title}</h3>
+              <p>${notification.message}</p>
+            </div>
+            ${notification.link ? `<a href="${process.env.CLIENT_PORTAL_URL || 'http://localhost:5174'}${notification.link}" class="button">Ver Detalhes</a>` : ''}
+          </div>
+          <div class="footer">
+            <p>Esta é uma notificação automática do T-Desk. Por favor, não responda a este email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `${notification.title}\n\n${notification.message}\n\n${notification.link ? `Ver detalhes: ${process.env.CLIENT_PORTAL_URL || 'http://localhost:5174'}${notification.link}` : ''}`;
+
+    // Enviar email
+    const result = await sendEmail({
       to: recipient.email,
       subject: notification.title,
-      template: 'notification',
-      data: {
-        title: notification.title,
-        message: notification.message,
-        recipientName: recipient.name,
-        link: notification.link,
-        type: notification.type,
-        priority: notification.priority,
-        actorName: notification.actorName,
-        ...notification.data
-      }
-    };
-
-    await sendEmail(emailData);
-
-    // Marcar como enviado
-    await notification.update({
-      emailSent: true,
-      emailSentAt: new Date()
+      html,
+      text
     });
 
-    logger.info(`E-mail de notificação enviado para ${recipient.email}`);
+    if (result.success) {
+      // Marcar como enviado
+      await notification.update({
+        emailSent: true,
+        emailSentAt: new Date()
+      });
+
+      logger.info(`✅ E-mail de notificação enviado para ${recipient.email} - ${notification.title}`);
+    } else {
+      logger.error(`❌ Falha ao enviar e-mail para ${recipient.email}: ${result.error}`);
+      
+      // Registrar erro
+      await notification.update({
+        emailError: result.error || 'Erro desconhecido'
+      });
+    }
   } catch (error) {
     logger.error('Erro ao enviar e-mail de notificação:', error);
     
     // Registrar erro
-    await notification.update({
-      emailError: error.message
-    }).catch(err => logger.error('Erro ao registrar falha de e-mail:', err));
+    try {
+      await notification.update({
+        emailError: error.message
+      });
+    } catch (err) {
+      logger.error('Erro ao registrar falha de e-mail:', err);
+    }
   }
 };
 
@@ -263,7 +305,33 @@ const sendNotificationEmail = async (notification) => {
  */
 export const notifyTicketCreated = async (ticket, creatorId, creatorType) => {
   try {
-    // Notificar organização (admins e managers)
+    const notifications = [];
+
+    // 1. Notificar o CLIENTE que criou o ticket (confirmação de criação)
+    if (creatorType === 'client' && creatorId) {
+      notifications.push({
+        recipientId: creatorId,
+        recipientType: 'client',
+        organizationId: ticket.organizationId,
+        type: 'ticket_created',
+        title: 'Ticket Criado com Sucesso',
+        message: `Seu ticket #${ticket.ticketNumber} foi criado: ${ticket.subject}`,
+        ticketId: ticket.id,
+        link: `/tickets/${ticket.id}`,
+        priority: 'normal',
+        data: {
+          ticketNumber: ticket.ticketNumber,
+          subject: ticket.subject,
+          priority: ticket.priority,
+          status: ticket.status
+        },
+        actorId: creatorId,
+        actorType: creatorType,
+        actorName: ticket.requesterName || 'Você'
+      });
+    }
+
+    // 2. Notificar organização (admins e managers)
     const orgUsers = await OrganizationUser.findAll({
       where: {
         organizationId: ticket.organizationId,
@@ -273,31 +341,34 @@ export const notifyTicketCreated = async (ticket, creatorId, creatorType) => {
       }
     });
 
-    const notifications = orgUsers
+    orgUsers
       .filter(user => user.id !== creatorId)
-      .map(user => ({
-        recipientId: user.id,
-        recipientType: 'organization',
-        organizationId: ticket.organizationId,
-        type: 'ticket_created',
-        title: 'Novo Ticket Criado',
-        message: `Ticket #${ticket.ticketNumber}: ${ticket.subject}`,
-        ticketId: ticket.id,
-        link: `/tickets/${ticket.id}`,
-        priority: ticket.priority === 'crítica' || ticket.priority === 'alta' ? 'high' : 'normal',
-        data: {
-          ticketNumber: ticket.ticketNumber,
-          subject: ticket.subject,
-          priority: ticket.priority,
-          status: ticket.status
-        },
-        actorId: creatorId,
-        actorType: creatorType,
-        actorName: ticket.requesterName || 'Sistema'
-      }));
+      .forEach(user => {
+        notifications.push({
+          recipientId: user.id,
+          recipientType: 'organization',
+          organizationId: ticket.organizationId,
+          type: 'ticket_created',
+          title: 'Novo Ticket Criado',
+          message: `Ticket #${ticket.ticketNumber}: ${ticket.subject}`,
+          ticketId: ticket.id,
+          link: `/tickets/${ticket.id}`,
+          priority: ticket.priority === 'crítica' || ticket.priority === 'alta' ? 'high' : 'normal',
+          data: {
+            ticketNumber: ticket.ticketNumber,
+            subject: ticket.subject,
+            priority: ticket.priority,
+            status: ticket.status
+          },
+          actorId: creatorId,
+          actorType: creatorType,
+          actorName: ticket.requesterName || 'Sistema'
+        });
+      });
 
     if (notifications.length > 0) {
       await createBulkNotifications(notifications);
+      logger.info(`✅ ${notifications.length} notificações enviadas para criação do ticket ${ticket.ticketNumber}`);
     }
   } catch (error) {
     logger.error('Erro ao notificar criação de ticket:', error);
@@ -404,12 +475,18 @@ export const notifyNewComment = async (ticket, comment, authorId, authorType, au
   try {
     const recipients = [];
 
+    logger.info(`🔔 [notifyNewComment] Iniciando notificação para ticket ${ticket.ticketNumber}`);
+    logger.info(`🔔 [notifyNewComment] Autor: ${authorName} (${authorId}, tipo: ${authorType})`);
+    logger.info(`🔔 [notifyNewComment] Ticket assigneeId: ${ticket.assigneeId}, requesterId: ${ticket.requesterId}`);
+    logger.info(`🔔 [notifyNewComment] Comentário interno: ${comment.isInternal}`);
+
     // Notificar responsável
     if (ticket.assigneeId && ticket.assigneeId !== authorId) {
       recipients.push({
         recipientId: ticket.assigneeId,
         recipientType: 'organization'
       });
+      logger.info(`✅ [notifyNewComment] Adicionado assignee: ${ticket.assigneeId}`);
     }
 
     // Notificar cliente (se não for comentário interno) - Detectar tipo automaticamente
@@ -429,7 +506,12 @@ export const notifyNewComment = async (ticket, comment, authorId, authorType, au
         recipientId: ticket.requesterId,
         recipientType
       });
+      logger.info(`✅ [notifyNewComment] Adicionado requester: ${ticket.requesterId} (tipo: ${recipientType})`);
+    } else {
+      logger.info(`⚠️ [notifyNewComment] Requester não notificado - interno: ${comment.isInternal}, requesterId: ${ticket.requesterId}, é autor: ${ticket.requesterId === authorId}`);
     }
+
+    logger.info(`📊 [notifyNewComment] Total de recipients: ${recipients.length}`);
 
     const notifications = recipients.map(recipient => ({
       ...recipient,
@@ -453,6 +535,9 @@ export const notifyNewComment = async (ticket, comment, authorId, authorType, au
 
     if (notifications.length > 0) {
       await createBulkNotifications(notifications);
+      logger.info(`✅ [notifyNewComment] ${notifications.length} notificações criadas`);
+    } else {
+      logger.warn(`⚠️ [notifyNewComment] Nenhuma notificação criada`);
     }
   } catch (error) {
     logger.error('Erro ao notificar novo comentário:', error);

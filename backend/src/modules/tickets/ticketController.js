@@ -889,16 +889,19 @@ export const addComment = async (req, res, next) => {
     }
 
     // Determinar tipo de autor baseado no role
-    let authorType = 'provider';
+    let authorType = 'organization'; // Default para usuários da organização
     let authorUserId = req.user.id;
     let authorOrgUserId = null;
     let authorClientUserId = null;
 
-    if (['gerente', 'supervisor', 'agente'].includes(req.user.role)) {
+    // Roles da organização (novos e legados)
+    if (['org-admin', 'org-manager', 'agent', 'gerente', 'supervisor', 'agente'].includes(req.user.role)) {
       authorType = 'organization';
       authorOrgUserId = req.user.id;
       authorUserId = null;
-    } else if (['client-admin', 'client-user', 'client-viewer'].includes(req.user.role)) {
+    } 
+    // Roles de cliente
+    else if (['client-admin', 'client-user', 'client-viewer'].includes(req.user.role)) {
       authorType = 'client';
       authorClientUserId = req.user.id;
       authorUserId = null;
@@ -937,6 +940,24 @@ export const addComment = async (req, res, next) => {
           model: User,
           as: 'user',
           attributes: ['id', 'name', 'avatar', 'role', 'email']
+        },
+        {
+          model: User,
+          as: 'authorUser',
+          attributes: ['id', 'name', 'avatar', 'email'],
+          required: false
+        },
+        {
+          model: OrganizationUser,
+          as: 'authorOrgUser',
+          attributes: ['id', 'name', 'avatar', 'email'],
+          required: false
+        },
+        {
+          model: ClientUser,
+          as: 'authorClientUser',
+          attributes: ['id', 'name', 'avatar', 'email'],
+          required: false
         },
         {
           model: Attachment,
@@ -1837,10 +1858,13 @@ export const updateTicketWatchers = async (req, res, next) => {
     await logTicketChange(
       ticket.id,
       req.user.id,
-      'watchers_updated',
-      null,
-      null,
-      { orgWatchers, clientWatchers }
+      {
+        action: 'watchers_updated',
+        field: 'watchers',
+        oldValue: null,
+        newValue: JSON.stringify({ orgWatchers, clientWatchers }),
+        description: 'Observadores atualizados'
+      }
     );
 
     const updatedTicket = await Ticket.findByPk(id, {
@@ -1954,7 +1978,6 @@ export const approveTicket = async (req, res, next) => {
       await logTicketChange(
         ticket.id,
         userId,
-        organizationId,
         {
           action: 'approval',
           field: 'approvalStatus',
@@ -2087,7 +2110,6 @@ export const rejectTicket = async (req, res, next) => {
       await logTicketChange(
         ticket.id,
         userId,
-        organizationId,
         {
           action: 'rejection',
           field: 'approvalStatus',
@@ -2219,6 +2241,25 @@ export const getMyTickets = async (req, res, next) => {
           model: OrganizationUser,
           as: 'rejectedByUser',
           attributes: ['id', 'name', 'email'],
+          required: false
+        },
+        // 🆕 Incluir dados do solicitante (polimórfico)
+        {
+          model: User,
+          as: 'requester',
+          attributes: ['id', 'name', 'email', 'avatar'],
+          required: false
+        },
+        {
+          model: OrganizationUser,
+          as: 'requesterOrgUser',
+          attributes: ['id', 'name', 'email', 'avatar'],
+          required: false
+        },
+        {
+          model: ClientUser,
+          as: 'requesterClientUser',
+          attributes: ['id', 'name', 'email', 'avatar'],
           required: false
         }
       ]

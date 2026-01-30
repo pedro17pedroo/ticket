@@ -111,13 +111,13 @@ export const createComment = async (req, res, next) => {
     }
 
     // Determinar tipo de autor baseado no userType ou role
-    let authorType = 'provider';
+    let authorType = 'organization'; // Default para usuários da organização
     let authorUserId = req.user.id;
     let authorOrgUserId = null;
     let authorClientUserId = null;
 
     // Usar userType se disponível, senão inferir do role
-    if (req.user.userType === 'organization' || ['org-admin', 'org-technician', 'org-manager', 'gerente', 'supervisor', 'agente'].includes(req.user.role)) {
+    if (req.user.userType === 'organization' || ['org-admin', 'org-technician', 'org-manager', 'agent', 'gerente', 'supervisor', 'agente'].includes(req.user.role)) {
       authorType = 'organization';
       authorOrgUserId = req.user.id;
       authorUserId = null;

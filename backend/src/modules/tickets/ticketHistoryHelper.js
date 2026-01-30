@@ -4,7 +4,7 @@ import { User, Department, Direction, Section, CatalogCategory } from '../models
 /**
  * Registra uma mudança no histórico do ticket
  */
-export const logTicketChange = async (ticketId, userId, organizationId, changeData, transaction = null) => {
+export const logTicketChange = async (ticketId, userId, changeData, transaction = null) => {
   const { action, field, oldValue, newValue, description } = changeData;
 
   try {
@@ -13,8 +13,8 @@ export const logTicketChange = async (ticketId, userId, organizationId, changeDa
       userId,
       action,
       field,
-      oldValue,
-      newValue,
+      oldValue: oldValue !== undefined ? String(oldValue) : null,
+      newValue: newValue !== undefined ? String(newValue) : null,
       description
     }, { transaction });
   } catch (error) {
