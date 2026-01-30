@@ -37,7 +37,7 @@ const EmailSettings = () => {
         smtpUser: data.smtpUser || '',
         smtpPassword: '',
         smtpSecure: data.smtpSecure !== false,
-        fromName: data.fromName || 'TatuTicket',
+        fromName: data.fromName || 'T-Desk',
         fromEmail: data.fromEmail || '',
         replyToEmail: data.replyToEmail || '',
         testEmail: ''

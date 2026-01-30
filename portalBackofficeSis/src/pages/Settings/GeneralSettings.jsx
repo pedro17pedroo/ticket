@@ -35,7 +35,7 @@ const GeneralSettings = () => {
       setLoading(true);
       const data = await dashboardService.getSettings();
       setFormData({
-        companyName: data.companyName || 'TatuTicket',
+        companyName: data.companyName || 'T-Desk',
         companyEmail: data.companyEmail || 'contato@tatuticket.com',
         companyPhone: data.companyPhone || '',
         companyAddress: data.companyAddress || '',

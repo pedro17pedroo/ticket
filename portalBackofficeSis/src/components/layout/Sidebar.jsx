@@ -54,7 +54,7 @@ const Sidebar = () => {
       {/* Logo */}
       <div className="flex items-center justify-center h-16 px-4 border-b border-gray-800">
         <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-          TatuTicket
+          T-Desk
         </h1>
       </div>
 

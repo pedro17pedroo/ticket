@@ -69,7 +69,7 @@ const DesktopAgentDownload = () => {
           <Monitor className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
         </div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          {agentInfo?.name || 'TatuTicket Desktop Agent'}
+          {agentInfo?.name || 'T-Desk Desktop Agent'}
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
           {agentInfo?.description || 'Agente desktop para inventário automático, gestão de tickets e acesso remoto'}
