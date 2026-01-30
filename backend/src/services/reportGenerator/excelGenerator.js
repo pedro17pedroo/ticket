@@ -24,7 +24,7 @@ class ExcelGenerator {
    */
   async generate(type) {
     this.workbook = new ExcelJS.Workbook();
-    this.workbook.creator = 'TatuTicket';
+    this.workbook.creator = 'T-Desk';
     this.workbook.created = new Date();
 
     switch (type) {

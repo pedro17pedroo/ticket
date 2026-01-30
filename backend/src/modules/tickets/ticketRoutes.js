@@ -48,7 +48,7 @@ router.put(
 router.post(
   '/:id/comments',
   validate(schemas.createComment),
-  auditLog('create', 'comment'),
+  auditLog('create', 'ticket'),
   addComment
 );
 

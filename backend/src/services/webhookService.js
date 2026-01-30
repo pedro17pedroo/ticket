@@ -65,7 +65,7 @@ class WebhookService {
 
       const headers = {
         'Content-Type': 'application/json',
-        'User-Agent': 'TatuTicket-Webhook/1.0',
+        'User-Agent': 'T-Desk-Webhook/1.0',
         ...webhook.headers
       };
 
@@ -231,7 +231,7 @@ class WebhookService {
 
       const testPayload = {
         test: true,
-        message: 'This is a test webhook from TatuTicket',
+        message: 'This is a test webhook from T-Desk',
         timestamp: new Date().toISOString()
       };
 

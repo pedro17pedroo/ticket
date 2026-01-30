@@ -4,9 +4,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'TatuTicket API',
+      title: 'T-Desk API',
       version: '1.0.0',
-      description: 'API REST para o sistema TatuTicket - Plataforma de gestão de tickets e suporte',
+      description: 'API REST para o sistema T-Desk - Plataforma de gestão de tickets e suporte',
       contact: {
         name: 'Equipa TatuTicket',
         email: 'suporte@tatuticket.com'

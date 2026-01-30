@@ -88,7 +88,7 @@ class IntegrationService {
       await axios.post(webhookUrl, {
         '@type': 'MessageCard',
         '@context': 'https://schema.org/extensions',
-        summary: message.summary || 'Notificação TatuTicket',
+        summary: message.summary || 'Notificação T-Desk',
         themeColor: message.color || '0078D4',
         title: message.title,
         text: message.text,
@@ -264,7 +264,7 @@ class IntegrationService {
       }
 
       const testMessage = {
-        text: '✅ Teste de integração TatuTicket',
+        text: '✅ Teste de integração T-Desk',
         title: 'Teste de Conexão',
         summary: 'Integração funcionando corretamente'
       };

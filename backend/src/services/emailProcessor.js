@@ -396,7 +396,7 @@ class EmailProcessor {
   async sendUserNotRegisteredEmail(recipientEmail, originalSubject) {
     try {
       const mailOptions = {
-        from: `"${process.env.SYSTEM_NAME || 'TatuTicket'}" <${process.env.SMTP_USER}>`,
+        from: `"${process.env.SYSTEM_NAME || 'T-Desk'}" <${process.env.SMTP_USER}>`,
         to: recipientEmail,
         subject: `Re: ${originalSubject} - Registo Necessário`,
         html: `
@@ -649,7 +649,7 @@ class EmailProcessor {
       const template = await this.getAutoResponseTemplate();
       
       const mailOptions = {
-        from: `"${process.env.SYSTEM_NAME || 'TatuTicket'}" <${process.env.SMTP_USER}>`,
+        from: `"${process.env.SYSTEM_NAME || 'T-Desk'}" <${process.env.SMTP_USER}>`,
         to: recipientEmail,
         subject: `[#${ticket.ticketNumber}] ${ticket.subject}`,
         html: this.renderTemplate(template, {
@@ -658,7 +658,7 @@ class EmailProcessor {
           status: ticket.status,
           portalUrl: process.env.PORTAL_URL || 'http://localhost:3001'
         }),
-        messageId: `<${uuidv4()}@${process.env.SYSTEM_DOMAIN || 'tatuticket.com'}>`
+        messageId: `<${uuidv4()}@${process.env.SYSTEM_DOMAIN || 't-desk.com'}>`
       };
 
       await this.transporter.sendMail(mailOptions);
@@ -752,7 +752,7 @@ class EmailProcessor {
       if (!agent || !agent.email) return;
 
       const mailOptions = {
-        from: `"${process.env.SYSTEM_NAME || 'TatuTicket'}" <${process.env.SMTP_USER}>`,
+        from: `"${process.env.SYSTEM_NAME || 'T-Desk'}" <${process.env.SMTP_USER}>`,
         to: agent.email,
         subject: `[#${ticket.ticketNumber}] Nova resposta do cliente`,
         html: `
@@ -777,7 +777,7 @@ class EmailProcessor {
   async sendTicketUpdate(ticket, updates, recipientEmail) {
     try {
       const mailOptions = {
-        from: `"${process.env.SYSTEM_NAME || 'TatuTicket'}" <${process.env.SMTP_USER}>`,
+        from: `"${process.env.SYSTEM_NAME || 'T-Desk'}" <${process.env.SMTP_USER}>`,
         to: recipientEmail,
         subject: `[#${ticket.ticketNumber}] Atualização do ticket`,
         html: this.renderUpdateTemplate(ticket, updates)

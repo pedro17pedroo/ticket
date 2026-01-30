@@ -84,8 +84,8 @@ const baseTemplate = (title, content) => `
       ${content}
     </div>
     <div class="footer">
-      <p>Este é um email automático do TatuTicket. Por favor não responda.</p>
-      <p>&copy; ${new Date().getFullYear()} TatuTicket. Todos os direitos reservados.</p>
+      <p>Este é um email automático do T-Desk. Por favor não responda.</p>
+      <p>&copy; ${new Date().getFullYear()} T-Desk. Todos os direitos reservados.</p>
     </div>
   </div>
 </body>
@@ -305,7 +305,7 @@ export const sendEmailVerification = async (email, name, token, organizationName
     
     const content = `
       <p>Olá <strong>${name}</strong>,</p>
-      <p>Bem-vindo ao <strong>TatuTicket</strong>! Para completar o registo da sua organização <strong>${organizationName}</strong>, precisa de verificar o seu email.</p>
+      <p>Bem-vindo ao <strong>T-Desk</strong>! Para completar o registo da sua organização <strong>${organizationName}</strong>, precisa de verificar o seu email.</p>
       
       <div class="verification-code" style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
         <h2 style="margin: 0; color: #495057; font-size: 32px; letter-spacing: 8px; font-family: 'Courier New', monospace;">${token}</h2>
@@ -324,9 +324,9 @@ export const sendEmailVerification = async (email, name, token, organizationName
 
     await sendEmail({
       to: email,
-      subject: `Verifique seu email - ${organizationName} | TatuTicket`,
+      subject: `Verifique seu email - ${organizationName} | T-Desk`,
       html: baseTemplate('Verificação de Email', content),
-      text: `Código de verificação: ${token}. Use este código para completar o registo da sua organização ${organizationName} no TatuTicket.`
+      text: `Código de verificação: ${token}. Use este código para completar o registo da sua organização ${organizationName} no T-Desk.`
     });
 
     logger.info(`Email de verificação enviado para: ${email} (${organizationName})`);
@@ -344,7 +344,7 @@ export const sendWelcomeEmail = async (email, name, organizationName, portalUrl,
   try {
     const content = `
       <p>Olá <strong>${name}</strong>,</p>
-      <p>🎉 <strong>Parabéns!</strong> A sua organização <strong>${organizationName}</strong> está pronta para usar o TatuTicket!</p>
+      <p>🎉 <strong>Parabéns!</strong> A sua organização <strong>${organizationName}</strong> está pronta para usar o T-Desk!</p>
       
       <div class="info-box" style="background: #e8f5e8; border: 1px solid #c3e6c3; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <h3 style="margin: 0 0 15px 0; color: #155724;">🚀 Detalhes de Acesso</h3>
@@ -365,15 +365,15 @@ export const sendWelcomeEmail = async (email, name, organizationName, portalUrl,
       
       <div class="support-info" style="background: #f8f9fa; border-left: 4px solid #667eea; padding: 15px; margin: 30px 0;">
         <p style="margin: 0;"><strong>Precisa de ajuda?</strong></p>
-        <p style="margin: 5px 0 0 0;">Nossa equipa de suporte está pronta para ajudar: <a href="mailto:suporte@tatuticket.com">suporte@tatuticket.com</a></p>
+        <p style="margin: 5px 0 0 0;">Nossa equipa de suporte está pronta para ajudar: <a href="mailto:suporte@t-desk.com">suporte@t-desk.com</a></p>
       </div>
     `;
 
     await sendEmail({
       to: email,
-      subject: `🎉 Bem-vindo ao TatuTicket - ${organizationName}`,
-      html: baseTemplate('Bem-vindo ao TatuTicket!', content),
-      text: `Bem-vindo ao TatuTicket! Sua organização ${organizationName} está pronta. Acesse: ${portalUrl}`
+      subject: `🎉 Bem-vindo ao T-Desk - ${organizationName}`,
+      html: baseTemplate('Bem-vindo ao T-Desk!', content),
+      text: `Bem-vindo ao T-Desk! Sua organização ${organizationName} está pronta. Acesse: ${portalUrl}`
     });
 
     logger.info(`Email de boas-vindas enviado para: ${email} (${organizationName})`);
@@ -390,7 +390,7 @@ export const sendClientAdminWelcomeEmail = async ({ email, name, clientName, ten
 
     const content = `
       <p>Olá <strong>${name}</strong>,</p>
-      <p>A empresa <strong>${clientName}</strong> foi configurada no TatuTicket por <strong>${tenantName || 'a sua equipa de suporte'}</strong>.</p>
+      <p>A empresa <strong>${clientName}</strong> foi configurada no T-Desk por <strong>${tenantName || 'a sua equipa de suporte'}</strong>.</p>
 
       <div class="info-box" style="background: #e8f0ff; border: 1px solid #c3d4ff; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <h3 style="margin: 0 0 15px 0; color: #1d4ed8;">🔐 Acesso ao Portal do Cliente</h3>
@@ -410,7 +410,7 @@ export const sendClientAdminWelcomeEmail = async ({ email, name, clientName, ten
 
       <div class="support-info" style="background: #f8f9fa; border-left: 4px solid #1d4ed8; padding: 15px; margin: 30px 0;">
         <p style="margin: 0;"><strong>Precisa de ajuda?</strong></p>
-        <p style="margin: 5px 0 0 0;">Contacte a equipa de suporte do TatuTicket ou o administrador da organização ${tenantName || ''}.</p>
+        <p style="margin: 5px 0 0 0;">Contacte a equipa de suporte do T-Desk ou o administrador da organização ${tenantName || ''}.</p>
       </div>
     `;
 
@@ -461,7 +461,7 @@ export const sendPasswordResetEmail = async ({ email, name, token, portalType = 
 
     await sendEmail({
       to: email,
-      subject: 'Recuperação de senha | TatuTicket',
+      subject: 'Recuperação de senha | T-Desk',
       html: baseTemplate('Recuperar senha', content),
       text: `Utilize este token para redefinir a sua senha: ${token}. Link rápido: ${resetUrl}`
     });

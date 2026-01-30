@@ -65,7 +65,7 @@ app.use((req, res, next) => {
 app.use('/api-docs', swaggerUi.serve);
 app.get('/api-docs', swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'TatuTicket API Documentation'
+  customSiteTitle: 'T-Desk API Documentation'
 }));
 
 // Swagger JSON spec

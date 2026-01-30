@@ -18,12 +18,12 @@ router.get('/test-email', async (req, res) => {
 
     const result = await sendEmail({
       to: to,
-      subject: '🧪 Teste de Email - TatuTicket',
+      subject: '🧪 Teste de Email - T-Desk',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: #2563eb; color: white; padding: 20px; text-align: center;">
             <h1 style="margin: 0;">🧪 Teste de Email</h1>
-            <p style="margin: 5px 0 0 0; opacity: 0.9;">TatuTicket Sistema</p>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">T-Desk Sistema</p>
           </div>
           
           <div style="padding: 30px 20px;">
@@ -33,7 +33,7 @@ router.get('/test-email', async (req, res) => {
           </div>
         </div>
       `,
-      text: 'Teste de email - TatuTicket Sistema funcionando!'
+      text: 'Teste de email - T-Desk Sistema funcionando!'
     });
 
     logger.info(`Teste de email enviado para ${to}`, result);

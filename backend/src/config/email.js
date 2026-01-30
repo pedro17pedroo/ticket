@@ -43,7 +43,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
 
   try {
     const info = await transporter.sendMail({
-      from: `"${process.env.SMTP_FROM_NAME || 'TatuTicket'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      from: `"${process.env.SMTP_FROM_NAME || 'T-Desk'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to,
       subject,
       text,

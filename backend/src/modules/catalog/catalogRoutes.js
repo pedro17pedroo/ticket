@@ -178,7 +178,7 @@ router.delete(
 router.post(
   '/requests',
   authenticate,
-  auditLog('create', 'service_request'),
+  auditLog('create', 'catalog'),
   catalogController.createServiceRequest
 );
 
@@ -217,7 +217,7 @@ router.post(
   '/requests/:id/approve',
   authenticate,
   requirePermission('catalog', 'manage'),
-  auditLog('update', 'service_request'),
+  auditLog('update', 'catalog'),
   catalogController.approveServiceRequest
 );
 

@@ -51,7 +51,7 @@ router.get('/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    service: 'TatuTicket Backend'
+    service: 'T-Desk Backend'
   });
 });
 
@@ -107,7 +107,7 @@ router.patch('/tickets/:id/watchers', authenticate, requirePermission('tickets',
 // 🆕 Endpoints de aprovação/rejeição (unificação)
 router.patch('/tickets/:id/approve', authenticate, requirePermission('tickets', 'update'), auditLog('approve', 'ticket'), ticketController.approveTicket);
 router.patch('/tickets/:id/reject', authenticate, requirePermission('tickets', 'update'), auditLog('reject', 'ticket'), ticketController.rejectTicket);
-router.post('/tickets/:id/comments', authenticate, requirePermission('comments', 'create'), validate(schemas.createComment), auditLog('create', 'comment'), ticketController.addComment);
+router.post('/tickets/:id/comments', authenticate, requirePermission('comments', 'create'), validate(schemas.createComment), auditLog('create', 'ticket'), ticketController.addComment);
 
 // Comment routes (endpoints separados)
 router.use('/tickets', commentRoutes);
