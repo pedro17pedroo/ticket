@@ -76,7 +76,9 @@ export const saasAPI = {
 
   // Obter planos disponíveis (usa o endpoint público)
   getPlans: async () => {
-    const response = await api.get('/plans/public');
+    // Adicionar timestamp para evitar cache
+    const timestamp = new Date().getTime();
+    const response = await api.get(`/plans/public?_t=${timestamp}`);
     return response.data;
   }
 };

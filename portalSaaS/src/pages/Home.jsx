@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles, Check, Zap, Shield, Globe, Star, Heart, Clock, Users, Lock, Rocket } from 'lucide-react';
-import { getLandingPageConfig } from '../services/api';
+import { getLandingPageConfig, getPublicPlans } from '../services/api';
 
 // Mapeamento de ícones
 const iconMap = {
@@ -10,10 +10,12 @@ const iconMap = {
 
 export default function Home() {
   const [config, setConfig] = useState(null);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadConfig();
+    loadPlans();
   }, []);
 
   const loadConfig = async () => {
@@ -22,6 +24,26 @@ export default function Home() {
       setConfig(data);
     }
     setLoading(false);
+  };
+
+  const loadPlans = async () => {
+    try {
+      const plansData = await getPublicPlans();
+      if (plansData && plansData.length > 0) {
+        // Formatar planos para o formato esperado pela Home
+        const formattedPlans = plansData.map(plan => ({
+          name: plan.name,
+          price: plan.price,
+          period: plan.priceValue ? '/mês' : '',
+          features: plan.features || [],
+          highlighted: plan.highlighted || false,
+          planId: plan.planId
+        }));
+        setPlans(formattedPlans);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar planos:', error);
+    }
   };
 
   // Valores padrão enquanto carrega
@@ -60,6 +82,9 @@ export default function Home() {
   };
 
   const c = config || defaultConfig;
+  
+  // Usar planos da API se disponíveis, senão usar default
+  const displayPlans = plans.length > 0 ? plans : c.pricingPlans;
 
   if (loading) {
     return (
@@ -174,12 +199,13 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {c.pricingPlans.map((plan, index) => (
+            {displayPlans.map((plan, index) => (
               <PricingCard
                 key={index}
-                planId={plan.name.toLowerCase()}
+                planId={plan.planId || plan.name.toLowerCase()}
                 name={plan.name}
                 price={plan.price}
+                period={plan.period || ''}
                 features={plan.features}
                 highlighted={plan.highlighted}
               />
@@ -358,7 +384,7 @@ function FeatureCard({ icon, title, description }) {
   );
 }
 
-function PricingCard({ planId, name, price, features, highlighted }) {
+function PricingCard({ planId, name, price, period, features, highlighted }) {
   return (
     <div className={`rounded-xl p-8 ${
       highlighted 
@@ -368,7 +394,7 @@ function PricingCard({ planId, name, price, features, highlighted }) {
       <h3 className="text-2xl font-bold mb-2">{name}</h3>
       <p className={`text-4xl font-bold mb-6 ${highlighted ? 'text-white' : 'text-blue-600'}`}>
         {price}
-        {price !== 'Contacte-nos' && <span className="text-lg">/mês</span>}
+        {period && <span className="text-lg">{period}</span>}
       </p>
       <ul className="space-y-3 mb-8">
         {features.map((feature, i) => (

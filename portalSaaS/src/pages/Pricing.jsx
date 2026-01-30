@@ -13,9 +13,11 @@ export default function Pricing() {
 
   const loadPlans = async () => {
     try {
+      // Adicionar timestamp para evitar cache
       const response = await saasAPI.getPlans();
       // A API retorna { success: true, plans: [...] }
       const plansData = response?.plans || [];
+      console.log('📊 Planos carregados da API:', plansData);
       setPlans(plansData);
     } catch (error) {
       console.error('Erro ao carregar planos:', error);
