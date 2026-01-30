@@ -1,4 +1,4 @@
-# 📖 Guia de Padrão de Modais - TatuTicket
+# 📖 Guia de Padrão de Modais - T-Desk
 
 ## 🎯 Objetivo
 Este documento define o padrão **obrigatório** para implementação de modais em toda a aplicação, garantindo consistência, performance e melhor experiência do usuário.

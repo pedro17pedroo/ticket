@@ -1,4 +1,4 @@
-# 🎨 Resumo de Profissionalização de Modais - TatuTicket
+# 🎨 Resumo de Profissionalização de Modais - T-Desk
 
 ## ✅ Status de Implementação
 

@@ -1,8 +1,8 @@
-# 📚 Guia do Catálogo de Serviços - TatuTicket
+# 📚 Guia do Catálogo de Serviços - T-Desk
 
 ## 🎯 Visão Geral
 
-O Catálogo de Serviços do TatuTicket é organizado em **3 níveis hierárquicos**:
+O Catálogo de Serviços do T-Desk é organizado em **3 níveis hierárquicos**:
 
 ```
 📁 Categorias Raiz (Nível 1)

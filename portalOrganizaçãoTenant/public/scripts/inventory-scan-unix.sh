@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# TatuTicket - Script de Coleta de Inventário para Linux/Mac
+# T-Desk - Script de Coleta de Inventário para Linux/Mac
 # Execute com: bash inventory-scan-unix.sh --token "SEU_TOKEN"
 
 API_URL="http://localhost:3000/api"
@@ -36,7 +36,7 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-echo -e "${CYAN}🔍 TatuTicket - Coleta de Inventário${NC}"
+echo -e "${CYAN}🔍 T-Desk - Coleta de Inventário${NC}"
 echo -e "${CYAN}=====================================${NC}"
 echo ""
 
@@ -186,7 +186,7 @@ echo -e "  • IP: $IP_ADDRESS"
 echo ""
 
 # Salvar localmente
-OUTPUT_DIR="$HOME/TatuTicket"
+OUTPUT_DIR="$HOME/T-Desk"
 mkdir -p "$OUTPUT_DIR"
 TIMESTAMP_FILE=$(date +"%Y%m%d_%H%M%S")
 OUTPUT_FILE="$OUTPUT_DIR/inventory_$TIMESTAMP_FILE.json"

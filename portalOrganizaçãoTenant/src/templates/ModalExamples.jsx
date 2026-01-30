@@ -1,5 +1,5 @@
 /**
- * 📚 EXEMPLOS DE MODAIS - TatuTicket
+ * 📚 EXEMPLOS DE MODAIS - T-Desk
  * 
  * Este arquivo contém exemplos práticos de diferentes tipos de modais.
  * Use como referência ao criar novos modais na aplicação.

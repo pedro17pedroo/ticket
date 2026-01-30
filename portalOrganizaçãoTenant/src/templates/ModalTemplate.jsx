@@ -1,5 +1,5 @@
 /**
- * 📋 TEMPLATE DE MODAL PADRÃO - TatuTicket
+ * 📋 TEMPLATE DE MODAL PADRÃO - T-Desk
  * 
  * Este é um template de referência para criar novos modais.
  * SEMPRE use este padrão ao criar modais na aplicação.

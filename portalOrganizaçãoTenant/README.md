@@ -1,4 +1,4 @@
-# Portal Organização Tenant - TatuTicket
+# Portal Organização Tenant - T-Desk
 
 Portal web para gestão de tickets, clientes e departamentos da organização.
 

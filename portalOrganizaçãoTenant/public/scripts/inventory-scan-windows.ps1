@@ -1,4 +1,4 @@
-# TatuTicket - Script de Coleta de Inventário para Windows
+# T-Desk - Script de Coleta de Inventário para Windows
 # Execute com: powershell -ExecutionPolicy Bypass -File inventory-scan-windows.ps1
 
 param(
@@ -7,7 +7,7 @@ param(
     [string]$AssetTag = ""
 )
 
-Write-Host "🔍 TatuTicket - Coleta de Inventário" -ForegroundColor Cyan
+Write-Host "🔍 T-Desk - Coleta de Inventário" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -119,7 +119,7 @@ Write-Host "✅ $($softwareList.Count) programas encontrados" -ForegroundColor G
 Write-Host ""
 
 # Salvar dados localmente
-$outputFolder = "$env:USERPROFILE\TatuTicket"
+$outputFolder = "$env:USERPROFILE\T-Desk"
 if (!(Test-Path $outputFolder)) {
     New-Item -ItemType Directory -Path $outputFolder | Out-Null
 }
