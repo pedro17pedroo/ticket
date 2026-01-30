@@ -1,13 +1,13 @@
 {
-  "name": "tatuticket-agent",
+  "name": "t-desk-agent",
   "version": "1.0.0",
-  "description": "TatuTicket Desktop Agent - Inventário e Acesso Remoto",
+  "description": "T-Desk Desktop Agent - Inventário e Acesso Remoto",
   "main": "src/main/main.js",
   "author": {
-    "name": "TatuTicket",
-    "email": "suporte@tatuticket.com"
+    "name": "T-Desk",
+    "email": "suporte@t-desk.com"
   },
-  "homepage": "https://tatuticket.com",
+  "homepage": "https://t-desk.com",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -34,8 +34,8 @@
     "electron-builder": "^24.9.1"
   },
   "build": {
-    "appId": "com.tatuticket.agent",
-    "productName": "TatuTicket Agent",
+    "appId": "com.t-desk.agent",
+    "productName": "T-Desk Agent",
     "directories": {
       "output": "dist"
     },
@@ -70,12 +70,12 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "TatuTicket Agent"
+      "shortcutName": "T-Desk Agent"
     },
     "publish": {
       "provider": "github",
       "owner": "your-github-username",
-      "repo": "tatuticket-agent",
+      "repo": "t-desk-agent",
       "releaseType": "release"
     }
   }

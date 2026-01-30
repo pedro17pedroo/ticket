@@ -10,7 +10,7 @@ const DOWNLOADS_DIR = path.join(__dirname, '../../../downloads');
 
 // Informações dos instaladores disponíveis
 const AGENT_INFO = {
-  name: 'TatuTicket Desktop Agent',
+  name: 'T-Desk Desktop Agent',
   version: '1.0.0',
   description: 'Agente desktop para inventário automático, gestão de tickets e acesso remoto',
   benefits: [

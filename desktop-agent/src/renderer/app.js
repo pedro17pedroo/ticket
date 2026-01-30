@@ -7,7 +7,7 @@ import { SLAIndicator } from './components/SLAIndicator.js';
 import { RemoteAccessNotifications, remoteAccessNotificationsStyles } from './components/RemoteAccessNotifications.js';
 
 // Log de versão
-console.log('🚀 TatuTicket Desktop Agent v2.0 - COM DETALHES DE TICKETS');
+console.log('🚀 T-Desk Desktop Agent v2.0 - COM DETALHES DE TICKETS');
 console.log('📅 Versão atualizada: 30/10/2025 00:30');
 
 // Estado global
@@ -393,7 +393,7 @@ function showLoadingScreen(message = 'Carregando...', progress = 0) {
               <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/>
               <path d="M9 3v18M15 3v18M3 9h18M3 15h18" stroke-width="2"/>
             </svg>
-            <h2 style="font-size: 1.75rem; margin-bottom: 0.5rem; font-weight: 600;">TatuTicket Agent</h2>
+            <h2 style="font-size: 1.75rem; margin-bottom: 0.5rem; font-weight: 600;">T-Desk Agent</h2>
             <p style="font-size: 0.875rem; opacity: 0.8;">Iniciando sistema...</p>
           </div>
           
@@ -890,7 +890,7 @@ function showPage(pageName) {
       newTicket: 'Novo Ticket',
       settings: 'Configurações'
     };
-    pageTitle.textContent = titles[pageName] || 'TatuTicket Agent';
+    pageTitle.textContent = titles[pageName] || 'T-Desk Agent';
   }
   
   // Carregar dados específicos da página

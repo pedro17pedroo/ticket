@@ -33,7 +33,7 @@ const config = {
 
   // Aplicação
   app: {
-    name: 'TatuTicket Desktop Agent',
+    name: 'T-Desk Desktop Agent',
     version: '2.0.0',
   },
 };

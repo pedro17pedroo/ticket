@@ -41,7 +41,7 @@ let updateTrayMenu = () => {}; // Função vazia como fallback
 let autoLauncher = null;
 try {
   autoLauncher = new AutoLaunch({
-    name: 'TatuTicket Agent',
+    name: 'T-Desk Agent',
     isHidden: true
   });
 } catch (error) {
@@ -127,7 +127,7 @@ function createTray() {
 
     const menuItems = [
       {
-        label: 'TatuTicket Agent',
+        label: 'T-Desk Agent',
         enabled: false,
         icon: iconPath
       },
@@ -218,7 +218,7 @@ function createTray() {
   // Atualizar menu a cada 5 segundos
   setInterval(updateTrayMenu, 5000);
 
-  tray.setToolTip('TatuTicket Agent');
+  tray.setToolTip('T-Desk Agent');
   
   tray.on('click', () => {
     mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
@@ -1873,7 +1873,7 @@ async function checkNotifications() {
       
       // Mostrar notificação desktop
       const notification = new Notification({
-        title: notif.title || 'TatuTicket',
+        title: notif.title || 'T-Desk',
         body: notif.message || notif.body || '',
         icon: path.join(__dirname, '../../assets/icons/icon.png'),
         silent: false,
@@ -1918,7 +1918,7 @@ function sendNotification(type, message, options = {}) {
     // Notificação desktop nativa
     if (options.desktop) {
       const notification = new Notification({
-        title: options.title || 'TatuTicket',
+        title: options.title || 'T-Desk',
         body: message,
         icon: path.join(__dirname, '../assets/icon.png'),
         silent: false,

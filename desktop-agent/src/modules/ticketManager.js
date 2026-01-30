@@ -1,5 +1,5 @@
 /**
- * TatuTicket Desktop Agent - Ticket Manager
+ * T-Desk Desktop Agent - Ticket Manager
  * 
  * Gerencia tickets, chat e comunicação em tempo real
  * Respeita segregação cliente/organização
