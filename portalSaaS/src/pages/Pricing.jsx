@@ -34,12 +34,26 @@ export default function Pricing() {
 
   // Formatar preço - usar o price já formatado da API ou formatar manualmente
   const formatPrice = (plan) => {
-    // Se a API já retorna price formatado, usar
-    if (plan.price) return plan.price;
-    // Senão, formatar manualmente
+    // Se a API já retorna price formatado como string especial, usar
+    if (plan.price && (plan.price === 'Grátis' || plan.price === 'Contacte-nos')) {
+      return plan.price;
+    }
+    
+    // Formatar manualmente com separadores corretos
     if (!plan.priceValue && plan.priceValue !== 0) return 'Contacte-nos';
+    
     const symbol = getCurrencySymbol(plan.currency);
-    return `${symbol}${parseFloat(plan.priceValue).toFixed(0)}`;
+    const value = parseFloat(plan.priceValue);
+    
+    // Formatar número com separadores: 10000 -> 10.000 ou 10000.50 -> 10.000,50
+    // Usar pt-BR para ter ponto como separador de milhares e vírgula para decimais
+    const formattedValue = new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+      useGrouping: true
+    }).format(value);
+    
+    return `${symbol}${formattedValue}`;
   };
 
   // Parsear features do plano - a API já retorna array de features

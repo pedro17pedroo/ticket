@@ -31,14 +31,30 @@ export default function Home() {
       const plansData = await getPublicPlans();
       if (plansData && plansData.length > 0) {
         // Formatar planos para o formato esperado pela Home
-        const formattedPlans = plansData.map(plan => ({
-          name: plan.name,
-          price: plan.price,
-          period: plan.priceValue ? '/mês' : '',
-          features: plan.features || [],
-          highlighted: plan.highlighted || false,
-          planId: plan.planId
-        }));
+        const formattedPlans = plansData.map(plan => {
+          // Formatar preço com separadores corretos
+          let formattedPrice = plan.price;
+          
+          if (plan.priceValue && plan.priceValue > 0) {
+            const value = parseFloat(plan.priceValue);
+            // Usar pt-BR para ter ponto como separador de milhares e vírgula para decimais
+            const formattedValue = new Intl.NumberFormat('pt-BR', {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 2,
+              useGrouping: true
+            }).format(value);
+            formattedPrice = `${plan.currencySymbol || 'Kz'}${formattedValue}`;
+          }
+          
+          return {
+            name: plan.name,
+            price: formattedPrice,
+            period: plan.priceValue ? '/mês' : '',
+            features: plan.features || [],
+            highlighted: plan.highlighted || false,
+            planId: plan.planId
+          };
+        });
         setPlans(formattedPlans);
       }
     } catch (error) {
