@@ -37,7 +37,7 @@ const Register = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
-            TatuTicket
+            T-Desk
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             Criar Nova Conta
