@@ -99,9 +99,11 @@ const Login = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
-            TatuTicket
-          </h1>
+          <img 
+            src="/TDESK.png" 
+            alt="T-Desk" 
+            className="h-16 w-auto mx-auto mb-4"
+          />
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             Portal do Cliente
           </p>

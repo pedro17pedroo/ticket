@@ -448,7 +448,11 @@ const MyRequests = () => {
                     <div className="flex-1 min-w-0">
                       <span className="text-gray-500 dark:text-gray-400 text-xs">Solicitante:</span>
                       <p className="font-medium text-gray-700 dark:text-gray-300 truncate">
-                        {request.requester?.name || request.requester?.email || 'Não informado'}
+                        {(() => {
+                          // Detectar solicitante usando campos polimórficos
+                          const requester = request.requesterClientUser || request.requesterOrgUser || request.requester;
+                          return requester?.name || requester?.email || 'Não informado';
+                        })()}
                       </p>
                     </div>
                   </div>

@@ -299,28 +299,35 @@ const TicketDetail = () => {
                   Nenhuma resposta ainda. Aguarde o retorno de nossa equipe.
                 </p>
               ) : (
-                publicComments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50"
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
-                        {comment.user?.name?.charAt(0).toUpperCase()}
+                publicComments.map((comment) => {
+                  // Detectar autor correto (novo sistema polimórfico)
+                  const author = comment.authorOrgUser || comment.authorClientUser || comment.authorUser || comment.user || { name: 'Sistema' };
+                  const authorName = author.name || 'Sistema';
+                  const authorInitial = authorName.charAt(0).toUpperCase();
+                  
+                  return (
+                    <div
+                      key={comment.id}
+                      className="p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
+                          {authorInitial}
+                        </div>
+                        <div>
+                          <p className="font-medium">{authorName}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {format(new Date(comment.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{comment.user?.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {format(new Date(comment.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}
-                        </p>
-                      </div>
+                      <div 
+                        className="ticket-description-view text-gray-700 dark:text-gray-300 ml-13"
+                        dangerouslySetInnerHTML={{ __html: comment.content }}
+                      />
                     </div>
-                    <div 
-                      className="ticket-description-view text-gray-700 dark:text-gray-300 ml-13"
-                      dangerouslySetInnerHTML={{ __html: comment.content }}
-                    />
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

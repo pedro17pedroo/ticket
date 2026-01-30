@@ -50,9 +50,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     >
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
-          TatuTicket
-        </h1>
+        <img 
+          src="/TDESK.png" 
+          alt="T-Desk" 
+          className="h-10 w-auto"
+        />
         <button
           onClick={() => setIsOpen(false)}
           className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
