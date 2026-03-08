@@ -413,10 +413,12 @@ const setupAssociations = () => {
   // TimeTracking associations
   TimeTracking.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
   TimeTracking.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+  TimeTracking.belongsTo(OrganizationUser, { foreignKey: 'userId', as: 'organizationUser' }); // Adicionar associação com OrganizationUser
   TimeTracking.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   TimeTracking.belongsTo(HoursBank, { foreignKey: 'hoursBankId', as: 'hoursBank' });
   Ticket.hasMany(TimeTracking, { foreignKey: 'ticketId', as: 'timeTracking' });
   User.hasMany(TimeTracking, { foreignKey: 'userId', as: 'timeTracking' });
+  OrganizationUser.hasMany(TimeTracking, { foreignKey: 'userId', as: 'timeTracking' });
 
   // TimeEntry associations (novo modelo de cronômetro)
   TimeEntry.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });

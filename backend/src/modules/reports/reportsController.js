@@ -1,219 +1,590 @@
-import { Organization, Ticket, User, Subscription, Plan } from '../models/index.js';
+import { Op, fn, col, literal } from 'sequelize';
 import { sequelize } from '../../config/database.js';
-import { Op } from 'sequelize';
+import TimeTracking from '../timeTracking/timeTrackingModel.js';
+import Ticket from '../tickets/ticketModel.js';
+import User from '../../models/User.js';
+import OrganizationUser from '../../models/OrganizationUser.js';
+import ClientUser from '../../models/ClientUser.js';
+import Client from '../clients/clientModel.js';
 
-// Helper para calcular datas baseado no período
-const getDateRange = (period) => {
-  const now = new Date();
-  let startDate;
-  
-  switch (period) {
-    case '7days':
-      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case '30days':
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      break;
-    case '90days':
-      startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      break;
-    case 'year':
-      startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-      break;
-    default:
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  }
-  
-  return { startDate, endDate: now };
-};
-
-// GET /api/provider/reports/financial - Relatório financeiro
-export const getFinancialReports = async (req, res, next) => {
+/**
+ * Relatório de horas por ticket
+ * Mostra quantas horas foram consumidas em cada ticket e quantas pessoas foram envolvidas
+ */
+export const getHoursByTicket = async (req, res, next) => {
   try {
-    const { period = '30days' } = req.query;
-    const { startDate } = getDateRange(period);
+    const { organizationId } = req.user;
+    const { startDate, endDate, ticketId, status } = req.query;
 
-    // Buscar organizações com subscriptions
-    const organizations = await Organization.findAll({
-      where: { type: 'tenant' },
-      include: [{
-        model: Subscription,
-        as: 'subscriptionDetails',
-        include: [{
-          model: Plan,
-          as: 'plan'
-        }]
-      }]
-    });
+    const whereClause = { organizationId };
+    
+    if (ticketId) {
+      whereClause.ticketId = ticketId;
+    }
 
-    // Calcular métricas
-    const activeSubscriptions = organizations.filter(org => 
-      org.subscriptionDetails?.status === 'active'
-    );
+    if (startDate || endDate) {
+      whereClause.startTime = {};
+      if (startDate) whereClause.startTime[Op.gte] = new Date(startDate);
+      if (endDate) whereClause.startTime[Op.lte] = new Date(endDate);
+    }
 
-    const totalRevenue = activeSubscriptions.reduce((sum, org) => {
-      return sum + (org.subscriptionDetails?.plan?.price || 0);
-    }, 0);
+    const ticketWhere = {};
+    if (status) {
+      ticketWhere.status = status;
+    }
 
-    const mrr = totalRevenue; // Monthly Recurring Revenue
-
-    // Preparar dados de subscriptions
-    const subscriptions = activeSubscriptions.slice(0, 10).map(org => ({
-      name: org.name,
-      plan: org.subscriptionDetails?.plan?.name || 'N/A',
-      monthlyValue: org.subscriptionDetails?.plan?.price || 0,
-      status: org.subscriptionDetails?.status || 'inactive',
-      nextPayment: org.subscriptionDetails?.nextBillingDate || new Date()
-    }));
-
-    res.json({
-      success: true,
-      totalRevenue,
-      mrr,
-      churnRate: '2.3%',
-      avgTicket: mrr / (activeSubscriptions.length || 1),
-      subscriptions
-    });
-
-  } catch (error) {
-    console.error('Erro ao obter relatório financeiro:', error);
-    next(error);
-  }
-};
-
-// GET /api/provider/reports/usage - Relatório de uso
-export const getUsageReports = async (req, res, next) => {
-  try {
-    const { period = '30days' } = req.query;
-    const { startDate } = getDateRange(period);
-
-    // Contar organizações
-    const totalOrganizations = await Organization.count({
-      where: { type: 'tenant' }
-    });
-
-    // Contar tickets no período
-    const ticketsCreated = await Ticket.count({
-      where: {
-        createdAt: { [Op.gte]: startDate }
-      }
-    });
-
-    const ticketsResolved = await Ticket.count({
-      where: {
-        status: 'resolvido',
-        updatedAt: { [Op.gte]: startDate }
-      }
-    });
-
-    // Buscar organizações com estatísticas
-    const organizations = await Organization.findAll({
-      where: { type: 'tenant' },
-      limit: 10,
-      order: [['createdAt', 'DESC']]
-    });
-
-    const orgStats = await Promise.all(organizations.map(async (org) => {
-      const orgTickets = await Ticket.count({
-        where: { 
-          organizationId: org.id,
-          createdAt: { [Op.gte]: startDate }
+    const report = await TimeTracking.findAll({
+      where: whereClause,
+      attributes: [
+        'ticketId',
+        [fn('COUNT', fn('DISTINCT', col('TimeTracking.userId'))), 'totalUsers'],
+        [fn('SUM', col('totalSeconds')), 'totalSeconds'],
+        [fn('COUNT', col('TimeTracking.id')), 'totalSessions']
+      ],
+      include: [
+        {
+          model: Ticket,
+          as: 'ticket',
+          attributes: ['id', 'ticketNumber', 'subject', 'status', 'priority', 'clientId'],
+          where: ticketWhere,
+          include: [
+            {
+              model: Client,
+              as: 'client',
+              attributes: ['id', 'name'],
+              required: false
+            }
+          ]
         }
-      });
-      
-      const resolvedTickets = await Ticket.count({
-        where: { 
-          organizationId: org.id,
-          status: 'resolvido',
-          updatedAt: { [Op.gte]: startDate }
-        }
-      });
+      ],
+      group: ['ticketId', 'ticket.id', 'ticket->client.id'],
+      order: [[fn('SUM', col('totalSeconds')), 'DESC']]
+    });
+
+    // Formatar resultado
+    const formattedReport = report.map(item => {
+      const totalSeconds = parseInt(item.dataValues.totalSeconds) || 0;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
 
       return {
-        name: org.name,
-        activeUsers: Math.floor(Math.random() * 50) + 10, // Placeholder
-        ticketsCreated: orgTickets,
-        ticketsResolved: resolvedTickets,
-        avgResolutionTime: `${(Math.random() * 5 + 2).toFixed(1)}h`,
-        storageUsed: `${(Math.random() * 3 + 0.5).toFixed(1)} GB`
+        ticket: {
+          id: item.ticket.id,
+          ticketNumber: item.ticket.ticketNumber,
+          subject: item.ticket.subject,
+          status: item.ticket.status,
+          priority: item.ticket.priority,
+          client: item.ticket.client
+        },
+        totalUsers: parseInt(item.dataValues.totalUsers),
+        totalSessions: parseInt(item.dataValues.totalSessions),
+        totalSeconds,
+        totalHours: hours,
+        totalMinutes: minutes,
+        formattedTime: `${hours}h ${minutes}m`
       };
-    }));
+    });
 
     res.json({
       success: true,
-      totalOrganizations,
-      activeUsers: totalOrganizations * 25, // Estimativa
-      ticketsCreated,
-      resolutionRate: ticketsCreated > 0 
-        ? `${((ticketsResolved / ticketsCreated) * 100).toFixed(1)}%` 
-        : '0%',
-      organizations: orgStats,
-      topByTickets: orgStats.sort((a, b) => b.ticketsCreated - a.ticketsCreated),
-      topByStorage: orgStats.sort((a, b) => parseFloat(b.storageUsed) - parseFloat(a.storageUsed))
+      data: formattedReport,
+      summary: {
+        totalTickets: formattedReport.length,
+        totalHours: formattedReport.reduce((sum, item) => sum + item.totalHours, 0),
+        totalUsers: new Set(formattedReport.map(item => item.totalUsers)).size
+      }
     });
-
   } catch (error) {
-    console.error('Erro ao obter relatório de uso:', error);
     next(error);
   }
 };
 
-// GET /api/provider/reports/support - Relatório de suporte
-export const getSupportReports = async (req, res, next) => {
+/**
+ * Relatório de horas por usuário
+ * Mostra o total de horas trabalhadas por cada usuário
+ */
+export const getHoursByUser = async (req, res, next) => {
   try {
-    const { period = '30days' } = req.query;
-    const { startDate } = getDateRange(period);
+    const { organizationId } = req.user;
+    const { startDate, endDate, userId } = req.query;
 
-    // Estatísticas de tickets
-    const totalTickets = await Ticket.count({
-      where: {
-        createdAt: { [Op.gte]: startDate }
-      }
+    const whereClause = { organizationId };
+    
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
+    if (startDate || endDate) {
+      whereClause.startTime = {};
+      if (startDate) whereClause.startTime[Op.gte] = new Date(startDate);
+      if (endDate) whereClause.startTime[Op.lte] = new Date(endDate);
+    }
+
+    const report = await TimeTracking.findAll({
+      where: whereClause,
+      attributes: [
+        'userId',
+        [fn('COUNT', fn('DISTINCT', col('ticketId'))), 'totalTickets'],
+        [fn('SUM', col('totalSeconds')), 'totalSeconds'],
+        [fn('COUNT', col('TimeTracking.id')), 'totalSessions']
+      ],
+      include: [
+        {
+          model: OrganizationUser,
+          as: 'organizationUser',
+          attributes: ['id', 'name', 'email', 'avatar', 'role']
+        }
+      ],
+      group: ['userId', 'user.id'],
+      order: [[fn('SUM', col('totalSeconds')), 'DESC']]
     });
 
-    const resolvedTickets = await Ticket.count({
-      where: {
-        status: 'resolvido',
-        updatedAt: { [Op.gte]: startDate }
-      }
+    // Formatar resultado
+    const formattedReport = report.map(item => {
+      const totalSeconds = parseInt(item.dataValues.totalSeconds) || 0;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+      return {
+        user: item.organizationUser,
+        totalTickets: parseInt(item.dataValues.totalTickets),
+        totalSessions: parseInt(item.dataValues.totalSessions),
+        totalSeconds,
+        totalHours: hours,
+        totalMinutes: minutes,
+        formattedTime: `${hours}h ${minutes}m`
+      };
     });
-
-    // Tickets por prioridade (usando valores do enum ou contagem geral)
-    const byPriority = {
-      critical: await Ticket.count({ where: { priority: 'critica', createdAt: { [Op.gte]: startDate } } }).catch(() => 0),
-      high: await Ticket.count({ where: { priority: 'alta', createdAt: { [Op.gte]: startDate } } }).catch(() => 0),
-      medium: await Ticket.count({ where: { priority: 'media', createdAt: { [Op.gte]: startDate } } }).catch(() => 0),
-      low: await Ticket.count({ where: { priority: 'baixa', createdAt: { [Op.gte]: startDate } } }).catch(() => 0)
-    };
-
-    // Tickets por status (usando valores do enum em português)
-    const byStatus = {
-      open: await Ticket.count({ where: { status: 'novo', createdAt: { [Op.gte]: startDate } } }),
-      inProgress: await Ticket.count({ where: { status: 'em_progresso', createdAt: { [Op.gte]: startDate } } }),
-      resolved: resolvedTickets,
-      closed: await Ticket.count({ where: { status: 'fechado', createdAt: { [Op.gte]: startDate } } })
-    };
-
-    // Agentes mock (em produção, buscar de OrganizationUser)
-    const agents = [
-      { name: 'Agente 1', ticketsResolved: Math.floor(resolvedTickets * 0.35), avgResolutionTime: '3.2h', satisfaction: 95 },
-      { name: 'Agente 2', ticketsResolved: Math.floor(resolvedTickets * 0.30), avgResolutionTime: '3.8h', satisfaction: 92 },
-      { name: 'Agente 3', ticketsResolved: Math.floor(resolvedTickets * 0.35), avgResolutionTime: '4.1h', satisfaction: 88 }
-    ];
 
     res.json({
       success: true,
-      totalTickets,
-      resolvedTickets,
-      avgTime: '3.7h',
-      satisfaction: '92%',
-      agents,
-      byPriority,
-      byStatus
+      data: formattedReport,
+      summary: {
+        totalUsers: formattedReport.length,
+        totalHours: formattedReport.reduce((sum, item) => sum + item.totalHours, 0),
+        totalTickets: formattedReport.reduce((sum, item) => sum + item.totalTickets, 0)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Relatório mensal por usuário
+ * Agrupa horas por mês para cada usuário
+ */
+export const getMonthlyReportByUser = async (req, res, next) => {
+  try {
+    const { organizationId } = req.user;
+    const { year, userId } = req.query;
+
+    const whereClause = { organizationId };
+    
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
+    if (year) {
+      whereClause.startTime = {
+        [Op.gte]: new Date(`${year}-01-01`),
+        [Op.lte]: new Date(`${year}-12-31 23:59:59`)
+      };
+    }
+
+    const report = await sequelize.query(`
+      SELECT 
+        tt.user_id,
+        ou.name as user_name,
+        ou.email as user_email,
+        EXTRACT(YEAR FROM tt.start_time) as year,
+        EXTRACT(MONTH FROM tt.start_time) as month,
+        COUNT(DISTINCT tt.ticket_id) as total_tickets,
+        COUNT(tt.id) as total_sessions,
+        SUM(tt.total_seconds) as total_seconds
+      FROM time_tracking tt
+      LEFT JOIN organization_users ou ON tt.user_id = ou.id
+      WHERE tt.organization_id = :organizationId
+        ${userId ? 'AND tt.user_id = :userId' : ''}
+        ${year ? 'AND EXTRACT(YEAR FROM tt.start_time) = :year' : ''}
+      GROUP BY tt.user_id, ou.name, ou.email, year, month
+      ORDER BY year DESC, month DESC, total_seconds DESC
+    `, {
+      replacements: { organizationId, userId, year },
+      type: sequelize.QueryTypes.SELECT
     });
 
+    // Formatar resultado
+    const formattedReport = report.map(item => {
+      const totalSeconds = parseInt(item.total_seconds) || 0;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+      return {
+        userId: item.user_id,
+        userName: item.user_name,
+        userEmail: item.user_email,
+        year: parseInt(item.year),
+        month: parseInt(item.month),
+        monthName: new Date(item.year, item.month - 1).toLocaleString('pt-BR', { month: 'long' }),
+        totalTickets: parseInt(item.total_tickets),
+        totalSessions: parseInt(item.total_sessions),
+        totalSeconds,
+        totalHours: hours,
+        totalMinutes: minutes,
+        formattedTime: `${hours}h ${minutes}m`
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formattedReport,
+      summary: {
+        totalMonths: new Set(formattedReport.map(item => `${item.year}-${item.month}`)).size,
+        totalHours: formattedReport.reduce((sum, item) => sum + item.totalHours, 0)
+      }
+    });
   } catch (error) {
-    console.error('Erro ao obter relatório de suporte:', error);
+    next(error);
+  }
+};
+
+/**
+ * Relatório por cliente empresa
+ * Mostra horas consumidas por cada cliente
+ */
+export const getHoursByClient = async (req, res, next) => {
+  try {
+    const { organizationId } = req.user;
+    const { startDate, endDate, clientId } = req.query;
+
+    const whereClause = { organizationId };
+    
+    if (startDate || endDate) {
+      whereClause.startTime = {};
+      if (startDate) whereClause.startTime[Op.gte] = new Date(startDate);
+      if (endDate) whereClause.startTime[Op.lte] = new Date(endDate);
+    }
+
+    const ticketWhere = {};
+    if (clientId) {
+      ticketWhere.clientId = clientId;
+    }
+
+    const report = await TimeTracking.findAll({
+      where: whereClause,
+      attributes: [
+        [fn('COUNT', fn('DISTINCT', col('ticket.id'))), 'totalTickets'],
+        [fn('COUNT', fn('DISTINCT', col('TimeTracking.userId'))), 'totalUsers'],
+        [fn('SUM', col('totalSeconds')), 'totalSeconds'],
+        [fn('COUNT', col('TimeTracking.id')), 'totalSessions']
+      ],
+      include: [
+        {
+          model: Ticket,
+          as: 'ticket',
+          attributes: ['clientId'],
+          where: ticketWhere,
+          include: [
+            {
+              model: Client,
+              as: 'client',
+              attributes: ['id', 'name', 'email', 'phone', 'address']
+            }
+          ]
+        }
+      ],
+      group: ['ticket.clientId', 'ticket->client.id'],
+      order: [[fn('SUM', col('totalSeconds')), 'DESC']]
+    });
+
+    // Formatar resultado
+    const formattedReport = report.map(item => {
+      const totalSeconds = parseInt(item.dataValues.totalSeconds) || 0;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+      return {
+        client: item.ticket.client,
+        totalTickets: parseInt(item.dataValues.totalTickets),
+        totalUsers: parseInt(item.dataValues.totalUsers),
+        totalSessions: parseInt(item.dataValues.totalSessions),
+        totalSeconds,
+        totalHours: hours,
+        totalMinutes: minutes,
+        formattedTime: `${hours}h ${minutes}m`
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formattedReport,
+      summary: {
+        totalClients: formattedReport.length,
+        totalHours: formattedReport.reduce((sum, item) => sum + item.totalHours, 0),
+        totalTickets: formattedReport.reduce((sum, item) => sum + item.totalTickets, 0)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Relatório de horas por dia
+ * Agrupa horas por dia, com filtros por usuário e cliente
+ */
+export const getDailyReport = async (req, res, next) => {
+  try {
+    const { organizationId } = req.user;
+    const { startDate, endDate, userId, clientId } = req.query;
+
+    const whereClause = { organizationId };
+    
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
+    if (startDate || endDate) {
+      whereClause.startTime = {};
+      if (startDate) whereClause.startTime[Op.gte] = new Date(startDate);
+      if (endDate) whereClause.startTime[Op.lte] = new Date(endDate);
+    }
+
+    const ticketWhere = {};
+    if (clientId) {
+      ticketWhere.clientId = clientId;
+    }
+
+    const report = await sequelize.query(`
+      SELECT 
+        DATE(tt.start_time) as date,
+        COUNT(DISTINCT tt.ticket_id) as total_tickets,
+        COUNT(DISTINCT tt.user_id) as total_users,
+        COUNT(tt.id) as total_sessions,
+        SUM(tt.total_seconds) as total_seconds,
+        ${clientId ? `c.id as client_id, c.name as client_name,` : ''}
+        ${userId ? `ou.id as user_id, ou.name as user_name,` : ''}
+        1 as placeholder
+      FROM time_tracking tt
+      LEFT JOIN tickets t ON tt.ticket_id = t.id
+      ${clientId ? 'LEFT JOIN clients c ON t.client_id = c.id' : ''}
+      ${userId ? 'LEFT JOIN organization_users ou ON tt.user_id = ou.id' : ''}
+      WHERE tt.organization_id = :organizationId
+        ${userId ? 'AND tt.user_id = :userId' : ''}
+        ${clientId ? 'AND t.client_id = :clientId' : ''}
+        ${startDate ? 'AND tt.start_time >= :startDate' : ''}
+        ${endDate ? 'AND tt.start_time <= :endDate' : ''}
+      GROUP BY DATE(tt.start_time)
+        ${clientId ? ', c.id, c.name' : ''}
+        ${userId ? ', ou.id, ou.name' : ''}
+      ORDER BY date DESC
+    `, {
+      replacements: { organizationId, userId, clientId, startDate, endDate },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    // Formatar resultado
+    const formattedReport = report.map(item => {
+      const totalSeconds = parseInt(item.total_seconds) || 0;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+      const result = {
+        date: item.date,
+        totalTickets: parseInt(item.total_tickets),
+        totalUsers: parseInt(item.total_users),
+        totalSessions: parseInt(item.total_sessions),
+        totalSeconds,
+        totalHours: hours,
+        totalMinutes: minutes,
+        formattedTime: `${hours}h ${minutes}m`
+      };
+
+      if (clientId) {
+        result.client = {
+          id: item.client_id,
+          name: item.client_name
+        };
+      }
+
+      if (userId) {
+        result.user = {
+          id: item.user_id,
+          name: item.user_name
+        };
+      }
+
+      return result;
+    });
+
+    res.json({
+      success: true,
+      data: formattedReport,
+      summary: {
+        totalDays: formattedReport.length,
+        totalHours: formattedReport.reduce((sum, item) => sum + item.totalHours, 0),
+        averageHoursPerDay: formattedReport.length > 0 
+          ? (formattedReport.reduce((sum, item) => sum + item.totalHours, 0) / formattedReport.length).toFixed(2)
+          : 0
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Resumo básico por cliente
+ * Informações consolidadas de cada cliente
+ */
+export const getClientSummary = async (req, res, next) => {
+  try {
+    const { organizationId } = req.user;
+    const { clientId } = req.query;
+
+    const ticketWhere = { organizationId };
+    if (clientId) {
+      ticketWhere.clientId = clientId;
+    }
+
+    const summary = await sequelize.query(`
+      SELECT 
+        c.id as client_id,
+        c.name as client_name,
+        c.email as client_email,
+        c.phone as client_phone,
+        COUNT(DISTINCT t.id) as total_tickets,
+        COUNT(DISTINCT CASE WHEN t.status = 'aberto' THEN t.id END) as open_tickets,
+        COUNT(DISTINCT CASE WHEN t.status = 'em_andamento' THEN t.id END) as in_progress_tickets,
+        COUNT(DISTINCT CASE WHEN t.status = 'fechado' THEN t.id END) as closed_tickets,
+        COUNT(DISTINCT tt.user_id) as total_users_involved,
+        COALESCE(SUM(tt.total_seconds), 0) as total_seconds,
+        COUNT(tt.id) as total_time_sessions
+      FROM clients c
+      LEFT JOIN tickets t ON c.id = t.client_id AND t.organization_id = :organizationId
+      LEFT JOIN time_tracking tt ON t.id = tt.ticket_id
+      WHERE c.organization_id = :organizationId
+        ${clientId ? 'AND c.id = :clientId' : ''}
+      GROUP BY c.id, c.name, c.email, c.phone
+      ORDER BY total_seconds DESC
+    `, {
+      replacements: { organizationId, clientId },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    // Formatar resultado
+    const formattedSummary = summary.map(item => {
+      const totalSeconds = parseInt(item.total_seconds) || 0;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+      return {
+        client: {
+          id: item.client_id,
+          name: item.client_name,
+          email: item.client_email,
+          phone: item.client_phone
+        },
+        tickets: {
+          total: parseInt(item.total_tickets),
+          open: parseInt(item.open_tickets),
+          inProgress: parseInt(item.in_progress_tickets),
+          closed: parseInt(item.closed_tickets)
+        },
+        timeTracking: {
+          totalUsersInvolved: parseInt(item.total_users_involved),
+          totalSessions: parseInt(item.total_time_sessions),
+          totalSeconds,
+          totalHours: hours,
+          totalMinutes: minutes,
+          formattedTime: `${hours}h ${minutes}m`
+        }
+      };
+    });
+
+    res.json({
+      success: true,
+      data: formattedSummary,
+      summary: {
+        totalClients: formattedSummary.length,
+        totalHours: formattedSummary.reduce((sum, item) => sum + item.timeTracking.totalHours, 0),
+        totalTickets: formattedSummary.reduce((sum, item) => sum + item.tickets.total, 0)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Relatório detalhado de um ticket específico
+ * Mostra todas as sessões de tempo de um ticket
+ */
+export const getTicketDetailedReport = async (req, res, next) => {
+  try {
+    const { organizationId } = req.user;
+    const { ticketId } = req.params;
+
+    const sessions = await TimeTracking.findAll({
+      where: {
+        organizationId,
+        ticketId
+      },
+      include: [
+        {
+          model: OrganizationUser,
+          as: 'organizationUser',
+          attributes: ['id', 'name', 'email', 'avatar']
+        },
+        {
+          model: Ticket,
+          as: 'ticket',
+          attributes: ['id', 'ticketNumber', 'subject', 'status']
+        }
+      ],
+      order: [['startTime', 'DESC']]
+    });
+
+    // Formatar resultado
+    const formattedSessions = sessions.map(session => {
+      const totalSeconds = session.totalSeconds || 0;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+      return {
+        id: session.id,
+        user: session.organizationUser,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        status: session.status,
+        description: session.description,
+        totalSeconds,
+        totalHours: hours,
+        totalMinutes: minutes,
+        formattedTime: `${hours}h ${minutes}m`,
+        pausedTime: session.totalPausedTime
+      };
+    });
+
+    const totalSeconds = formattedSessions.reduce((sum, s) => sum + s.totalSeconds, 0);
+    const totalHours = Math.floor(totalSeconds / 3600);
+    const totalMinutes = Math.floor((totalSeconds % 3600) / 60);
+
+    res.json({
+      success: true,
+      ticket: sessions[0]?.ticket || null,
+      sessions: formattedSessions,
+      summary: {
+        totalSessions: formattedSessions.length,
+        totalUsers: new Set(formattedSessions.map(s => s.user.id)).size,
+        totalSeconds,
+        totalHours,
+        totalMinutes,
+        formattedTime: `${totalHours}h ${totalMinutes}m`
+      }
+    });
+  } catch (error) {
     next(error);
   }
 };

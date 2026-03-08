@@ -556,4 +556,12 @@ router.delete('/downloads/agent/:filename', authenticate, downloadController.del
 import projectRoutes from '../modules/projects/projectRoutes.js';
 router.use('/projects', projectRoutes);
 
+// ==================== REPORTS ====================
+import reportsRoutes from '../modules/reports/reportsRoutes.js';
+router.use('/reports', reportsRoutes);
+
 export default router;
+
+// ==================== REPORTS ====================
+import reportsRoutes from '../modules/reports/reportsRoutes.js';
+router.use('/reports', reportsRoutes);
