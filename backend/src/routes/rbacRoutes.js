@@ -5,6 +5,13 @@ import * as rbacController from '../modules/rbac/rbacController.js';
 
 const router = express.Router();
 
+// ==================== PUBLIC ROUTES ====================
+// Rota pública para listar roles do sistema (para formulários)
+router.get('/system-roles', 
+  authenticate, 
+  rbacController.getSystemRoles
+);
+
 // ==================== ROLES ====================
 router.get('/roles', 
   authenticate, 

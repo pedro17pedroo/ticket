@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Clock, Plus, TrendingUp, TrendingDown, DollarSign, Eye, History, X, Save, User, Calendar, FileText, Settings } from 'lucide-react'
+import { Clock, Plus, TrendingUp, TrendingDown, History, X, Save, User, Calendar, FileText, Settings, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import Modal from '../components/Modal'
 import PermissionGate from '../components/PermissionGate'
+import TicketSearchSelector from '../components/TicketSearchSelector'
+import ProjectSearchSelector from '../components/ProjectSearchSelector'
 
 const HoursBank = () => {
   const [hoursBanks, setHoursBanks] = useState([])
   const [clients, setClients] = useState([])
-  const [completedTickets, setCompletedTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showAddHoursModal, setShowAddHoursModal] = useState(false)
@@ -18,6 +19,19 @@ const HoursBank = () => {
   const [showTransactionsModal, setShowTransactionsModal] = useState(false)
   const [selectedBank, setSelectedBank] = useState(null)
   const [transactions, setTransactions] = useState([])
+
+  // Estados de paginação e filtros
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0
+  })
+  const [filters, setFilters] = useState({
+    clientId: '',
+    isActive: ''
+  })
+  const [showFilters, setShowFilters] = useState(false)
 
   const [formData, setFormData] = useState({
     clientId: '',
@@ -36,23 +50,74 @@ const HoursBank = () => {
     ticketId: ''
   })
 
+  // Estados para o modal de consumo melhorado
+  const [consumeType, setConsumeType] = useState('ticket') // 'ticket', 'project', 'manual'
+  const [selectedTicket, setSelectedTicket] = useState(null)
+  const [selectedProject, setSelectedProject] = useState(null)
+  const [originalHours, setOriginalHours] = useState(null)
+  const [activityName, setActivityName] = useState('')
+
   useEffect(() => {
     loadData()
-  }, [])
+  }, [pagination.page, pagination.limit, filters])
 
   const loadData = async () => {
+    setLoading(true)
     try {
+      // Construir query params
+      const params = {
+        page: pagination.page,
+        limit: pagination.limit
+      }
+      
+      if (filters.clientId) {
+        params.clientId = filters.clientId
+      }
+      
+      if (filters.isActive !== '') {
+        params.isActive = filters.isActive
+      }
+
       const [banksRes, clientsRes] = await Promise.all([
-        api.get('/hours-banks'),
+        api.get('/hours-banks', { params }),
         api.get('/clients')
       ])
+      
       setHoursBanks(banksRes.data.hoursBanks || [])
       setClients(clientsRes.data.clients || [])
+      
+      // Atualizar paginação se o backend retornar
+      if (banksRes.data.pagination) {
+        setPagination(prev => ({
+          ...prev,
+          total: banksRes.data.pagination.total,
+          totalPages: banksRes.data.pagination.totalPages
+        }))
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
       toast.error('Erro ao carregar bolsas de horas')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+    setPagination(prev => ({ ...prev, page: 1 })) // Reset para primeira página
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      clientId: '',
+      isActive: ''
+    })
+    setPagination(prev => ({ ...prev, page: 1 }))
+  }
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, page: newPage }))
     }
   }
 
@@ -95,17 +160,163 @@ const HoursBank = () => {
 
   const handleConsumeHours = async (e) => {
     e.preventDefault()
+    
     try {
-      await api.post(`/hours-banks/${selectedBank.id}/consume`, hoursData)
+      const payload = {
+        hours: parseFloat(hoursData.hours),
+        description: hoursData.description,
+        referenceType: consumeType
+      }
+
+      // Adicionar campos específicos por tipo
+      if (consumeType === 'ticket') {
+        if (!selectedTicket) {
+          toast.error('Selecione um ticket')
+          return
+        }
+        payload.referenceId = selectedTicket.id
+        payload.originalHours = originalHours
+        
+        // Se houve ajuste, adicionar nota
+        if (originalHours && parseFloat(hoursData.hours) !== originalHours) {
+          payload.adjustmentNote = `Tempo ajustado de ${originalHours}h para ${hoursData.hours}h.`
+        }
+      } else if (consumeType === 'project') {
+        if (!selectedProject) {
+          toast.error('Selecione um projeto')
+          return
+        }
+        payload.referenceId = selectedProject.id
+        payload.originalHours = originalHours
+        
+        // Se houve ajuste, adicionar nota
+        if (originalHours && parseFloat(hoursData.hours) !== originalHours) {
+          payload.adjustmentNote = `Tempo ajustado de ${originalHours}h para ${hoursData.hours}h.`
+        }
+      } else if (consumeType === 'manual') {
+        if (!activityName || activityName.length < 5) {
+          toast.error('Nome da atividade deve ter pelo menos 5 caracteres')
+          return
+        }
+        if (!hoursData.description || hoursData.description.length < 20) {
+          toast.error('Descrição deve ter pelo menos 20 caracteres para atividades manuais')
+          return
+        }
+        payload.activityName = activityName
+      }
+
+      await api.post(`/hours-banks/${selectedBank.id}/consume`, payload)
       toast.success('Horas consumidas com sucesso!')
+      
+      // Resetar estados
       setShowConsumeModal(false)
       setHoursData({ hours: '', description: '', ticketId: '' })
+      setSelectedTicket(null)
+      setSelectedProject(null)
+      setOriginalHours(null)
+      setActivityName('')
+      setConsumeType('ticket')
+      
       loadData()
     } catch (error) {
       console.error('Erro ao consumir horas:', error)
       toast.error(error.response?.data?.error || 'Erro ao consumir horas')
     }
   }
+
+  // Handler para seleção de ticket
+  const handleTicketSelect = (ticket) => {
+    setSelectedTicket(ticket)
+    
+    if (ticket) {
+      // Auto-preencher horas com tempo trabalhado
+      setOriginalHours(ticket.totalHours)
+      setHoursData({
+        ...hoursData,
+        hours: ticket.totalHours.toString(),
+        description: `Ticket #${ticket.ticketNumber} - ${ticket.subject}`
+      })
+    } else {
+      // Limpar quando desselecionar
+      setOriginalHours(null)
+      setHoursData({
+        ...hoursData,
+        hours: '',
+        description: ''
+      })
+    }
+  }
+
+  // Handler para seleção de projeto
+  const handleProjectSelect = (project) => {
+    setSelectedProject(project)
+    
+    if (project) {
+      // Calcular horas estimadas
+      const calculateEstimatedHours = (proj) => {
+        if (!proj.startDate || !proj.estimatedEndDate) return 0;
+        
+        const start = new Date(proj.startDate);
+        const end = new Date(proj.estimatedEndDate);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Assumindo 8 horas por dia útil (aproximadamente 5 dias por semana)
+        const workDays = Math.floor(diffDays * (5/7));
+        return workDays * 8;
+      };
+
+      const estimatedHours = calculateEstimatedHours(project);
+      
+      // Auto-preencher horas com tempo estimado
+      setOriginalHours(estimatedHours)
+      setHoursData({
+        ...hoursData,
+        hours: estimatedHours.toString(),
+        description: `Projeto: ${project.name}${project.description ? ' - ' + project.description : ''}`
+      })
+    } else {
+      // Limpar quando desselecionar
+      setOriginalHours(null)
+      setHoursData({
+        ...hoursData,
+        hours: '',
+        description: ''
+      })
+    }
+  }
+
+  // Handler para mudança de horas (detectar ajustes)
+  const handleHoursChange = (newHours) => {
+      const hours = parseFloat(newHours)
+
+      if (originalHours && hours !== originalHours && hours > 0) {
+        // Adicionar nota de ajuste automaticamente na descrição
+        const adjustmentNote = `Tempo ajustado de ${originalHours}h para ${hours}h. `
+
+        // Verificar se a nota já existe
+        if (!hoursData.description.includes('Tempo ajustado')) {
+          setHoursData({
+            ...hoursData,
+            hours: newHours,
+            description: adjustmentNote + hoursData.description
+          })
+        } else {
+          // Atualizar nota existente
+          const descWithoutNote = hoursData.description.replace(/Tempo ajustado de [\d.]+h para [\d.]+h\. /, '')
+          setHoursData({
+            ...hoursData,
+            hours: newHours,
+            description: adjustmentNote + descWithoutNote
+          })
+        }
+      } else {
+        setHoursData({
+          ...hoursData,
+          hours: newHours
+        })
+      }
+    }
 
   const loadTransactions = async (bankId) => {
     try {
@@ -115,17 +326,6 @@ const HoursBank = () => {
     } catch (error) {
       console.error('Erro ao carregar transações:', error)
       toast.error('Erro ao carregar transações')
-    }
-  }
-
-  const loadCompletedTickets = async (clientId) => {
-    try {
-      const params = clientId ? { clientId } : {}
-      const response = await api.get('/hours-banks/tickets/completed', { params })
-      setCompletedTickets(response.data.tickets || [])
-    } catch (error) {
-      console.error('Erro ao carregar tickets:', error)
-      toast.error('Erro ao carregar tickets concluídos')
     }
   }
 
@@ -229,8 +429,73 @@ const HoursBank = () => {
 
       {/* Hours Banks List */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        {/* Filters */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold">Bolsas de Horas Ativas</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Bolsas de Horas</h2>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              Filtros
+              {(filters.clientId || filters.isActive !== '') && (
+                <span className="bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">
+                  {[filters.clientId, filters.isActive !== '' ? '1' : ''].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {/* Filtro por Cliente */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Cliente
+                </label>
+                <select
+                  value={filters.clientId}
+                  onChange={(e) => handleFilterChange('clientId', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Todos os clientes</option>
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro por Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Status
+                </label>
+                <select
+                  value={filters.isActive}
+                  onChange={(e) => handleFilterChange('isActive', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Todos</option>
+                  <option value="true">Ativas</option>
+                  <option value="false">Inativas</option>
+                </select>
+              </div>
+
+              {/* Botão Limpar Filtros */}
+              <div className="flex items-end">
+                <button
+                  onClick={clearFilters}
+                  className="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4 inline mr-2" />
+                  Limpar Filtros
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-6 space-y-4">
@@ -302,7 +567,6 @@ const HoursBank = () => {
                       <button
                         onClick={() => {
                           setSelectedBank(bank)
-                          loadCompletedTickets(bank.clientId)
                           setShowConsumeModal(true)
                         }}
                         className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded-lg transition-colors"
@@ -351,6 +615,67 @@ const HoursBank = () => {
             })
           )}
         </div>
+
+        {/* Paginação */}
+        {pagination.totalPages > 1 && (
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Mostrando {((pagination.page - 1) * pagination.limit) + 1} a {Math.min(pagination.page * pagination.limit, pagination.total)} de {pagination.total} bolsas
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                
+                <div className="flex items-center gap-1">
+                  {[...Array(pagination.totalPages)].map((_, index) => {
+                    const pageNum = index + 1
+                    // Mostrar apenas páginas próximas
+                    if (
+                      pageNum === 1 ||
+                      pageNum === pagination.totalPages ||
+                      (pageNum >= pagination.page - 1 && pageNum <= pagination.page + 1)
+                    ) {
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`px-3 py-1 rounded-lg transition-colors ${
+                            pageNum === pagination.page
+                              ? 'bg-primary-600 text-white'
+                              : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    } else if (
+                      pageNum === pagination.page - 2 ||
+                      pageNum === pagination.page + 2
+                    ) {
+                      return <span key={pageNum} className="px-2">...</span>
+                    }
+                    return null
+                  })}
+                </div>
+                
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Create Modal */}
@@ -548,169 +873,414 @@ const HoursBank = () => {
       </Modal>
 
       {/* Add Hours Modal */}
-      {showAddHoursModal && selectedBank && (
-        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-xl w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Adicionar Horas</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Cliente: <strong>{selectedBank.client?.name}</strong>
-            </p>
-            <form onSubmit={handleAddHours} className="space-y-4">
+      <Modal isOpen={showAddHoursModal} onClose={() => { setShowAddHoursModal(false); setHoursData({ hours: '', description: '' }); }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
+          
+          {/* Header com gradiente */}
+          <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium mb-2">Quantidade de Horas *</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  value={hoursData.hours}
-                  onChange={(e) => setHoursData({ ...hoursData, hours: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Ex: 10"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Descrição *</label>
-                <textarea
-                  value={hoursData.description}
-                  onChange={(e) => setHoursData({ ...hoursData, description: e.target.value })}
-                  required
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Motivo da adição..."
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddHoursModal(false)
-                    setHoursData({ hours: '', description: '' })
-                  }}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  Adicionar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Consume Hours Modal */}
-      {showConsumeModal && selectedBank && (
-        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-xl w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Consumir Horas</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Cliente: <strong>{selectedBank.client?.name}</strong><br />
-              Disponível: <strong className="text-green-600">{(parseFloat(selectedBank.totalHours) - parseFloat(selectedBank.usedHours)).toFixed(1)}h</strong>
-            </p>
-            <form onSubmit={handleConsumeHours} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Ticket Concluído *</label>
-                <select
-                  value={hoursData.ticketId}
-                  onChange={(e) => setHoursData({ ...hoursData, ticketId: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                >
-                  <option value="">Selecione o ticket</option>
-                  {completedTickets.map(ticket => (
-                    <option key={ticket.id} value={ticket.id}>
-                      {ticket.ticketNumber} - {ticket.subject}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Apenas tickets com status "Concluído" podem ser selecionados
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Plus className="w-6 h-6" />
+                  Adicionar Horas
+                </h2>
+                <p className="text-primary-100 text-sm mt-1">
+                  Cliente: {selectedBank?.client?.name}
                 </p>
               </div>
+              <button
+                onClick={() => { setShowAddHoursModal(false); setHoursData({ hours: '', description: '' }); }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
 
+          {/* Content */}
+          <form id="addHoursForm" onSubmit={handleAddHours} className="p-6 space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Quantidade de Horas *</label>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                value={hoursData.hours}
+                onChange={(e) => setHoursData({ ...hoursData, hours: e.target.value })}
+                required
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 transition-all text-base"
+                placeholder="Ex: 10"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Descrição *</label>
+              <textarea
+                value={hoursData.description}
+                onChange={(e) => setHoursData({ ...hoursData, description: e.target.value })}
+                required
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 transition-all resize-none text-base"
+                placeholder="Motivo da adição..."
+              />
+            </div>
+          </form>
+
+          {/* Footer */}
+          <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowAddHoursModal(false); setHoursData({ hours: '', description: '' }); }}
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="addHoursForm"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Plus className="w-5 h-5" />
+                Adicionar
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Consume Hours Modal */}
+      <Modal isOpen={showConsumeModal} onClose={() => { 
+        setShowConsumeModal(false)
+        setHoursData({ hours: '', description: '', ticketId: '' })
+        setSelectedTicket(null)
+        setSelectedProject(null)
+        setOriginalHours(null)
+        setActivityName('')
+        setConsumeType('ticket')
+      }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
+          
+          {/* Header com gradiente */}
+          <div className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium mb-2">Quantidade de Horas *</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  value={hoursData.hours}
-                  onChange={(e) => setHoursData({ ...hoursData, hours: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Ex: 2.5"
-                />
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <TrendingDown className="w-6 h-6" />
+                  Consumir Horas
+                </h2>
+                <p className="text-red-100 text-sm mt-1">
+                  Cliente: {selectedBank?.client?.name} • Disponível: <span className="font-semibold">{selectedBank ? (parseFloat(selectedBank.totalHours) - parseFloat(selectedBank.usedHours)).toFixed(1) : 0}h</span>
+                </p>
               </div>
+              <button
+                onClick={() => { 
+                  setShowConsumeModal(false)
+                  setHoursData({ hours: '', description: '', ticketId: '' })
+                  setSelectedTicket(null)
+                  setSelectedProject(null)
+                  setOriginalHours(null)
+                  setActivityName('')
+                  setConsumeType('ticket')
+                }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Descrição *</label>
-                <textarea
-                  value={hoursData.description}
-                  onChange={(e) => setHoursData({ ...hoursData, description: e.target.value })}
-                  required
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
-                  placeholder="Serviço realizado..."
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
+          {/* Content */}
+          <form id="consumeHoursForm" onSubmit={handleConsumeHours} className="p-6 space-y-5">
+            
+            {/* Tabs para tipo de consumo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Tipo de Consumo
+              </label>
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => {
-                    setShowConsumeModal(false)
+                    setConsumeType('ticket')
+                    setSelectedTicket(null)
+                    setOriginalHours(null)
+                    setActivityName('')
                     setHoursData({ hours: '', description: '', ticketId: '' })
                   }}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                    consumeType === 'ticket'
+                      ? 'bg-red-500 text-white shadow-lg'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
                 >
-                  Cancelar
+                  Ticket
                 </button>
                 <button
-                  type="submit"
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                  type="button"
+                  onClick={() => {
+                    setConsumeType('project')
+                    setSelectedTicket(null)
+                    setSelectedProject(null)
+                    setOriginalHours(null)
+                    setActivityName('')
+                    setHoursData({ hours: '', description: '', ticketId: '' })
+                  }}
+                  className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                    consumeType === 'project'
+                      ? 'bg-red-500 text-white shadow-lg'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
                 >
-                  Consumir
+                  Projeto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConsumeType('manual')
+                    setSelectedTicket(null)
+                    setOriginalHours(null)
+                    setHoursData({ hours: '', description: '', ticketId: '' })
+                  }}
+                  className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                    consumeType === 'manual'
+                      ? 'bg-red-500 text-white shadow-lg'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  Atividade Manual
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
 
-      {/* Transactions Modal */}
-      {showTransactionsModal && selectedBank && (
-        <div className="flex items-center justify-center bg-black/50 p-4" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Histórico de Transações</h2>
+            {/* Conteúdo por tipo */}
+            {consumeType === 'ticket' && (
+              <>
+                <TicketSearchSelector
+                  bankId={selectedBank?.id}
+                  onSelect={handleTicketSelect}
+                  selectedTicket={selectedTicket}
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Quantidade de Horas *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={hoursData.hours}
+                    onChange={(e) => handleHoursChange(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 transition-all text-base"
+                    placeholder="Ex: 2.5"
+                  />
+                  {originalHours && parseFloat(hoursData.hours) !== originalHours && hoursData.hours && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                      Valor ajustado (original: {originalHours}h)
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Descrição *
+                  </label>
+                  <textarea
+                    value={hoursData.description}
+                    onChange={(e) => setHoursData({ ...hoursData, description: e.target.value })}
+                    required
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 transition-all resize-none text-base"
+                    placeholder="Serviço realizado..."
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Descreva o trabalho realizado neste ticket
+                  </p>
+                </div>
+              </>
+            )}
+
+            {consumeType === 'manual' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Nome da Atividade *
+                  </label>
+                  <input
+                    type="text"
+                    value={activityName}
+                    onChange={(e) => setActivityName(e.target.value)}
+                    required
+                    minLength={5}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 transition-all text-base"
+                    placeholder="Ex: Consultoria técnica, Suporte emergencial..."
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Mínimo 5 caracteres
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Quantidade de Horas *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={hoursData.hours}
+                    onChange={(e) => setHoursData({ ...hoursData, hours: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 transition-all text-base"
+                    placeholder="Ex: 2.5"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Descrição Detalhada *
+                  </label>
+                  <textarea
+                    value={hoursData.description}
+                    onChange={(e) => setHoursData({ ...hoursData, description: e.target.value })}
+                    required
+                    minLength={20}
+                    rows={5}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 transition-all resize-none text-base"
+                    placeholder="Descreva detalhadamente o trabalho realizado, problemas resolvidos, etc..."
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Mínimo 20 caracteres - seja específico sobre o trabalho realizado
+                  </p>
+                </div>
+              </>
+            )}
+
+            {consumeType === 'project' && (
+              <>
+                <ProjectSearchSelector
+                  bankId={selectedBank?.id}
+                  onSelect={handleProjectSelect}
+                  selectedProject={selectedProject}
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Quantidade de Horas *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={hoursData.hours}
+                    onChange={(e) => handleHoursChange(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 transition-all text-base"
+                    placeholder="Ex: 2.5"
+                  />
+                  {originalHours && parseFloat(hoursData.hours) !== originalHours && hoursData.hours && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                      Valor ajustado (estimado: {originalHours}h)
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Descrição *
+                  </label>
+                  <textarea
+                    value={hoursData.description}
+                    onChange={(e) => setHoursData({ ...hoursData, description: e.target.value })}
+                    required
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 transition-all resize-none text-base"
+                    placeholder="Descreva o trabalho realizado no projeto..."
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Descreva o trabalho realizado neste projeto
+                  </p>
+                </div>
+              </>
+            )}
+          </form>
+
+          {/* Footer */}
+          <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div className="flex gap-3">
               <button
-                onClick={() => setShowTransactionsModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                type="button"
+                onClick={() => { 
+                  setShowConsumeModal(false)
+                  setHoursData({ hours: '', description: '', ticketId: '' })
+                  setSelectedTicket(null)
+                  setSelectedProject(null)
+                  setOriginalHours(null)
+                  setActivityName('')
+                  setConsumeType('ticket')
+                }}
+                className="flex-1 px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
               >
-                ✕
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="consumeHoursForm"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+              >
+                <TrendingDown className="w-5 h-5" />
+                Consumir
               </button>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              Cliente: <strong>{selectedBank.client?.name}</strong>
-            </p>
+          </div>
+        </div>
+      </Modal>
 
+      {/* Transactions Modal */}
+      <Modal isOpen={showTransactionsModal} onClose={() => setShowTransactionsModal(false)}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+          
+          {/* Header com gradiente */}
+          <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <History className="w-6 h-6" />
+                  Histórico de Transações
+                </h2>
+                <p className="text-primary-100 text-sm mt-1">
+                  Cliente: {selectedBank?.client?.name}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowTransactionsModal(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
             <div className="space-y-3">
               {transactions.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">Nenhuma transação encontrada</p>
+                <div className="text-center py-12">
+                  <History className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500">Nenhuma transação encontrada</p>
+                </div>
               ) : (
                 transactions.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className="flex items-start gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+                    className="flex items-start gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
                   >
-                    <div className={`p-2 rounded-lg ${
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${
                       transaction.type === 'adicao'
                         ? 'bg-green-100 dark:bg-green-900/30 text-green-600'
                         : transaction.type === 'consumo'
@@ -719,17 +1289,17 @@ const HoursBank = () => {
                     }`}>
                       {transaction.type === 'adicao' ? <Plus className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium">
+                        <span className="font-semibold text-lg">
                           {transaction.type === 'adicao' ? '+' : '-'}{transaction.hours}h
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           {format(new Date(transaction.createdAt), 'dd/MM/yyyy HH:mm', { locale: pt })}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{transaction.description}</p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{transaction.description}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         Por: {transaction.performedBy?.name}
                       </p>
                     </div>
@@ -738,8 +1308,18 @@ const HoursBank = () => {
               )}
             </div>
           </div>
+
+          {/* Footer */}
+          <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+            <button
+              onClick={() => setShowTransactionsModal(false)}
+              className="w-full px-5 py-2.5 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, FolderKanban, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import api from '../services/api'
 import { 
   getProjectById, 
   createProject, 
@@ -23,6 +24,7 @@ const ProjectForm = () => {
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
+  const [clients, setClients] = useState([])
   
   const [formData, setFormData] = useState({
     name: '',
@@ -30,14 +32,25 @@ const ProjectForm = () => {
     methodology: 'waterfall',
     status: 'planning',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    clientId: ''
   })
 
   useEffect(() => {
+    loadClients()
     if (isEdit) {
       loadProject()
     }
   }, [id])
+
+  const loadClients = async () => {
+    try {
+      const { data } = await api.get('/clients')
+      setClients(data.clients || [])
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error)
+    }
+  }
 
   const loadProject = async () => {
     try {
@@ -50,7 +63,8 @@ const ProjectForm = () => {
         methodology: project.methodology || 'waterfall',
         status: project.status || 'planning',
         startDate: project.startDate ? project.startDate.split('T')[0] : '',
-        endDate: project.endDate ? project.endDate.split('T')[0] : ''
+        endDate: project.endDate ? project.endDate.split('T')[0] : '',
+        clientId: project.clientId || ''
       })
     } catch (error) {
       console.error('Erro ao carregar projeto:', error)
@@ -134,7 +148,8 @@ const ProjectForm = () => {
         methodology: formData.methodology,
         status: formData.status,
         startDate: formData.startDate || null,
-        endDate: formData.endDate || null
+        endDate: formData.endDate || null,
+        clientId: formData.clientId || null
       }
 
       if (isEdit) {
@@ -249,6 +264,27 @@ const ProjectForm = () => {
               )}
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {formData.description.length}/2000 caracteres
+              </p>
+            </div>
+
+            {/* Cliente */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-2">Cliente</label>
+              <select
+                name="clientId"
+                value={formData.clientId}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
+              >
+                <option value="">Projeto Interno (sem cliente)</option>
+                {clients.map(client => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Selecione um cliente se este projeto for para um cliente específico. Apenas projetos de clientes concluídos podem ser registrados na bolsa de horas.
               </p>
             </div>
 

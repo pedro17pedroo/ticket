@@ -1,7 +1,7 @@
 import Comment from './commentModel.js';
 import { User } from '../models/index.js';
 import OrganizationUser from '../../models/OrganizationUser.js';
-import ClientUser from '../../models/ClientUser.js';
+import ClientUser from '../clients/clientUserModel.js';
 import Attachment from '../attachments/attachmentModel.js';
 import logger from '../../config/logger.js';
 

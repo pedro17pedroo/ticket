@@ -32,6 +32,9 @@ const Profile = () => {
     avatar: ''
   });
 
+  // Estado para erro de upload
+  const [avatarError, setAvatarError] = useState('');
+
   // Mudança de senha
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -79,15 +82,24 @@ const Profile = () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Limpar erro anterior
+    setAvatarError('');
+
     // Validar tamanho (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('A imagem deve ter no máximo 2MB');
+      const errorMsg = 'A imagem deve ter no máximo 2MB';
+      setAvatarError(errorMsg);
+      toast.error(errorMsg);
+      e.target.value = ''; // Limpar input
       return;
     }
 
     // Validar tipo
     if (!file.type.startsWith('image/')) {
-      toast.error('O ficheiro deve ser uma imagem');
+      const errorMsg = 'O ficheiro deve ser uma imagem';
+      setAvatarError(errorMsg);
+      toast.error(errorMsg);
+      e.target.value = ''; // Limpar input
       return;
     }
 
@@ -95,6 +107,7 @@ const Profile = () => {
     const reader = new FileReader();
     reader.onloadend = () => {
       setProfileData(prev => ({ ...prev, avatar: reader.result }));
+      setAvatarError(''); // Limpar erro se sucesso
     };
     reader.readAsDataURL(file);
   };
@@ -246,12 +259,23 @@ const Profile = () => {
                   />
                 </label>
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 dark:text-white">{profileData.name}</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">{profileData.email}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  Clique no ícone da câmera para alterar a foto
-                </p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    Clique no ícone da câmera para alterar a foto
+                  </p>
+                  <p className="text-xs font-medium text-primary-600 dark:text-primary-400">
+                    Tamanho máximo: 2MB
+                  </p>
+                  {avatarError && (
+                    <div className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">
+                      <span className="font-medium">⚠</span>
+                      <span>{avatarError}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

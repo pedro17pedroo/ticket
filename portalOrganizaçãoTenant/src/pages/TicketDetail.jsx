@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ticketService } from '../services/api'
 import api from '../services/api'
-import { ArrowLeft, Clock, User, Building2, Tag, UserPlus, Paperclip, Download, Trash2, FileText, Mail, Phone, GitMerge, ArrowRightLeft, FolderKanban, CheckSquare, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Clock, User, Building2, Tag, UserPlus, Paperclip, Download, Trash2, FileText, Mail, Phone, GitMerge, ArrowRightLeft, FolderKanban, CheckSquare, ExternalLink, Eye } from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/authStore'
+import { usePermissions } from '../hooks/usePermissions'
 import FileUpload from '../components/FileUpload'
 import TimeTracker from '../components/TimeTracker'
 import TagManager from '../components/TagManager'
@@ -25,12 +26,14 @@ import StatusManager from '../components/StatusManager'
 import RichTextEditor from '../components/RichTextEditor'
 import RemoteAccessButton from '../components/RemoteAccessButton'
 import TicketWatchers from '../components/TicketWatchers'
+import AttachmentViewer from '../components/AttachmentViewer'
 import { confirmDelete } from '../utils/alerts'
 
 const TicketDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const { hasPermission } = usePermissions()
   const [ticket, setTicket] = useState(null)
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
@@ -42,44 +45,22 @@ const TicketDetail = () => {
   const [showMergeModal, setShowMergeModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
-  const [ticketPermissions, setTicketPermissions] = useState(null)
+  const [viewingAttachment, setViewingAttachment] = useState(null)
+  
+  // Permissões baseadas em RBAC
+  const canAssignTicket = hasPermission('tickets.assign_all') || hasPermission('tickets.assign_team') || hasPermission('tickets.assign_self')
+  const canTransferTicket = hasPermission('tickets.transfer')
+  const canMergeTickets = hasPermission('tickets.merge')
+  const canTrackTime = hasPermission('time_tracking.create')
+  const canManageTags = hasPermission('tags.manage')
+  const canManageStatus = hasPermission('tickets.update')
+  const canUseTemplates = hasPermission('templates.use')
+  const canViewClientHistory = hasPermission('tickets.view')
 
   useEffect(() => {
     loadTicket()
     loadAttachments()
   }, [id])
-
-  // Carregar permissões quando o ticket for carregado
-  useEffect(() => {
-    if (ticket?.id) {
-      loadTicketPermissions()
-    }
-  }, [ticket?.id])
-
-  const loadTicketPermissions = async () => {
-    try {
-      const response = await api.get(`/tickets/${id}/permissions`)
-      if (response.data.success) {
-        setTicketPermissions(response.data.permissions)
-      }
-    } catch (error) {
-      console.error('Erro ao carregar permissões do ticket:', error)
-      // Se falhar, assumir permissões padrão baseadas no role
-      setTicketPermissions({
-        canView: true,
-        canEdit: user.role === 'org-admin',
-        canAssign: user.role === 'org-admin',
-        canComment: true,
-        canClose: user.role === 'org-admin',
-        canTransfer: user.role === 'org-admin',
-        isAdmin: user.role === 'org-admin',
-        isAssignee: ticket?.assigneeId === user.id,
-        accessLevel: user.role === 'org-admin' ? 'admin' : 'viewer'
-      })
-    }
-  }
-
-
   const loadTicket = async () => {
     try {
       const data = await ticketService.getById(id)
@@ -231,14 +212,12 @@ const TicketDetail = () => {
             <p className="text-gray-600 dark:text-gray-400">{ticket.subject}</p>
           </div>
         </div>
-        {(user.role === 'org-admin' || user.role === 'agent') && (() => {
+        {canAssignTicket && (() => {
           const isTicketClosed = ['fechado', 'resolvido'].includes(ticket.status);
-          const canAssign = ticketPermissions?.canAssign ?? (user.role === 'org-admin');
-          const canTransfer = ticketPermissions?.canTransfer ?? (user.role === 'org-admin');
           return (
             <div className="flex gap-2">
               <RemoteAccessButton ticket={ticket} />
-              {canAssign && (
+              {canAssignTicket && (
                 <button
                   onClick={() => setShowAssignModal(true)}
                   disabled={isTicketClosed}
@@ -249,7 +228,7 @@ const TicketDetail = () => {
                   Atribuir
                 </button>
               )}
-              {canTransfer && (
+              {canTransferTicket && (
                 <button
                   onClick={() => setShowTransferModal(true)}
                   disabled={isTicketClosed}
@@ -260,7 +239,7 @@ const TicketDetail = () => {
                   Transferir
                 </button>
               )}
-              {canAssign && (
+              {canMergeTickets && (
                 <button
                   onClick={() => setShowMergeModal(true)}
                   disabled={isTicketClosed}
@@ -340,6 +319,13 @@ const TicketDetail = () => {
                     </div>
                     <div className="flex items-center gap-1">
                       <button
+                        onClick={() => setViewingAttachment(attachment)}
+                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                        title="Visualizar"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleDownloadAttachment(attachment.id, attachment.originalName)}
                         className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
                         title="Download"
@@ -379,6 +365,13 @@ const TicketDetail = () => {
                       <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
                     </div>
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setViewingAttachment(attachment)}
+                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                        title="Visualizar"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleDownloadAttachment(attachment.id, attachment.originalName)}
                         className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
@@ -442,7 +435,7 @@ const TicketDetail = () => {
               })()}
 
               {/* Template Selector */}
-              {(user.role === 'org-admin' || user.role === 'agent') && (
+              {canUseTemplates && (
                 <TemplateSelector onSelect={(content) => setComment(comment + content)} />
               )}
 
@@ -647,17 +640,17 @@ Você pode usar formatação para destacar informações importantes:
           )}
 
           {/* Time Tracker */}
-          {(user.role === 'org-admin' || user.role === 'agent') && (
+          {canTrackTime && (
             <TimeTracker ticketId={id} ticket={ticket} />
           )}
 
           {/* Tags */}
-          {(user.role === 'org-admin' || user.role === 'agent') && (
+          {canManageTags && (
             <TagManager ticketId={id} />
           )}
 
           {/* Client History */}
-          {ticket.requesterId && (
+          {ticket.requesterId && canViewClientHistory && (
             <ClientHistory userId={ticket.requesterId} currentTicketId={id} />
           )}
 
@@ -670,7 +663,7 @@ Você pode usar formatação para destacar informações importantes:
           <RelatedTickets ticketId={id} />
 
           {/* Status Manager */}
-          {(user.role === 'org-admin' || user.role === 'agent') && (
+          {canManageStatus && (
             <StatusManager
               ticketId={id}
               currentStatus={ticket.status}
@@ -679,7 +672,7 @@ Você pode usar formatação para destacar informações importantes:
           )}
 
           {/* Internal Priority Manager */}
-          {(user.role === 'org-admin' || user.role === 'agent') && (
+          {canManageStatus && (
             <InternalPriorityManager
               ticketId={id}
               clientPriority={ticket.priority}
@@ -690,7 +683,7 @@ Você pode usar formatação para destacar informações importantes:
           )}
 
           {/* Resolution Status Manager */}
-          {(user.role === 'org-admin' || user.role === 'agent') && (
+          {canManageStatus && (
             <ResolutionStatusManager
               ticketId={id}
               currentStatus={ticket.resolutionStatus}
@@ -752,6 +745,16 @@ Você pode usar formatação para destacar informações importantes:
             loadTicket();
             loadAttachments();
           }}
+        />
+      )}
+
+      {/* Attachment Viewer */}
+      {viewingAttachment && (
+        <AttachmentViewer
+          attachment={viewingAttachment}
+          ticketId={id}
+          onDownload={handleDownloadAttachment}
+          onClose={() => setViewingAttachment(null)}
         />
       )}
     </div>

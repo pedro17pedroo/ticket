@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { authService } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { LogIn, Mail, Lock, ArrowLeft } from 'lucide-react'
+import ContextSelector from '../components/ContextSelector'
 
 const Login = () => {
   const navigate = useNavigate()
-  const { setAuth } = useAuthStore()
+  const { setAuth, token } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const { register: registerLogin, handleSubmit: handleSubmitLogin, formState: { errors: loginErrors } } = useForm()
   const { register: registerRecoveryEmail, handleSubmit: handleSubmitRecoveryEmail, formState: { errors: recoveryErrors }, reset: resetRecoveryForm } = useForm()
@@ -17,29 +18,71 @@ const Login = () => {
   const [recoveryStep, setRecoveryStep] = useState(1)
   const [recoveryEmail, setRecoveryEmail] = useState('')
   const [recoveryLoading, setRecoveryLoading] = useState(false)
+  
+  // Context selection state
+  const [showContextSelector, setShowContextSelector] = useState(false)
+  const [availableContexts, setAvailableContexts] = useState([])
+  const [loginCredentials, setLoginCredentials] = useState(null)
+  
+  console.log('🔄 Login component renderizado, token:', token ? 'presente' : 'ausente')
+  
+  // Se já estiver logado, redirecionar (apenas uma vez)
+  useEffect(() => {
+    console.log('🔍 useEffect verificando token:', token ? 'presente' : 'ausente')
+    if (token) {
+      console.log('✅ Já está logado, redirecionando para dashboard...')
+      navigate('/', { replace: true })
+    }
+  }, [token, navigate])
 
   const onSubmit = async (data) => {
+    if (loading) {
+      console.log('⏸️  Submit bloqueado - já está processando')
+      return // Prevenir múltiplos submits
+    }
+    
     setLoading(true)
+    console.log('🔐 Iniciando processo de login com:', data.email)
+    
     try {
-      console.log('🔐 Tentando login com:', data.email)
+      console.log('📡 Chamando API de login...')
       const response = await authService.login(data.email, data.password)
+      console.log('✅ Resposta da API:', response)
       
-      console.log('✅ Resposta do login:', response)
-      
-      // Verificar se é client user
-      if (!['client-admin', 'client-user', 'client-manager'].includes(response.user.role)) {
-        toast.error('Acesso negado. Utilize o portal adequado para o seu perfil.')
+      // Check if multiple contexts are available
+      if (response.requiresContextSelection && response.contexts) {
+        console.log('🔀 Múltiplos contextos disponíveis, mostrando seletor')
+        setAvailableContexts(response.contexts)
+        setLoginCredentials({ email: data.email, password: data.password })
+        setShowContextSelector(true)
         setLoading(false)
         return
       }
       
+      // Single context - proceed with login
+      if (!response || !response.user || !response.token) {
+        throw new Error('Resposta inválida do servidor')
+      }
+      
+      console.log('💾 Salvando autenticação...')
       setAuth(response.user, response.token)
+      console.log('✅ Autenticação salva com sucesso!')
+      
       toast.success('Login realizado com sucesso!')
-      navigate('/')
+      
+      console.log('🚀 Navegando para dashboard...')
+      navigate('/', { replace: true })
     } catch (error) {
-      console.error('❌ Erro no login:', error)
-      const message = error.response?.data?.error || error.message || 'Erro ao fazer login'
-      toast.error(message)
+      console.error('❌ Erro completo no login:', error)
+      console.error('❌ Resposta do erro:', error.response?.data)
+      console.error('❌ Status do erro:', error.response?.status)
+      
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Erro ao fazer login. Verifique suas credenciais.'
+      
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -94,6 +137,65 @@ const Login = () => {
     setRecoveryLoading(false)
   }
 
+  const handleContextSelect = async (context) => {
+    if (!loginCredentials) {
+      toast.error('Credenciais não encontradas. Por favor, faça login novamente.')
+      setShowContextSelector(false)
+      return
+    }
+
+    setLoading(true)
+    console.log('🔀 Selecionando contexto:', context)
+
+    try {
+      const response = await authService.selectContext(
+        loginCredentials.email,
+        loginCredentials.password,
+        context.contextId,
+        context.contextType
+      )
+
+      console.log('✅ Contexto selecionado:', response)
+
+      if (!response || !response.user || !response.token) {
+        throw new Error('Resposta inválida do servidor')
+      }
+
+      console.log('💾 Salvando autenticação com contexto...')
+      setAuth(response.user, response.token)
+      console.log('✅ Autenticação salva com sucesso!')
+
+      toast.success(`Acesso a ${context.organizationName || context.clientName} realizado com sucesso!`)
+
+      // Redirect to appropriate portal based on context type
+      if (context.type === 'organization') {
+        // Redirect to Portal Organização
+        const orgPortalUrl = import.meta.env.VITE_ORG_PORTAL_URL || 'http://localhost:5173'
+        console.log('🚀 Redirecionando para Portal Organização:', orgPortalUrl)
+        window.location.href = orgPortalUrl
+      } else {
+        // Stay in Portal Client
+        console.log('🚀 Navegando para dashboard do cliente...')
+        navigate('/', { replace: true })
+      }
+    } catch (error) {
+      console.error('❌ Erro ao selecionar contexto:', error)
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Erro ao selecionar contexto.'
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleBackToLogin = () => {
+    setShowContextSelector(false)
+    setAvailableContexts([])
+    setLoginCredentials(null)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -111,11 +213,32 @@ const Login = () => {
 
         {/* Form Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          <div className="flex items-center justify-center mb-6">
-            <div className="p-3 bg-primary-100 dark:bg-primary-900/20 rounded-full">
-              <LogIn className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            </div>
-          </div>
+          {showContextSelector ? (
+            <>
+              {/* Context Selector View */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-2"
+                  disabled={loading}
+                >
+                  <ArrowLeft className="w-4 h-4" /> Voltar ao login
+                </button>
+              </div>
+              <ContextSelector
+                contexts={availableContexts}
+                onSelect={handleContextSelect}
+                loading={loading}
+              />
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-center mb-6">
+                <div className="p-3 bg-primary-100 dark:bg-primary-900/20 rounded-full">
+                  <LogIn className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                </div>
+              </div>
 
           {!showRecovery ? (
             <>
@@ -288,6 +411,8 @@ const Login = () => {
                   </button>
                 </form>
               )}
+            </>
+          )}
             </>
           )}
         </div>

@@ -41,6 +41,18 @@ export const cleanupExpiredReports = async (retentionDays = DEFAULT_RETENTION_DA
   try {
     const now = new Date();
     
+    // Check if ProjectReport table exists
+    try {
+      await ProjectReport.findOne({ limit: 1 });
+    } catch (error) {
+      if (error.original?.code === '42P01') {
+        logger.debug('Tabela project_reports não existe, pulando cleanup');
+        stats.endTime = new Date();
+        return stats;
+      }
+      throw error;
+    }
+    
     // Find all expired reports
     const expiredReports = await ProjectReport.findAll({
       where: {
@@ -104,6 +116,12 @@ export const cleanupExpiredReports = async (retentionDays = DEFAULT_RETENTION_DA
     return stats;
 
   } catch (error) {
+    // Ignorar erro se tabela não existir
+    if (error.original?.code === '42P01') {
+      logger.debug('Tabela project_reports não existe, pulando cleanup');
+      stats.endTime = new Date();
+      return stats;
+    }
     logger.error('Error during report cleanup job:', error);
     stats.errors.push(error.message);
     stats.endTime = new Date();
@@ -125,6 +143,18 @@ export const cleanupOrphanedFiles = async () => {
   };
 
   try {
+    // Check if ProjectReport table exists
+    try {
+      await ProjectReport.findOne({ limit: 1 });
+    } catch (error) {
+      if (error.original?.code === '42P01') {
+        logger.debug('Tabela project_reports não existe, pulando cleanup de arquivos órfãos');
+        stats.endTime = new Date();
+        return stats;
+      }
+      throw error;
+    }
+
     // Check if reports directory exists
     if (!fs.existsSync(REPORTS_DIR)) {
       logger.debug('Reports directory does not exist, nothing to clean');

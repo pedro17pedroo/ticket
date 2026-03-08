@@ -112,6 +112,23 @@ export const getProjects = async (req, res, next) => {
       limit: parseInt(limit),
       offset,
       order: [[finalSortBy, finalSortOrder]],
+      attributes: [
+        'id',
+        'organizationId',
+        'clientId',
+        'code',
+        'name',
+        'description',
+        'methodology',
+        'status',
+        'startDate',
+        'endDate',
+        'progress',
+        'createdBy',
+        'archivedAt',
+        'createdAt',
+        'updatedAt'
+      ],
       include: [
         {
           model: OrganizationUser,
@@ -204,7 +221,8 @@ export const createProject = async (req, res, next) => {
       methodology = 'waterfall',
       status = 'planning',
       startDate,
-      endDate
+      endDate,
+      clientId
     } = req.body;
 
     const organizationId = req.user.organizationId;
@@ -250,6 +268,7 @@ export const createProject = async (req, res, next) => {
       status,
       startDate,
       endDate,
+      clientId: clientId || null,
       createdBy
     });
 
@@ -308,7 +327,8 @@ export const updateProject = async (req, res, next) => {
       status,
       startDate,
       endDate,
-      progress
+      progress,
+      clientId
     } = req.body;
 
     const organizationId = req.user.organizationId;
@@ -368,6 +388,7 @@ export const updateProject = async (req, res, next) => {
     if (startDate !== undefined) updateData.startDate = startDate;
     if (endDate !== undefined) updateData.endDate = endDate;
     if (progress !== undefined) updateData.progress = progress;
+    if (clientId !== undefined) updateData.clientId = clientId;
 
     await project.update(updateData);
 

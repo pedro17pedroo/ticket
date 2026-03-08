@@ -39,11 +39,17 @@ passport.use(
         return done(null, false);
       }
 
-      // Adicionar userType e clientId do payload ao objeto user que vai para req.user
+      // Adicionar userType, clientId e informações de contexto do payload ao objeto user que vai para req.user
       const userData = {
         ...user.toJSON(),
         userType: userType || payload.userType || 'organization',
-        clientId: payload.clientId || user.clientId || null
+        clientId: payload.clientId || user.clientId || null,
+        organizationId: payload.organizationId || user.organizationId || null,
+        // Informações de contexto
+        sessionId: payload.sessionId || null,
+        contextId: payload.contextId || null,
+        contextType: payload.contextType || null,
+        permissions: payload.permissions || []
       };
 
       return done(null, userData);
@@ -128,15 +134,31 @@ export const requireOwnerOrAdmin = (req, res, next) => {
 
 // Gerar token JWT
 export const generateToken = (user) => {
+  const payload = { 
+    id: user.id, 
+    email: user.email, 
+    role: user.role,
+    organizationId: user.organizationId,
+    userType: user.userType || 'organization', // Importante para notificações
+    clientId: user.clientId || null
+  };
+
+  // Adicionar informações de contexto se disponíveis
+  if (user.sessionId) {
+    payload.sessionId = user.sessionId;
+  }
+  if (user.contextId) {
+    payload.contextId = user.contextId;
+  }
+  if (user.contextType) {
+    payload.contextType = user.contextType;
+  }
+  if (user.permissions) {
+    payload.permissions = user.permissions;
+  }
+
   return jwt.sign(
-    { 
-      id: user.id, 
-      email: user.email, 
-      role: user.role,
-      organizationId: user.organizationId,
-      userType: user.userType || 'organization', // Importante para notificações
-      clientId: user.clientId || null
-    },
+    payload,
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
   );

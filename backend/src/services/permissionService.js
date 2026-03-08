@@ -1,13 +1,10 @@
-import Role from '../models/Role.js';
-import Permission from '../models/Permission.js';
-import RolePermission from '../models/RolePermission.js';
-import UserPermission from '../models/UserPermission.js';
-import { User } from '../modules/models/index.js';
+import { Op } from 'sequelize';
+import { User, Role, Permission, RolePermission, UserPermission } from '../modules/models/index.js';
 import logger from '../config/logger.js';
 
 class PermissionService {
   /**
-   * Verificar se um utilizador tem uma permissão específica
+   * Verificar se um utilizador tem uma permissão específica (com suporte multi-nível)
    * @param {Object} user - Objeto do utilizador
    * @param {String} resource - Recurso (ex: 'tickets')
    * @param {String} action - Ação (ex: 'create')
@@ -16,18 +13,54 @@ class PermissionService {
    */
   async hasPermission(user, resource, action, options = {}) {
     try {
-      // 1. Roles de admin têm todas as permissões (admins base + aliases legados)
-      const adminRoles = ['super-admin', 'org-admin', 'client-admin', 'org-admin', 'provider-admin'];
-      if (adminRoles.includes(user.role)) {
+      // 1. Determinar nível do usuário
+      const userLevel = this.getUserLevel(user);
+      
+      // 2. Roles de admin do seu nível têm todas as permissões do seu escopo
+      if (userLevel === 'system' && ['super-admin', 'provider-admin'].includes(user.role)) {
+        return true; // Provider admin tem TODAS as permissões
+      }
+      
+      if (userLevel === 'organization' && user.role === 'org-admin') {
+        // Org admin tem todas as permissões de organization e client
+        return true;
+      }
+      
+      if (userLevel === 'client' && user.role === 'client-admin') {
+        // Client admin tem todas as permissões de client
+        // Mas precisa verificar se a permissão é aplicável a client
+        const permission = await Permission.findOne({
+          where: { resource, action }
+        });
+        
+        if (!permission) {
+          return false;
+        }
+        
+        // Verificar se permissão é aplicável a client
+        if (permission.applicableTo) {
+          try {
+            const applicableTo = typeof permission.applicableTo === 'string' 
+              ? JSON.parse(permission.applicableTo) 
+              : permission.applicableTo;
+            
+            if (!applicableTo.includes('client')) {
+              return false; // Permissão não aplicável a client
+            }
+          } catch (error) {
+            logger.warn(`Erro ao parsear applicableTo: ${permission.id}`);
+          }
+        }
+        
         return true;
       }
 
-      // 1.1 Permissões implícitas para clients (Knowledge Base é público para eles)
+      // 2.1 Permissões implícitas para clients (Knowledge Base é público para eles)
       if (['client-user', 'client-manager'].includes(user.role) && resource === 'knowledge' && action === 'read') {
         return true;
       }
 
-      // 2. Buscar a permissão
+      // 3. Buscar a permissão
       const permission = await Permission.findOne({
         where: { resource, action }
       });
@@ -36,8 +69,24 @@ class PermissionService {
         logger.warn(`Permissão não encontrada: ${resource}.${action}`);
         return false;
       }
+      
+      // 4. Verificar se permissão é aplicável ao nível do usuário
+      if (permission.applicableTo) {
+        try {
+          const applicableTo = typeof permission.applicableTo === 'string' 
+            ? JSON.parse(permission.applicableTo) 
+            : permission.applicableTo;
+          
+          if (!applicableTo.includes(userLevel)) {
+            logger.warn(`Permissão ${resource}.${action} não aplicável ao nível ${userLevel}`);
+            return false;
+          }
+        } catch (error) {
+          logger.warn(`Erro ao parsear applicableTo: ${permission.id}`);
+        }
+      }
 
-      // 3. Verificar permissões específicas do utilizador (override)
+      // 5. Verificar permissões específicas do utilizador (override)
       const userPermission = await UserPermission.findOne({
         where: {
           userId: user.id,
@@ -53,30 +102,26 @@ class PermissionService {
         return userPermission.granted;
       }
 
-      // 4. Verificar permissões do role
-      const role = await Role.findOne({
-        where: { name: user.role },
-        include: [{
-          model: Permission,
-          as: 'permissions',
-          where: { id: permission.id },
-          through: { where: { granted: true } },
-          required: false
-        }]
-      });
+      // 6. Buscar role seguindo hierarquia (client → org → global)
+      const role = await this.findRoleByHierarchy(
+        user.role,
+        user.organizationId,
+        user.clientId
+      );
 
       if (!role) {
         logger.warn(`Role não encontrado: ${user.role}`);
         return false;
       }
 
-      const hasRolePermission = role.permissions && role.permissions.length > 0;
+      // 7. Verificar se role tem a permissão
+      const hasRolePermission = role.permissions && role.permissions.some(p => p.id === permission.id);
 
       if (!hasRolePermission) {
         return false;
       }
 
-      // 5. Verificar scope
+      // 8. Verificar scope
       return this.checkScope(user, permission.scope, options);
 
     } catch (error) {
@@ -127,89 +172,246 @@ class PermissionService {
   }
 
   /**
-   * Obter todas as permissões de um utilizador
+   * Determinar o nível hierárquico do usuário
+   * @param {Object} user - Objeto do usuário
+   * @returns {String} 'system', 'organization', ou 'client'
+   */
+  getUserLevel(user) {
+    // Provider/System level
+    if (['super-admin', 'provider-admin'].includes(user.role)) {
+      return 'system';
+    }
+    
+    // Client level
+    if (user.userType === 'client' || ['client-admin', 'client-manager', 'client-user'].includes(user.role)) {
+      return 'client';
+    }
+    
+    // Organization level (default)
+    return 'organization';
+  }
+
+  /**
+   * Buscar role correto seguindo hierarquia: client → organization → global
+   * @param {String} roleName - Nome do role
+   * @param {String} organizationId - ID da organização
+   * @param {String} clientId - ID do cliente (opcional)
+   * @returns {Object} Role encontrado
+   */
+  async findRoleByHierarchy(roleName, organizationId, clientId = null) {
+    // 1. Tentar buscar role customizado do cliente
+    if (clientId) {
+      const clientRole = await Role.findOne({
+        where: {
+          name: roleName,
+          organizationId,
+          clientId,
+          isActive: true
+        },
+        include: [{
+          model: Permission,
+          as: 'permissions',
+          through: {
+            where: { granted: true },
+            attributes: []
+          }
+        }]
+      });
+      
+      if (clientRole) {
+        logger.info(`✅ Role customizado do cliente encontrado: ${roleName} (client: ${clientId})`);
+        return clientRole;
+      }
+    }
+    
+    // 2. Tentar buscar role customizado da organização
+    if (organizationId) {
+      const orgRole = await Role.findOne({
+        where: {
+          name: roleName,
+          organizationId,
+          clientId: null,
+          isActive: true
+        },
+        include: [{
+          model: Permission,
+          as: 'permissions',
+          through: {
+            where: { granted: true },
+            attributes: []
+          }
+        }]
+      });
+      
+      if (orgRole) {
+        logger.info(`✅ Role customizado da organização encontrado: ${roleName} (org: ${organizationId})`);
+        return orgRole;
+      }
+    }
+    
+    // 3. Buscar role global (system)
+    const globalRole = await Role.findOne({
+      where: {
+        name: roleName,
+        organizationId: null,
+        clientId: null,
+        isActive: true
+      },
+      include: [{
+        model: Permission,
+        as: 'permissions',
+        through: {
+          where: { granted: true },
+          attributes: []
+        }
+      }]
+    });
+    
+    if (globalRole) {
+      logger.info(`✅ Role global encontrado: ${roleName}`);
+      return globalRole;
+    }
+    
+    logger.warn(`❌ Role não encontrado: ${roleName}`);
+    return null;
+  }
+
+  /**
+   * Obter todas as permissões de um utilizador (com suporte multi-nível)
    */
   async getUserPermissions(userId) {
     try {
-      // Tentar buscar em User primeiro
-      let user = await User.findByPk(userId, {
-        include: [{
-          model: Role,
-          as: 'roleObject',
-          include: [{
-            model: Permission,
-            as: 'permissions',
-            through: {
-              where: { granted: true },
-              attributes: []
-            }
-          }]
-        }]
-      });
-
-      // Se não encontrou em User, buscar em OrganizationUser
+      logger.debug(`🔍 getUserPermissions: Buscando usuário: ${userId}`);
+      
+      let user = null;
+      let userType = null;
+      
+      // Tentar buscar em User primeiro (Provider)
+      user = await User.findByPk(userId);
+      if (user) {
+        userType = 'provider';
+        logger.debug(`✅ getUserPermissions: Usuário encontrado em User (provider)`);
+      }
+      
+      // Se não encontrou, buscar em OrganizationUser
       if (!user) {
         const { OrganizationUser } = await import('../modules/models/index.js');
         user = await OrganizationUser.findByPk(userId);
-        
         if (user) {
-          // Buscar role pelo nome
-          const role = await Role.findOne({
-            where: { name: user.role },
-            include: [{
-              model: Permission,
-              as: 'permissions',
-              through: {
-                where: { granted: true },
-                attributes: []
-              }
-            }]
-          });
-          
-          if (role) {
-            const rolePermissions = role.permissions || [];
-            
-            // Adicionar permissões específicas do utilizador
-            const userPermissions = await UserPermission.findAll({
-              where: { userId, granted: true },
-              include: [{ model: Permission, as: 'permission' }]
-            });
-
-            const allPermissions = [
-              ...rolePermissions,
-              ...userPermissions.map(up => up.permission)
-            ];
-
-            // Remover duplicados e formatar
-            const uniquePermissions = allPermissions.filter((perm, index, self) =>
-              index === self.findIndex(p => p.id === perm.id)
-            );
-
-            return uniquePermissions.map(p => `${p.resource}.${p.action}`);
-          }
+          userType = 'organization';
+          logger.debug(`✅ getUserPermissions: Usuário encontrado em OrganizationUser`);
         }
-        
+      }
+      
+      // Se não encontrou, buscar em ClientUser
+      if (!user) {
+        const { ClientUser } = await import('../modules/models/index.js');
+        user = await ClientUser.findByPk(userId);
+        if (user) {
+          userType = 'client';
+          logger.debug(`✅ getUserPermissions: Usuário encontrado em ClientUser`);
+        }
+      }
+      
+      if (!user) {
+        logger.error(`❌ getUserPermissions: Usuário não encontrado: ${userId}`);
         return [];
       }
-
-      const rolePermissions = user.roleObject?.permissions || [];
-
+      
+      logger.debug(`✅ getUserPermissions: Dados do usuário:`, {
+        email: user.email,
+        role: user.role,
+        organizationId: user.organizationId,
+        clientId: user.clientId,
+        userType
+      });
+      
+      // Buscar role seguindo hierarquia (client → org → global)
+      const role = await this.findRoleByHierarchy(
+        user.role,
+        user.organizationId,
+        user.clientId
+      );
+      
+      if (!role) {
+        logger.error(`❌ getUserPermissions: Role não encontrado para usuário: ${user.role}`);
+        return [];
+      }
+      
+      logger.debug(`✅ getUserPermissions: Role encontrado:`, {
+        id: role.id,
+        name: role.name,
+        displayName: role.displayName,
+        permissionsCount: role.permissions?.length || 0
+      });
+      
+      if (!role.permissions || role.permissions.length === 0) {
+        logger.warn(`⚠️ getUserPermissions: Role "${role.name}" sem permissões associadas`);
+        return [];
+      }
+      
+      const rolePermissions = role.permissions || [];
+      
+      // Determinar nível do usuário
+      const userLevel = this.getUserLevel({ ...user.toJSON(), userType });
+      
+      // Filtrar permissões aplicáveis ao nível do usuário
+      const applicablePermissions = rolePermissions.filter(perm => {
+        if (!perm.applicableTo) {
+          return true; // Se não tem applicableTo, assume que é aplicável
+        }
+        
+        try {
+          const applicableTo = typeof perm.applicableTo === 'string' 
+            ? JSON.parse(perm.applicableTo) 
+            : perm.applicableTo;
+          
+          return applicableTo.includes(userLevel);
+        } catch (error) {
+          logger.warn(`Erro ao parsear applicableTo: ${perm.id}`);
+          return true; // Em caso de erro, permite a permissão
+        }
+      });
+      
       // Adicionar permissões específicas do utilizador
       const userPermissions = await UserPermission.findAll({
         where: { userId, granted: true },
-        include: [{ model: Permission, as: 'permission' }]
+        include: [{ 
+          model: Permission, 
+          as: 'permission',
+          required: false
+        }]
       });
 
+      // Filtrar permissões específicas por applicable_to
+      const filteredUserPermissions = userPermissions
+        .map(up => up.permission)
+        .filter(p => {
+          if (!p || !p.applicableTo) return true;
+          
+          try {
+            const applicableTo = typeof p.applicableTo === 'string' 
+              ? JSON.parse(p.applicableTo) 
+              : p.applicableTo;
+            
+            return applicableTo.includes(userLevel);
+          } catch (error) {
+            return true;
+          }
+        });
+
       const allPermissions = [
-        ...rolePermissions,
-        ...userPermissions.map(up => up.permission)
+        ...applicablePermissions,
+        ...filteredUserPermissions
       ];
 
       // Remover duplicados e formatar
       const uniquePermissions = allPermissions.filter((perm, index, self) =>
-        index === self.findIndex(p => p.id === perm.id)
+        index === self.findIndex(p => p && p.id === perm.id)
       );
 
+      logger.info(`✅ Permissões carregadas para ${user.email}: ${uniquePermissions.length} permissões (nível: ${userLevel})`);
+      
       return uniquePermissions.map(p => `${p.resource}.${p.action}`);
     } catch (error) {
       logger.error('Erro ao obter permissões do utilizador:', error);

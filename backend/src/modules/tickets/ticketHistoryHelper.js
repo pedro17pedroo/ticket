@@ -44,8 +44,25 @@ export const createChangeDescription = async (field, oldValue, newValue, models 
       return `Estado de resolução alterado de "${labels[old] || old || 'Não definido'}" para "${labels[newVal] || newVal}"`;
     },
     assigneeId: async (old, newVal) => {
+      // Se ambos são null/undefined, não houve mudança real
+      if (!old && !newVal) {
+        return 'Ticket não atribuído';
+      }
+      
       const oldUser = old ? await User.findByPk(old, { attributes: ['name'] }) : null;
       const newUser = newVal ? await User.findByPk(newVal, { attributes: ['name'] }) : null;
+      
+      // Se está removendo atribuição
+      if (old && !newVal) {
+        return `Atribuição removida (era: ${oldUser?.name || 'Desconhecido'})`;
+      }
+      
+      // Se está atribuindo pela primeira vez
+      if (!old && newVal) {
+        return `Atribuído para ${newUser?.name || 'Desconhecido'}`;
+      }
+      
+      // Se está mudando de um usuário para outro
       return `Atribuído de "${oldUser?.name || 'Não atribuído'}" para "${newUser?.name || 'Não atribuído'}"`;
     },
     departmentId: async (old, newVal) => {
@@ -131,7 +148,12 @@ export const trackTicketChanges = async (oldTicket, newTicket, userId, transacti
     const oldValue = oldTicket[field];
     const newValue = newTicket[field];
 
-    if (oldValue !== newValue && newValue !== undefined) {
+    // Verificar se houve mudança real
+    // Considerar null e undefined como equivalentes
+    const oldNormalized = oldValue === null || oldValue === undefined ? null : oldValue;
+    const newNormalized = newValue === null || newValue === undefined ? null : newValue;
+
+    if (oldNormalized !== newNormalized && newValue !== undefined) {
       const description = await createChangeDescription(field, oldValue, newValue);
 
       await logTicketChange(

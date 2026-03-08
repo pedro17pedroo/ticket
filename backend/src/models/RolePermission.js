@@ -32,7 +32,7 @@ const RolePermission = sequelize.define('RolePermission', {
   }
 }, {
   tableName: 'role_permissions',
-  timestamps: true,
+  timestamps: false,
   underscored: true,
   indexes: [
     { fields: ['roleId'] },

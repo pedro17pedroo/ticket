@@ -123,13 +123,39 @@ const HoursTransaction = sequelize.define('HoursTransaction', {
       model: 'users',
       key: 'id'
     }
+  },
+  referenceType: {
+    type: DataTypes.ENUM('ticket', 'project', 'manual'),
+    allowNull: true,
+    comment: 'Tipo de referência do consumo'
+  },
+  referenceId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    comment: 'ID do ticket ou projeto'
+  },
+  activityName: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Nome da atividade (para tipo manual)'
+  },
+  originalHours: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    comment: 'Horas originais antes de ajuste'
+  },
+  adjustmentNote: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Nota de ajuste se horas foram modificadas'
   }
 }, {
   tableName: 'hours_transactions',
   indexes: [
     { fields: ['hours_bank_id'] },
     { fields: ['ticket_id'] },
-    { fields: ['created_at'] }
+    { fields: ['created_at'] },
+    { fields: ['reference_type', 'reference_id'] }
   ]
 });
 

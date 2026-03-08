@@ -89,7 +89,6 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'tickets.view', 'tickets.create', 'tickets.update', 'tickets.assign', 'tickets.close',
     'comments.create', 'comments.create_internal', 'comments.view',
     'clients.view',
-    'users.view',
     'directions.view',
     'departments.view',
     'sections.view',
@@ -97,6 +96,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'assets.view',
     'knowledge.view', 'knowledge.create', 'knowledge.update',
     'hours_bank.view', 'hours_bank.consume',
+    'time_tracking.view', 'time_tracking.create', 'time_tracking.update',
     'reports.view',
     'tags.view',
     'templates.view',
@@ -110,7 +110,6 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'tickets.view', 'tickets.update', 'tickets.assign', 'tickets.close',
     'comments.create', 'comments.create_internal', 'comments.view',
     'clients.view',
-    'users.view',
     'directions.view',
     'departments.view',
     'sections.view',
@@ -118,6 +117,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'assets.view',
     'knowledge.view',
     'hours_bank.view', 'hours_bank.consume',
+    'time_tracking.view', 'time_tracking.create', 'time_tracking.update',
     'tags.view',
     'templates.view',
     'desktop_agent.view',
@@ -336,7 +336,7 @@ export const usePermissions = () => {
 
   // Lista de permissões do utilizador (array de strings)
   const permissions = useMemo(() => {
-    // Se tiver permissões carregadas do backend (RBAC)
+    // ✅ RBAC: Priorizar permissões do backend
     if (userPermissions && Array.isArray(userPermissions) && userPermissions.length > 0) {
       return userPermissions.map(mapBackendPermission);
     }
@@ -346,20 +346,21 @@ export const usePermissions = () => {
       return user.permissions.map(mapBackendPermission);
     }
     
-    // Usar permissões padrão do perfil
-    if (user?.role && DEFAULT_ROLE_PERMISSIONS[user.role]) {
-      return DEFAULT_ROLE_PERMISSIONS[user.role]
-    }
-    
-    // Fallback final: permissões básicas de visualização
-    return ['dashboard.view']
+    // ⚠️ ATENÇÃO: Sem permissões do backend, retornar vazio
+    // O sistema deve buscar permissões do backend via /auth/profile
+    console.warn('⚠️ Permissões não carregadas do backend. Usuário terá acesso limitado.');
+    return ['dashboard.view'] // Apenas dashboard por padrão
   }, [user, userPermissions])
 
-  // Verificar se é admin (tem todas as permissões)
+  // Verificar se é admin (baseado em permissões, não em role)
   const isAdmin = useMemo(() => {
-    const adminRoles = ['org-admin', 'admin', 'super-admin', 'provider-admin'];
-    return adminRoles.includes(user?.role) || permissions.includes('*');
-  }, [user, permissions])
+    // ✅ RBAC: Admin é quem tem permissão de gerenciar roles
+    return permissions.some(p => 
+      p === 'settings.manage_roles' || 
+      p === 'settings.*' ||
+      p === '*'
+    );
+  }, [permissions])
 
   /**
    * Verifica se o utilizador tem uma permissão específica

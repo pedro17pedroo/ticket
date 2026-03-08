@@ -2,10 +2,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import http from 'http';
-import app from './app.js';
 import { connectPostgreSQL, connectMongoDB, syncDatabase } from './config/database.js';
 import { connectRedis } from './config/redis.js';
 import { setupAssociations } from './modules/models/index.js';
+
+// IMPORTANTE: Configurar associações ANTES de importar o app
+// para garantir que todos os modelos tenham suas associações definidas
+setupAssociations();
+
+import app from './app.js';
 import { initializeSocket } from './socket/index.js';
 import emailInboxService from './services/emailInboxService.js';
 import emailProcessor from './services/emailProcessor.js';
@@ -13,6 +18,7 @@ import slaMonitor from './jobs/slaMonitor.js';
 import healthCheckMonitor from './jobs/healthCheckMonitor.js';
 import { startExpirationJob } from './jobs/expireRemoteAccessRequests.js';
 import { startCleanupJob } from './jobs/cleanupExpiredReports.js';
+import { startSessionCleanupJob } from './jobs/cleanupExpiredSessions.js';
 import logger from './config/logger.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -29,9 +35,6 @@ const startServer = async () => {
     await connectPostgreSQL();
     await connectMongoDB();
     await connectRedis();
-
-    // Configurar associações de modelos
-    setupAssociations();
 
     // Sincronizar modelos (apenas em desenvolvimento)
     await syncDatabase();
@@ -99,6 +102,14 @@ const startServer = async () => {
         startCleanupJob();
       } catch (error) {
         logger.warn('⚠️ Job de limpeza de relatórios desabilitado:', error.message);
+      }
+
+      // Inicializar job de limpeza de sessões expiradas
+      try {
+        startSessionCleanupJob();
+        logger.info('✅ Job de limpeza de sessões iniciado');
+      } catch (error) {
+        logger.warn('⚠️ Job de limpeza de sessões desabilitado:', error.message);
       }
     });
   } catch (error) {

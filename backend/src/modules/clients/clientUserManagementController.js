@@ -565,6 +565,16 @@ export const resetPasswordByAdmin = async (req, res, next) => {
     // Atualizar senha diretamente (o hook beforeUpdate vai fazer o hash)
     await user.update({ password: passwordToSet });
 
+    // Sincronizar senha em todos os contextos do usuário
+    try {
+      const { syncPasswordAcrossContexts } = await import('../../utils/passwordSync.js');
+      await user.reload();
+      await syncPasswordAcrossContexts(user.email, user.password);
+      logger.info(`✅ Senha sincronizada em todos os contextos para ${user.email}`);
+    } catch (syncError) {
+      logger.error('Erro ao sincronizar senha entre contextos:', syncError);
+    }
+
     res.json({
       success: true,
       message: 'Senha redefinida com sucesso'

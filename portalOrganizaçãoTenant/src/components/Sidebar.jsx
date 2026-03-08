@@ -39,10 +39,12 @@ import {
   GanttChart,
   ListTodo,
   FileBarChart,
+  CheckSquare,
+  FilePlus,
 } from 'lucide-react'
 import { usePermissions } from '../hooks/usePermissions'
 
-const Sidebar = ({ isOpen, setIsOpen }) => {
+const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
   const { t } = useTranslation()
   const location = useLocation()
   const { hasPermission, canAccess, isAdmin, filterByPermission } = usePermissions()
@@ -66,6 +68,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   // Menus principais (não agrupados) - com permissões
   const mainMenuItems = [
     { path: '/', icon: LayoutDashboard, label: t('nav.dashboard'), permission: 'dashboard.view' },
+    { path: '/tickets/new', icon: FilePlus, label: 'Novo Ticket', permission: 'tickets.create' },
     { path: '/tickets', icon: Ticket, label: t('nav.tickets'), permission: 'tickets.view' },
   ]
 
@@ -113,6 +116,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   // Outros menus - com permissões
   const otherMenuItems = [
+    { path: '/todos', icon: CheckSquare, label: 'Minhas Tarefas', permission: null }, // Sem permissão específica - todos podem acessar
     { path: '/hours-bank', icon: Timer, label: 'Bolsa de Horas', permission: 'hours_bank.view' },
     { path: '/reports', icon: BarChart3, label: 'Relatórios Avançados', permission: 'reports.view' },
     { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento', permission: 'knowledge.view' },
@@ -136,20 +140,32 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/'
-    return location.pathname.startsWith(path)
+    // Para /tickets, não marcar se estiver em /tickets/new
+    if (path === '/tickets') {
+      return location.pathname === '/tickets' || 
+             (location.pathname.startsWith('/tickets/') && !location.pathname.startsWith('/tickets/new'))
+    }
+    // Para outras rotas, verificar se começa com o path
+    return location.pathname === path || location.pathname.startsWith(path + '/')
   }
 
   const isGroupActive = (paths) => {
     return paths.some(item => location.pathname.startsWith(item.path))
   }
 
+  const handleLinkClick = () => {
+    if (isMobile) {
+      onClose()
+    }
+  }
+
   return (
     <>
-      {/* Sidebar Desktop */}
+      {/* Sidebar */}
       <aside
         className={`fixed left-0 top-0 z-30 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col ${
-          isOpen ? 'w-64' : 'w-20'
-        }`}
+          isOpen ? 'w-64' : isMobile ? '-translate-x-full w-64' : 'w-20'
+        } ${isMobile && isOpen ? 'translate-x-0' : ''}`}
       >
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
@@ -157,37 +173,52 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             <img 
               src="/TDESK.png" 
               alt="T-Desk" 
-              className="h-10 w-auto"
+              className="h-8 sm:h-10 w-auto"
             />
           )}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            {isOpen ? (
-              <ChevronLeft className="w-5 h-5" />
-            ) : (
-              <ChevronRight className="w-5 h-5" />
-            )}
-          </button>
+          {!isMobile && (
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label={isOpen ? 'Recolher menu' : 'Expandir menu'}
+            >
+              {isOpen ? (
+                <ChevronLeft className="w-5 h-5" />
+              ) : (
+                <ChevronRight className="w-5 h-5" />
+              )}
+            </button>
+          )}
+          {isMobile && (
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors lg:hidden"
+              aria-label="Fechar menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Menu - Com Scroll */}
-        <nav className="flex-1 overflow-y-auto sidebar-scroll p-4 space-y-2" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
+        <nav className="flex-1 overflow-y-auto sidebar-scroll p-3 sm:p-4 space-y-2" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
           
           {/* 1. Dashboard e Tickets */}
           {filteredMainMenuItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
+                    onClick={handleLinkClick}
+              onClick={handleLinkClick}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                 isActive(item.path)
                   ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
+              title={!isOpen && !isMobile ? item.label : ''}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
-              {isOpen && <span className="font-medium">{item.label}</span>}
+              {(isOpen || isMobile) && <span className="font-medium text-sm sm:text-base">{item.label}</span>}
             </Link>
           ))}
 
@@ -217,6 +248,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   <Link
                     key={item.path}
                     to={item.path}
+                    onClick={handleLinkClick}
+                    onClick={handleLinkClick}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       location.pathname === item.path
                         ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
@@ -258,6 +291,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   <Link
                     key={item.path}
                     to={item.path}
+                    onClick={handleLinkClick}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       location.pathname === item.path
                         ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
@@ -299,6 +333,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   <Link
                     key={item.path}
                     to={item.path}
+                    onClick={handleLinkClick}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       location.pathname === item.path
                         ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
@@ -355,6 +390,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   <Link
                     key={item.path}
                     to={item.path}
+                    onClick={handleLinkClick}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       isActive(item.path)
                         ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
@@ -378,6 +414,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             <Link
               key={item.path}
               to={item.path}
+                    onClick={handleLinkClick}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                 isActive(item.path)
                   ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
@@ -418,6 +455,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   <Link
                     key={item.path}
                     to={item.path}
+                    onClick={handleLinkClick}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       isActive(item.path)
                         ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
@@ -438,6 +476,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             <Link
               key={item.path}
               to={item.path}
+                    onClick={handleLinkClick}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                 isActive(item.path)
                   ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'

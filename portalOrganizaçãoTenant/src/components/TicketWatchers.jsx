@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Eye, Mail, Users } from 'lucide-react';
 import { getUsers } from '../services/userService';
+import api from '../services/api';
+import Swal from 'sweetalert2';
 
 const TicketWatchers = ({ ticket, onUpdate }) => {
   const [orgUsers, setOrgUsers] = useState([]);
@@ -30,25 +32,27 @@ const TicketWatchers = ({ ticket, onUpdate }) => {
       const newWatchers = [...(ticket.orgWatchers || []), selectedUserId];
       
       // Chamar API para atualizar watchers
-      const response = await fetch(`/api/tickets/${ticket.id}/watchers`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ orgWatchers: newWatchers })
+      await api.patch(`/tickets/${ticket.id}/watchers`, {
+        orgWatchers: newWatchers
       });
 
-      if (!response.ok) {
-        throw new Error('Erro ao atualizar watchers');
-      }
-
-      const data = await response.json();
       await onUpdate(); // Recarregar ticket completo
       setSelectedUserId('');
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Observador adicionado',
+        text: 'O observador foi adicionado com sucesso',
+        confirmButtonColor: '#3B82F6'
+      });
     } catch (error) {
       console.error('Erro ao adicionar observador:', error);
-      alert('Erro ao adicionar observador');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Erro ao adicionar observador',
+        text: error.response?.data?.message || 'Ocorreu um erro ao adicionar o observador',
+        confirmButtonColor: '#3B82F6'
+      });
     } finally {
       setLoading(false);
     }
@@ -56,28 +60,44 @@ const TicketWatchers = ({ ticket, onUpdate }) => {
 
   // Remover observador
   const removeWatcher = async (watcherId) => {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Remover observador?',
+      text: 'Tem certeza que deseja remover este observador?',
+      showCancelButton: true,
+      confirmButtonText: 'Sim, remover',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280'
+    });
+
+    if (!result.isConfirmed) return;
+
     setLoading(true);
     try {
       const newWatchers = (ticket.orgWatchers || []).filter(id => id !== watcherId);
       
       // Chamar API para atualizar watchers
-      const response = await fetch(`/api/tickets/${ticket.id}/watchers`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ orgWatchers: newWatchers })
+      await api.patch(`/tickets/${ticket.id}/watchers`, {
+        orgWatchers: newWatchers
       });
 
-      if (!response.ok) {
-        throw new Error('Erro ao atualizar watchers');
-      }
-
       await onUpdate(); // Recarregar ticket completo
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Observador removido',
+        text: 'O observador foi removido com sucesso',
+        confirmButtonColor: '#3B82F6'
+      });
     } catch (error) {
       console.error('Erro ao remover observador:', error);
-      alert('Erro ao remover observador');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Erro ao remover observador',
+        text: error.response?.data?.message || 'Ocorreu um erro ao remover o observador',
+        confirmButtonColor: '#3B82F6'
+      });
     } finally {
       setLoading(false);
     }

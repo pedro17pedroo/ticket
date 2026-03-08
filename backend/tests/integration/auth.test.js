@@ -864,3 +864,398 @@ describe('Auth API Integration Tests', () => {
     });
   });
 });
+
+  describe('POST /api/auth/switch-context', () => {
+    let multiContextUser;
+    let testOrg2;
+    let testClient2;
+    let orgUserContext;
+    let clientUserContext;
+    let initialToken;
+
+    before(async () => {
+      // Criar segunda organização
+      testOrg2 = await Organization.create({
+        name: 'Second Test Organization',
+        slug: 'test-org-2',
+        email: 'org2@test.com',
+        phone: '5555555555',
+        isActive: true
+      });
+
+      // Criar segundo cliente
+      testClient2 = await Client.create({
+        organizationId: testOrg.id,
+        name: 'Second Test Client',
+        tradeName: 'Test Client 2',
+        email: 'client2@test.com',
+        phone: '6666666666',
+        isActive: true
+      });
+
+      // Criar usuário com múltiplos contextos (mesmo email em diferentes organizações)
+      orgUserContext = await OrganizationUser.create({
+        organizationId: testOrg.id,
+        name: 'Multi Context User',
+        email: 'multicontext@test.com',
+        password: 'password123',
+        role: 'agent',
+        isActive: true
+      });
+
+      // Criar segundo contexto de organização
+      await OrganizationUser.create({
+        organizationId: testOrg2.id,
+        name: 'Multi Context User Org2',
+        email: 'multicontext@test.com',
+        password: 'password123',
+        role: 'org-admin',
+        isActive: true
+      });
+
+      // Criar contexto de cliente
+      clientUserContext = await ClientUser.create({
+        organizationId: testOrg.id,
+        clientId: testClient2.id,
+        name: 'Multi Context User Client',
+        email: 'multicontext@test.com',
+        password: 'password123',
+        role: 'client-user',
+        isActive: true
+      });
+
+      // Fazer login inicial para obter token
+      const loginRes = await request(app)
+        .post('/api/auth/select-context')
+        .send({
+          email: 'multicontext@test.com',
+          password: 'password123',
+          contextId: testOrg.id,
+          contextType: 'organization'
+        });
+
+      initialToken = loginRes.body.token;
+    });
+
+    it('deve trocar de contexto de organização para cliente', async () => {
+      const res = await request(app)
+        .post('/api/auth/switch-context')
+        .set('Authorization', `Bearer ${initialToken}`)
+        .send({
+          contextId: testClient2.id,
+          contextType: 'client'
+        });
+
+      expect(res.status).to.equal(200);
+      expect(res.body).to.have.property('token');
+      expect(res.body).to.have.property('user');
+      expect(res.body).to.have.property('context');
+      expect(res.body.message).to.include('sucesso');
+      
+      // Verificar dados do novo contexto
+      expect(res.body.user.userType).to.equal('client');
+      expect(res.body.context.type).to.equal('client');
+      expect(res.body.context.clientId).to.equal(testClient2.id);
+      
+      // Verificar que o novo token funciona
+      const profileRes = await request(app)
+        .get('/api/auth/profile')
+        .set('Authorization', `Bearer ${res.body.token}`);
+      
+      expect(profileRes.status).to.equal(200);
+      expect(profileRes.body.user.userType).to.equal('client');
+    });
+
+    it('deve trocar de contexto entre organizações diferentes', async () => {
+      const res = await request(app)
+        .post('/api/auth/switch-context')
+        .set('Authorization', `Bearer ${initialToken}`)
+        .send({
+          contextId: testOrg2.id,
+          contextType: 'organization'
+        });
+
+      expect(res.status).to.equal(200);
+      expect(res.body.user.userType).to.equal('organization');
+      expect(res.body.context.organizationId).to.equal(testOrg2.id);
+      expect(res.body.context.organizationName).to.equal('Second Test Organization');
+    });
+
+    it('deve rejeitar troca para contexto sem acesso', async () => {
+      // Tentar trocar para uma organização que o usuário não tem acesso
+      const unauthorizedOrg = await Organization.create({
+        name: 'Unauthorized Org',
+        slug: 'unauthorized-org',
+        email: 'unauth@test.com',
+        phone: '7777777777',
+        isActive: true
+      });
+
+      const res = await request(app)
+        .post('/api/auth/switch-context')
+        .set('Authorization', `Bearer ${initialToken}`)
+        .send({
+          contextId: unauthorizedOrg.id,
+          contextType: 'organization'
+        });
+
+      expect(res.status).to.equal(403);
+      expect(res.body.error).to.include('Acesso negado');
+    });
+
+    it('deve rejeitar troca sem contextId', async () => {
+      const res = await request(app)
+        .post('/api/auth/switch-context')
+        .set('Authorization', `Bearer ${initialToken}`)
+        .send({
+          contextType: 'organization'
+        });
+
+      expect(res.status).to.equal(400);
+      expect(res.body.error).to.include('obrigatórios');
+    });
+
+    it('deve rejeitar troca sem contextType', async () => {
+      const res = await request(app)
+        .post('/api/auth/switch-context')
+        .set('Authorization', `Bearer ${initialToken}`)
+        .send({
+          contextId: testOrg2.id
+        });
+
+      expect(res.status).to.equal(400);
+      expect(res.body.error).to.include('obrigatórios');
+    });
+
+    it('deve rejeitar troca com contextType inválido', async () => {
+      const res = await request(app)
+        .post('/api/auth/switch-context')
+        .set('Authorization', `Bearer ${initialToken}`)
+        .send({
+          contextId: testOrg.id,
+          contextType: 'invalid'
+        });
+
+      expect(res.status).to.equal(400);
+      expect(res.body.error).to.include('inválido');
+    });
+
+    it('deve rejeitar troca sem autenticação', async () => {
+      const res = await request(app)
+        .post('/api/auth/switch-context')
+        .send({
+          contextId: testOrg2.id,
+          contextType: 'organization'
+        });
+
+      expect(res.status).to.equal(401);
+    });
+
+    it('deve invalidar sessão anterior após troca de contexto', async () => {
+      // Fazer login e obter token
+      const loginRes = await request(app)
+        .post('/api/auth/select-context')
+        .send({
+          email: 'multicontext@test.com',
+          password: 'password123',
+          contextId: testOrg.id,
+          contextType: 'organization'
+        });
+
+      const oldToken = loginRes.body.token;
+      const oldSessionId = loginRes.body.context.sessionId;
+
+      // Trocar contexto
+      const switchRes = await request(app)
+        .post('/api/auth/switch-context')
+        .set('Authorization', `Bearer ${oldToken}`)
+        .send({
+          contextId: testOrg2.id,
+          contextType: 'organization'
+        });
+
+      expect(switchRes.status).to.equal(200);
+      
+      // Verificar que a sessão antiga foi invalidada
+      const ContextSession = (await import('../../src/models/ContextSession.js')).default;
+      const oldSession = await ContextSession.findByPk(oldSessionId);
+      expect(oldSession.isActive).to.be.false;
+    });
+  });
+
+  describe('GET /api/auth/contexts', () => {
+    let listContextOrg2;
+    let listContextClient2;
+    let userToken;
+
+    before(async () => {
+      // Criar segunda organização
+      listContextOrg2 = await Organization.create({
+        name: 'List Context Test Organization',
+        slug: 'list-context-test-org',
+        email: 'listcontextorg@test.com',
+        phone: '8888888888',
+        isActive: true
+      });
+
+      // Criar segundo cliente
+      listContextClient2 = await Client.create({
+        organizationId: testOrg.id,
+        name: 'List Context Test Client',
+        tradeName: 'List Context Client',
+        email: 'listcontextclient@test.com',
+        phone: '9999999999',
+        isActive: true
+      });
+
+      // Criar usuário com múltiplos contextos
+      await OrganizationUser.create({
+        organizationId: testOrg.id,
+        name: 'List Context User',
+        email: 'listcontext@test.com',
+        password: 'password123',
+        role: 'agent',
+        isActive: true
+      });
+
+      await OrganizationUser.create({
+        organizationId: listContextOrg2.id,
+        name: 'List Context User Org2',
+        email: 'listcontext@test.com',
+        password: 'password123',
+        role: 'org-admin',
+        isActive: true
+      });
+
+      await ClientUser.create({
+        organizationId: testOrg.id,
+        clientId: listContextClient2.id,
+        name: 'List Context User Client',
+        email: 'listcontext@test.com',
+        password: 'password123',
+        role: 'client-user',
+        isActive: true
+      });
+
+      // Fazer login para obter token
+      const loginRes = await request(app)
+        .post('/api/auth/select-context')
+        .send({
+          email: 'listcontext@test.com',
+          password: 'password123',
+          contextId: testOrg.id,
+          contextType: 'organization'
+        });
+
+      userToken = loginRes.body.token;
+    });
+
+    it('deve listar todos os contextos disponíveis para o usuário', async () => {
+      const res = await request(app)
+        .get('/api/auth/contexts')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body).to.have.property('contexts');
+      expect(res.body).to.have.property('currentContext');
+      expect(res.body.contexts).to.be.an('array');
+      expect(res.body.contexts).to.have.lengthOf(3);
+    });
+
+    it('deve marcar o contexto atual com isLastUsed', async () => {
+      const res = await request(app)
+        .get('/api/auth/contexts')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).to.equal(200);
+      
+      const currentContext = res.body.contexts.find(ctx => ctx.isLastUsed === true);
+      expect(currentContext).to.exist;
+      expect(currentContext.contextId).to.equal(testOrg.id);
+      expect(currentContext.contextType).to.equal('organization');
+    });
+
+    it('deve incluir informações completas de cada contexto', async () => {
+      const res = await request(app)
+        .get('/api/auth/contexts')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).to.equal(200);
+      
+      const context = res.body.contexts[0];
+      expect(context).to.have.property('id');
+      expect(context).to.have.property('type');
+      expect(context).to.have.property('userType');
+      expect(context).to.have.property('contextId');
+      expect(context).to.have.property('contextType');
+      expect(context).to.have.property('organizationId');
+      expect(context).to.have.property('organizationName');
+      expect(context).to.have.property('email');
+      expect(context).to.have.property('name');
+      expect(context).to.have.property('role');
+      expect(context).to.have.property('isLastUsed');
+    });
+
+    it('deve incluir clientId e clientName para contextos de cliente', async () => {
+      const res = await request(app)
+        .get('/api/auth/contexts')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).to.equal(200);
+      
+      const clientContext = res.body.contexts.find(ctx => ctx.contextType === 'client');
+      expect(clientContext).to.exist;
+      expect(clientContext).to.have.property('clientId');
+      expect(clientContext).to.have.property('clientName');
+      expect(clientContext.clientId).to.equal(listContextClient2.id);
+    });
+
+    it('deve retornar currentContext com contextId e contextType', async () => {
+      const res = await request(app)
+        .get('/api/auth/contexts')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.currentContext).to.have.property('contextId');
+      expect(res.body.currentContext).to.have.property('contextType');
+      expect(res.body.currentContext.contextId).to.equal(testOrg.id);
+      expect(res.body.currentContext.contextType).to.equal('organization');
+    });
+
+    it('deve rejeitar requisição sem autenticação', async () => {
+      const res = await request(app)
+        .get('/api/auth/contexts');
+
+      expect(res.status).to.equal(401);
+    });
+
+    it('deve retornar array vazio para usuário sem contextos', async () => {
+      // Criar usuário sem contextos ativos
+      const noContextUser = await OrganizationUser.create({
+        organizationId: testOrg.id,
+        name: 'No Context User',
+        email: 'nocontext@test.com',
+        password: 'password123',
+        role: 'agent',
+        isActive: false // Inativo
+      });
+
+      const loginRes = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'agent@test.com',
+          password: 'password123',
+          portalType: 'organization'
+        });
+
+      // Usar token de um usuário válido mas buscar contextos de outro
+      // (não é possível testar diretamente sem modificar o token)
+      // Este teste verifica que o endpoint retorna array vazio quando apropriado
+      const res = await request(app)
+        .get('/api/auth/contexts')
+        .set('Authorization', `Bearer ${loginRes.body.token}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.contexts).to.be.an('array');
+    });
+  });

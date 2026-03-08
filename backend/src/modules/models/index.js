@@ -17,6 +17,7 @@ import Type from '../types/typeModel.js';
 import KnowledgeArticle from '../knowledge/knowledgeModel.js';
 import { HoursBank, HoursTransaction } from '../hours/hoursBankModel.js';
 import TimeTracking from '../timeTracking/timeTrackingModel.js';
+import TimeEntry from '../tickets/timeEntryModel.js';
 import { Tag, TicketTag } from '../tags/tagModel.js';
 import ResponseTemplate from '../templates/templateModel.js';
 import { CatalogCategory, CatalogItem } from '../catalog/catalogModel.js';
@@ -76,6 +77,10 @@ import {
   ClientUserCatalogAccess,
   CatalogAccessAuditLog
 } from '../catalogAccess/index.js';
+import ContextSession from '../../models/ContextSession.js';
+import ContextAuditLog from '../../models/ContextAuditLog.js';
+import PaymentTransaction from '../../models/PaymentTransaction.js';
+import PaymentReceipt from '../../models/PaymentReceipt.js';
 
 // Definir associações entre modelos
 const setupAssociations = () => {
@@ -413,6 +418,13 @@ const setupAssociations = () => {
   Ticket.hasMany(TimeTracking, { foreignKey: 'ticketId', as: 'timeTracking' });
   User.hasMany(TimeTracking, { foreignKey: 'userId', as: 'timeTracking' });
 
+  // TimeEntry associations (novo modelo de cronômetro)
+  TimeEntry.belongsTo(Ticket, { foreignKey: 'ticketId', as: 'ticket' });
+  TimeEntry.belongsTo(OrganizationUser, { foreignKey: 'userId', as: 'user' });
+  TimeEntry.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+  Ticket.hasMany(TimeEntry, { foreignKey: 'ticketId', as: 'timeEntries' });
+  OrganizationUser.hasMany(TimeEntry, { foreignKey: 'userId', as: 'timeEntries' });
+
   // Tag associations
   Tag.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Organization.hasMany(Tag, { foreignKey: 'organizationId', as: 'tags' });
@@ -597,6 +609,86 @@ const setupAssociations = () => {
   // CatalogAccessAuditLog associations
   CatalogAccessAuditLog.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
   Organization.hasMany(CatalogAccessAuditLog, { foreignKey: 'organizationId', as: 'catalogAccessAuditLogs' });
+
+  // ============================================================================
+  // CONTEXT SESSION ASSOCIATIONS
+  // ============================================================================
+
+  // ContextSession associations
+  ContextSession.belongsTo(OrganizationUser, { 
+    foreignKey: 'userId', 
+    constraints: false,
+    as: 'organizationUser'
+  });
+  ContextSession.belongsTo(ClientUser, { 
+    foreignKey: 'userId', 
+    constraints: false,
+    as: 'clientUser'
+  });
+  OrganizationUser.hasMany(ContextSession, { 
+    foreignKey: 'userId', 
+    constraints: false,
+    as: 'contextSessions' 
+  });
+  ClientUser.hasMany(ContextSession, { 
+    foreignKey: 'userId', 
+    constraints: false,
+    as: 'contextSessions' 
+  });
+
+  // ContextAuditLog associations
+  ContextAuditLog.belongsTo(OrganizationUser, { 
+    foreignKey: 'userId', 
+    constraints: false,
+    as: 'organizationUser'
+  });
+  ContextAuditLog.belongsTo(ClientUser, { 
+    foreignKey: 'userId', 
+    constraints: false,
+    as: 'clientUser'
+  });
+  OrganizationUser.hasMany(ContextAuditLog, { 
+    foreignKey: 'userId', 
+    constraints: false,
+    as: 'contextAuditLogs' 
+  });
+  ClientUser.hasMany(ContextAuditLog, { 
+    foreignKey: 'userId', 
+    constraints: false,
+    as: 'contextAuditLogs' 
+  });
+
+  // ============================================================================
+  // PAYMENT ASSOCIATIONS
+  // ============================================================================
+
+  // PaymentTransaction associations
+  PaymentTransaction.belongsTo(Organization, {
+    foreignKey: 'organizationId',
+    as: 'organization'
+  });
+  PaymentTransaction.belongsTo(Subscription, {
+    foreignKey: 'subscriptionId',
+    as: 'subscription'
+  });
+  PaymentTransaction.hasOne(PaymentReceipt, {
+    foreignKey: 'transactionId',
+    as: 'receipt'
+  });
+  Organization.hasMany(PaymentTransaction, {
+    foreignKey: 'organizationId',
+    as: 'paymentTransactions'
+  });
+  Subscription.hasMany(PaymentTransaction, {
+    foreignKey: 'subscriptionId',
+    as: 'paymentTransactions'
+  });
+
+  // PaymentReceipt associations
+  PaymentReceipt.belongsTo(PaymentTransaction, {
+    foreignKey: 'transactionId',
+    as: 'transaction'
+  });
 };
 
 export {
@@ -622,6 +714,7 @@ export {
   HoursBank,
   HoursTransaction,
   TimeTracking,
+  TimeEntry,
   Tag,
   TicketTag,
   ResponseTemplate,
@@ -677,5 +770,9 @@ export {
   ClientCatalogAccess,
   ClientUserCatalogAccess,
   CatalogAccessAuditLog,
+  ContextSession,
+  ContextAuditLog,
+  PaymentTransaction,
+  PaymentReceipt,
   setupAssociations
 };

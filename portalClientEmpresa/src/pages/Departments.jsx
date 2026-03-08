@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Plus, Edit2, UserX, X } from 'lucide-react'
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
-import { useAuthStore } from '../store/authStore'
+import { usePermissions } from '../hooks/usePermissions'
 
 const Departments = () => {
-  const { user } = useAuthStore()
-  const isClientAdmin = user?.role === 'cliente-org' && user?.settings?.clientAdmin === true
+  const { hasPermission } = usePermissions()
+  const canManageDepartments = hasPermission('departments', 'create') || hasPermission('departments', 'update')
+  const canViewDepartments = hasPermission('departments', 'read')
 
   const [departments, setDepartments] = useState([])
   const [directions, setDirections] = useState([])
@@ -91,10 +92,10 @@ const Departments = () => {
     setEditingDepartment(null)
   }
 
-  if (!isClientAdmin) {
+  if (!canViewDepartments) {
     return (
       <div className="text-center p-12">
-        <p className="text-gray-500">Acesso restrito.</p>
+        <p className="text-gray-500">Acesso restrito. Não tem permissão para visualizar departamentos.</p>
       </div>
     )
   }
@@ -106,10 +107,12 @@ const Departments = () => {
           <h1 className="text-3xl font-bold">Departamentos</h1>
           <p className="text-gray-600 dark:text-gray-400">Gerir departamentos da empresa</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg">
-          <Plus className="w-4 h-4" />
-          Novo Departamento
-        </button>
+        {canManageDepartments && (
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg">
+            <Plus className="w-4 h-4" />
+            Novo Departamento
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -141,10 +144,12 @@ const Departments = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => handleEdit(dept)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      {dept.isActive && (
+                      {canManageDepartments && (
+                        <button onClick={() => handleEdit(dept)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canManageDepartments && dept.isActive && (
                         <button onClick={() => handleDelete(dept.id)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg">
                           <UserX className="w-4 h-4" />
                         </button>

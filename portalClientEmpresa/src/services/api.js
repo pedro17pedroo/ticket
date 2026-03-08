@@ -21,14 +21,23 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const message = error.response?.data?.error || error.message || 'Erro desconhecido'
+    const details = error.response?.data?.message || error.response?.data?.details
 
     // Não redirecionar em caso de erro na rota de login
     const isLoginRequest = error.config?.url?.includes('/auth/login')
 
     if (error.response?.status === 401 && !isLoginRequest) {
+      // Mensagem específica para sessão expirada
+      let errorMessage = 'Sessão expirada. Faça login novamente.'
+      if (message.includes('Sessão expirada') || details?.includes('Sessão expirada')) {
+        errorMessage = 'Sua sessão expirou. Por favor, faça login novamente.'
+      } else if (message.includes('Contexto inválido') || details?.includes('Contexto inválido')) {
+        errorMessage = 'Contexto inválido. Por favor, faça login novamente.'
+      }
+      
       useAuthStore.getState().logout()
       window.location.href = '/login'
-      toast.error('Sessão expirada. Faça login novamente.')
+      toast.error(errorMessage)
     }
 
     // Não mostrar toast automático - deixar componentes tratarem
@@ -43,6 +52,15 @@ export default api
 export const authService = {
   login: async (email, password) => {
     const response = await api.post('/auth/login', { email, password, portalType: 'client' })
+    return response.data
+  },
+  selectContext: async (email, password, contextId, contextType) => {
+    const response = await api.post('/auth/select-context', { 
+      email, 
+      password, 
+      contextId, 
+      contextType 
+    })
     return response.data
   },
   requestPasswordReset: async (email, portalType = 'client') => {

@@ -37,7 +37,7 @@ export const getHoursBanks = async (req, res, next) => {
       pagination: {
         total: count,
         page: parseInt(page),
-        pages: Math.ceil(count / limit)
+        totalPages: Math.ceil(count / limit)
       }
     });
   } catch (error) {
@@ -262,36 +262,96 @@ export const addHours = async (req, res, next) => {
 export const consumeHours = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { hours, ticketId, description } = req.body;
+    const { 
+      hours, 
+      ticketId, 
+      description,
+      referenceType = 'ticket',
+      referenceId,
+      activityName,
+      originalHours,
+      adjustmentNote
+    } = req.body;
 
     if (!hours || hours <= 0) {
       return res.status(400).json({ error: 'Quantidade de horas inválida' });
     }
 
-    // Validar ticket obrigatório
-    if (!ticketId) {
-      return res.status(400).json({
-        error: 'Ticket é obrigatório para registrar consumo de horas'
-      });
-    }
-
-    // Verificar se ticket existe e está concluído
-    const ticket = await Ticket.findOne({
-      where: {
-        id: ticketId,
-        organizationId: req.user.organizationId
+    // Validações por tipo de referência
+    if (referenceType === 'ticket') {
+      if (!referenceId && !ticketId) {
+        return res.status(400).json({
+          error: 'Ticket é obrigatório para consumo por ticket'
+        });
       }
-    });
 
-    if (!ticket) {
-      return res.status(404).json({ error: 'Ticket não encontrado' });
-    }
+      const ticketIdToUse = referenceId || ticketId;
 
-    if (ticket.status !== 'concluido') {
-      return res.status(400).json({
-        error: 'Apenas tickets com status "Concluído" podem ter horas registradas',
-        currentStatus: ticket.status
+      // Verificar se ticket existe e está concluído
+      const ticket = await Ticket.findOne({
+        where: {
+          id: ticketIdToUse,
+          organizationId: req.user.organizationId
+        }
       });
+
+      if (!ticket) {
+        return res.status(404).json({ error: 'Ticket não encontrado' });
+      }
+
+      if (!['fechado', 'resolvido'].includes(ticket.status)) {
+        return res.status(400).json({
+          error: 'Apenas tickets com status "Fechado" ou "Resolvido" podem ter horas registradas',
+          currentStatus: ticket.status
+        });
+      }
+
+      // Verificar se ticket já foi consumido nesta bolsa
+      const existingConsumption = await HoursTransaction.findOne({
+        where: {
+          hoursBankId: id,
+          referenceType: 'ticket',
+          referenceId: ticketIdToUse
+        }
+      });
+
+      if (existingConsumption) {
+        return res.status(400).json({
+          error: 'Este ticket já foi utilizado para consumo nesta bolsa de horas'
+        });
+      }
+    } else if (referenceType === 'project') {
+      if (!referenceId) {
+        return res.status(400).json({
+          error: 'Projeto é obrigatório para consumo por projeto'
+        });
+      }
+
+      // Verificar se projeto já foi consumido
+      const existingConsumption = await HoursTransaction.findOne({
+        where: {
+          hoursBankId: id,
+          referenceType: 'project',
+          referenceId
+        }
+      });
+
+      if (existingConsumption) {
+        return res.status(400).json({
+          error: 'Este projeto já foi utilizado para consumo nesta bolsa de horas'
+        });
+      }
+    } else if (referenceType === 'manual') {
+      if (!activityName || activityName.length < 5) {
+        return res.status(400).json({
+          error: 'Nome da atividade é obrigatório (mínimo 5 caracteres)'
+        });
+      }
+      if (!description || description.length < 20) {
+        return res.status(400).json({
+          error: 'Descrição detalhada é obrigatória para atividades manuais (mínimo 20 caracteres)'
+        });
+      }
     }
 
     const hoursBank = await HoursBank.findOne({
@@ -339,14 +399,19 @@ export const consumeHours = async (req, res, next) => {
     // Criar transação
     await HoursTransaction.create({
       hoursBankId: hoursBank.id,
-      ticketId: ticketId || null,
+      ticketId: ticketId || (referenceType === 'ticket' ? referenceId : null),
       hours: parseFloat(hours),
       type: 'consumo',
       description: description || 'Consumo de horas',
-      performedById: req.user.id
+      performedById: req.user.id,
+      referenceType,
+      referenceId: referenceId || null,
+      activityName: activityName || null,
+      originalHours: originalHours ? parseFloat(originalHours) : null,
+      adjustmentNote: adjustmentNote || null
     });
 
-    logger.info(`${hours}h consumidas da bolsa ${id}`);
+    logger.info(`${hours}h consumidas da bolsa ${id} (tipo: ${referenceType})`);
 
     await hoursBank.reload();
 
@@ -548,7 +613,7 @@ export const getCompletedTickets = async (req, res, next) => {
 
     const where = {
       organizationId: req.user.organizationId,
-      status: 'concluido'
+      status: ['fechado', 'resolvido']
     };
 
     if (clientId) {
@@ -578,6 +643,239 @@ export const getCompletedTickets = async (req, res, next) => {
   }
 };
 
+// Buscar tickets disponíveis para consumo (não consumidos ainda)
+export const getAvailableTickets = async (req, res, next) => {
+  try {
+    const { bankId } = req.params;
+    const { search } = req.query;
+
+    // Verificar se a bolsa existe e pertence à organização
+    const hoursBank = await HoursBank.findOne({
+      where: {
+        id: bankId,
+        organizationId: req.user.organizationId
+      }
+    });
+
+    if (!hoursBank) {
+      return res.status(404).json({ error: 'Bolsa de horas não encontrada' });
+    }
+
+    // Buscar IDs de tickets já consumidos nesta bolsa
+    const consumedTickets = await HoursTransaction.findAll({
+      where: {
+        hoursBankId: bankId,
+        referenceType: 'ticket',
+        referenceId: { [Op.ne]: null }
+      },
+      attributes: ['referenceId']
+    });
+
+    const consumedTicketIds = consumedTickets.map(t => t.referenceId);
+
+    // Buscar tickets elegíveis
+    const where = {
+      organizationId: req.user.organizationId,
+      status: ['fechado', 'resolvido'],
+      clientId: hoursBank.clientId
+    };
+
+    // Excluir tickets já consumidos
+    if (consumedTicketIds.length > 0) {
+      where.id = { [Op.notIn]: consumedTicketIds };
+    }
+
+    // Adicionar busca se fornecida
+    if (search) {
+      where[Op.or] = [
+        { ticketNumber: { [Op.iLike]: `%${search}%` } },
+        { subject: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    const tickets = await Ticket.findAll({
+      where,
+      attributes: ['id', 'ticketNumber', 'subject', 'status', 'createdAt'],
+      include: [
+        {
+          model: User,
+          as: 'requester',
+          attributes: ['id', 'name']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 50
+    });
+
+    // Buscar tempo trabalhado para cada ticket
+    const ticketsWithTime = await Promise.all(
+      tickets.map(async (ticket) => {
+        const timeEntries = await sequelize.query(
+          `SELECT COALESCE(SUM(duration), 0) as total_seconds 
+           FROM time_entries 
+           WHERE ticket_id = :ticketId AND end_time IS NOT NULL`,
+          {
+            replacements: { ticketId: ticket.id },
+            type: sequelize.QueryTypes.SELECT
+          }
+        );
+
+        const totalSeconds = parseInt(timeEntries[0]?.total_seconds || 0);
+        const totalHours = (totalSeconds / 3600).toFixed(2);
+
+        return {
+          ...ticket.toJSON(),
+          totalTime: totalSeconds, // em segundos
+          totalHours: parseFloat(totalHours),
+          hasTime: totalSeconds > 0
+        };
+      })
+    );
+
+    // Retornar todos os tickets, mesmo sem tempo trabalhado
+    res.json({
+      success: true,
+      tickets: ticketsWithTime
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar tickets disponíveis:', error);
+    next(error);
+  }
+};
+
+// Buscar tempo total trabalhado em um ticket
+export const getTicketTotalTime = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    // Verificar se o ticket existe e pertence à organização
+    const ticket = await Ticket.findOne({
+      where: {
+        id: ticketId,
+        organizationId: req.user.organizationId
+      },
+      attributes: ['id', 'ticketNumber', 'subject', 'status']
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Buscar tempo total
+    const timeEntries = await sequelize.query(
+      `SELECT COALESCE(SUM(duration), 0) as total_seconds 
+       FROM time_entries 
+       WHERE ticket_id = :ticketId AND end_time IS NOT NULL`,
+      {
+        replacements: { ticketId },
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
+    const totalSeconds = parseInt(timeEntries[0]?.total_seconds || 0);
+    const totalHours = (totalSeconds / 3600).toFixed(2);
+
+    res.json({
+      success: true,
+      ticket,
+      totalSeconds,
+      totalHours: parseFloat(totalHours)
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar tempo do ticket:', error);
+    next(error);
+  }
+};
+
+// Buscar projetos disponíveis para consumo
+export const getAvailableProjects = async (req, res, next) => {
+  try {
+    const { bankId } = req.params;
+    const { search } = req.query;
+
+    // Verificar se a bolsa existe e pertence à organização
+    const hoursBank = await HoursBank.findOne({
+      where: {
+        id: bankId,
+        organizationId: req.user.organizationId
+      }
+    });
+
+    if (!hoursBank) {
+      return res.status(404).json({ error: 'Bolsa de horas não encontrada' });
+    }
+
+    // Buscar IDs de projetos já consumidos nesta bolsa
+    const consumedProjects = await HoursTransaction.findAll({
+      where: {
+        hoursBankId: bankId,
+        referenceType: 'project',
+        referenceId: { [Op.ne]: null }
+      },
+      attributes: ['referenceId']
+    });
+
+    const consumedProjectIds = consumedProjects.map(p => p.referenceId);
+
+    // Buscar projetos elegíveis (concluídos do cliente da bolsa)
+    const where = {
+      organizationId: req.user.organizationId,
+      status: 'completed',
+      clientId: hoursBank.clientId
+    };
+
+    // Excluir projetos já consumidos
+    if (consumedProjectIds.length > 0) {
+      where.id = { [Op.notIn]: consumedProjectIds };
+    }
+
+    // Adicionar busca se fornecida
+    if (search) {
+      where[Op.or] = [
+        { code: { [Op.iLike]: `%${search}%` } },
+        { name: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    const projects = await sequelize.models.Project.findAll({
+      where,
+      attributes: ['id', 'code', 'name', 'description', 'status', 'startDate', 'endDate', 'createdAt'],
+      order: [['createdAt', 'DESC']],
+      limit: 50
+    });
+
+    // Calcular horas estimadas para cada projeto
+    const projectsWithHours = projects.map((project) => {
+      let estimatedHours = 0;
+      
+      if (project.startDate && project.endDate) {
+        const start = new Date(project.startDate);
+        const end = new Date(project.endDate);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Assumindo 8 horas por dia útil (aproximadamente 5 dias por semana)
+        const workDays = Math.floor(diffDays * (5/7));
+        estimatedHours = workDays * 8;
+      }
+
+      return {
+        ...project.toJSON(),
+        estimatedHours,
+        hasEstimate: estimatedHours > 0
+      };
+    });
+
+    res.json({
+      success: true,
+      projects: projectsWithHours
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar projetos disponíveis:', error);
+    next(error);
+  }
+};
+
 export default {
   getHoursBanks,
   getHoursBankById,
@@ -588,5 +886,8 @@ export default {
   adjustHours,
   getTransactions,
   getStatistics,
-  getCompletedTickets
+  getCompletedTickets,
+  getAvailableTickets,
+  getTicketTotalTime,
+  getAvailableProjects
 };

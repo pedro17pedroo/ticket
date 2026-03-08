@@ -14,8 +14,10 @@ import express from 'express';
 import { authenticate } from '../../middleware/auth.js';
 import { requirePermission } from '../../middleware/permission.js';
 import { auditLog } from '../../middleware/audit.js';
+import upload from '../../config/multer.js';
 import * as catalogController from './catalogControllerV2.js';
 import * as catalogAccessController from '../catalogAccess/catalogAccessController.js';
+import * as catalogOrganizationController from './catalogOrganizationController.js';
 
 const router = express.Router();
 
@@ -31,6 +33,134 @@ router.get(
   '/effective-access',
   authenticate,
   catalogAccessController.getEffectiveAccess
+);
+
+// ==================== ORGANIZATION CATALOG (Usuários da Organização) ====================
+
+/**
+ * @route   GET /api/catalog/organization/categories
+ * @desc    Obter categorias acessíveis (filtradas por ACL)
+ * @access  Private (Organization Users)
+ */
+router.get(
+  '/organization/categories',
+  authenticate,
+  catalogOrganizationController.getOrganizationCategories
+);
+
+/**
+ * @route   GET /api/catalog/organization/items
+ * @desc    Obter itens acessíveis (filtrados por ACL)
+ * @query   categoryId - Filtrar por categoria
+ * @query   search - Busca textual
+ * @access  Private (Organization Users)
+ */
+router.get(
+  '/organization/items',
+  authenticate,
+  catalogOrganizationController.getOrganizationItems
+);
+
+/**
+ * @route   GET /api/catalog/organization/items/:id
+ * @desc    Obter item específico (com verificação de acesso)
+ * @access  Private (Organization Users)
+ */
+router.get(
+  '/organization/items/:id',
+  authenticate,
+  catalogOrganizationController.getOrganizationItemById
+);
+
+/**
+ * @route   POST /api/catalog/organization/items/:id/ticket
+ * @desc    Criar ticket a partir de item do catálogo
+ * @body    formData - Dados do formulário customizado
+ * @access  Private (Organization Users)
+ */
+router.post(
+  '/organization/items/:id/ticket',
+  authenticate,
+  upload.array('attachments', 10),
+  auditLog('create', 'ticket_from_catalog'),
+  catalogOrganizationController.createTicketFromCatalogItem
+);
+
+// ==================== ACCESS CONTROL (Admin) ====================
+
+/**
+ * @route   POST /api/catalog/access-control
+ * @desc    Criar regra de acesso
+ * @access  Private (Admin)
+ */
+router.post(
+  '/access-control',
+  authenticate,
+  requirePermission('catalog', 'manage'),
+  auditLog('create', 'catalog_access_rule'),
+  catalogAccessController.createAccessRule
+);
+
+/**
+ * @route   GET /api/catalog/access-control
+ * @desc    Listar regras de acesso
+ * @access  Private (Admin)
+ */
+router.get(
+  '/access-control',
+  authenticate,
+  requirePermission('catalog', 'read'),
+  catalogAccessController.getAccessRules
+);
+
+/**
+ * @route   PUT /api/catalog/access-control/:id
+ * @desc    Atualizar regra de acesso
+ * @access  Private (Admin)
+ */
+router.put(
+  '/access-control/:id',
+  authenticate,
+  requirePermission('catalog', 'manage'),
+  auditLog('update', 'catalog_access_rule'),
+  catalogAccessController.updateAccessRule
+);
+
+/**
+ * @route   DELETE /api/catalog/access-control/:id
+ * @desc    Deletar regra de acesso
+ * @access  Private (Admin)
+ */
+router.delete(
+  '/access-control/:id',
+  authenticate,
+  requirePermission('catalog', 'manage'),
+  auditLog('delete', 'catalog_access_rule'),
+  catalogAccessController.deleteAccessRule
+);
+
+/**
+ * @route   GET /api/catalog/access-control/entity/:entityType/:entityId
+ * @desc    Obter regras de uma entidade
+ * @access  Private (Admin)
+ */
+router.get(
+  '/access-control/entity/:entityType/:entityId',
+  authenticate,
+  requirePermission('catalog', 'read'),
+  catalogAccessController.getEntityRules
+);
+
+/**
+ * @route   GET /api/catalog/access-control/resource/:resourceType/:resourceId
+ * @desc    Obter regras de um recurso
+ * @access  Private (Admin)
+ */
+router.get(
+  '/access-control/resource/:resourceType/:resourceId',
+  authenticate,
+  requirePermission('catalog', 'read'),
+  catalogAccessController.getResourceRules
 );
 
 // ==================== CATEGORIAS ====================

@@ -82,3 +82,37 @@ export const saasAPI = {
     return response.data;
   }
 };
+
+// Payment API
+export const paymentAPI = {
+  // Criar pagamento
+  createPayment: async (data) => {
+    const response = await api.post('/payments/create', data);
+    return response.data;
+  },
+
+  // Verificar status do pagamento
+  checkPaymentStatus: async (transactionId) => {
+    const response = await api.get(`/payments/${transactionId}/status`);
+    return response.data;
+  },
+
+  // Obter histórico de pagamentos
+  getPaymentHistory: async (filters = {}) => {
+    const response = await api.get('/payments/history', { params: filters });
+    return response.data;
+  },
+
+  // Obter recibo
+  getReceipt: async (transactionId) => {
+    const response = await api.get(`/payments/${transactionId}/receipt`);
+    return response.data;
+  },
+
+  // Calcular valor de upgrade
+  calculateUpgrade: async (newPlanId) => {
+    const response = await api.post('/payments/calculate-upgrade', { newPlanId });
+    return response.data;
+  }
+};
+

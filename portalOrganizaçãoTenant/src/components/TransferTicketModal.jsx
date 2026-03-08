@@ -41,11 +41,11 @@ const TransferTicketModal = ({ ticketId, currentData, onClose, onSuccess }) => {
       // Segunda batch
       const [catsRes, usersRes] = await Promise.all([
         api.get('/catalog/categories'),
-        api.get('/users')
+        api.get('/users/assignable') // Usar endpoint que retorna apenas usuários atribuíveis
       ]);
 
       setCategories(catsRes.data.categories || []);
-      setUsers(usersRes.data.users?.filter(u => u.role === 'org-admin' || u.role === 'agent') || []);
+      setUsers(usersRes.data.users || []);
     } catch (error) {
       console.error('Erro ao carregar opções:', error);
       toast.error('Erro ao carregar opções');

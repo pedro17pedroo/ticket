@@ -1,5 +1,5 @@
 import TimeEntry from '../tickets/timeEntryModel.js';
-import { Ticket, User, HoursBank, HoursTransaction } from '../models/index.js';
+import { Ticket, User, OrganizationUser, HoursBank, HoursTransaction } from '../models/index.js';
 import logger from '../../config/logger.js';
 import { isTicketClosed, isTicketAssigned } from '../../utils/ticketValidations.js';
 
@@ -73,8 +73,7 @@ export const startTimer = async (req, res, next) => {
       // Carregar ticket completo com relacionamentos
       const fullTicket = await Ticket.findByPk(ticketId, {
         include: [
-          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+          { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
         ]
       });
 
@@ -121,7 +120,7 @@ export const pauseTimer = async (req, res, next) => {
     // Marcar momento da pausa
     await timer.update({
       status: 'paused',
-      lastPauseStart: new Date()
+      lastPauseAt: new Date()
     });
     
     // Recarregar para pegar valores atualizados
@@ -134,8 +133,7 @@ export const pauseTimer = async (req, res, next) => {
       // Carregar ticket completo com relacionamentos
       const fullTicket = await Ticket.findByPk(timer.ticketId, {
         include: [
-          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+          { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
         ]
       });
 
@@ -180,7 +178,7 @@ export const resumeTimer = async (req, res, next) => {
 
     // Calcular tempo pausado
     const now = new Date();
-    const pauseStart = new Date(timer.lastPauseStart);
+    const pauseStart = new Date(timer.lastPauseAt);
     const pausedSeconds = Math.floor((now - pauseStart) / 1000);
     let newTotalPausedTime = (timer.totalPausedTime || 0) + pausedSeconds;
     
@@ -196,7 +194,8 @@ export const resumeTimer = async (req, res, next) => {
     await timer.update({
       status: 'running',
       totalPausedTime: newTotalPausedTime,
-      lastPauseStart: null
+      lastPauseAt: null,
+      lastResumeAt: now
     });
     
     // Recarregar para pegar valores atualizados
@@ -235,8 +234,8 @@ export const stopTimer = async (req, res, next) => {
     
     // Se estava pausado, calcular tempo da última pausa
     let finalPausedTime = timer.totalPausedTime || 0;
-    if (timer.status === 'paused' && timer.lastPauseStart) {
-      const pauseStart = new Date(timer.lastPauseStart);
+    if (timer.status === 'paused' && timer.lastPauseAt) {
+      const pauseStart = new Date(timer.lastPauseAt);
       const lastPauseDuration = Math.floor((now - pauseStart) / 1000);
       finalPausedTime += lastPauseDuration;
     }
@@ -263,8 +262,7 @@ export const stopTimer = async (req, res, next) => {
       // Carregar ticket completo com relacionamentos
       const fullTicket = await Ticket.findByPk(timer.ticketId, {
         include: [
-          { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-          { model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }
+          { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
         ]
       });
 
@@ -343,27 +341,38 @@ export const getActiveTimer = async (req, res, next) => {
   }
 };
 
-// Listar todos os timers de um ticket
+// Listar todos os timers de um ticket (com informações do usuário)
 export const getTicketTimers = async (req, res, next) => {
   try {
     const { ticketId } = req.params;
 
+    // Importar OrganizationUser dinamicamente
+    const { OrganizationUser } = await import('../models/index.js');
+
     const timers = await TimeEntry.findAll({
       where: {
         ticketId,
-        organizationId: req.user.organizationId
+        organizationId: req.user.organizationId,
+        isActive: false // Apenas timers finalizados
       },
+      include: [
+        {
+          model: OrganizationUser,
+          as: 'user',
+          attributes: ['id', 'name', 'email']
+        }
+      ],
       order: [['createdAt', 'DESC']]
     });
 
     // Calcular total de horas
     const totalSeconds = timers
-      .filter(t => !t.isActive && t.duration)
+      .filter(t => t.duration)
       .reduce((sum, t) => sum + (t.duration || 0), 0);
 
     res.json({
       success: true,
-      timers,
+      entries: timers,
       totalHours: (totalSeconds / 3600).toFixed(2),
       totalSeconds
     });
@@ -371,6 +380,103 @@ export const getTicketTimers = async (req, res, next) => {
     next(error);
   }
 };
+
+// Adicionar tempo manualmente
+export const addManualTime = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { hours, description } = req.body;
+
+    // Importar OrganizationUser dinamicamente
+    const { OrganizationUser } = await import('../models/index.js');
+
+    // Validar entrada
+    if (!hours || parseFloat(hours) <= 0) {
+      return res.status(400).json({ error: 'Tempo inválido. Deve ser maior que 0.' });
+    }
+
+    // Verificar se ticket existe
+    const ticket = await Ticket.findOne({
+      where: {
+        id: ticketId,
+        organizationId: req.user.organizationId
+      }
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // ✅ VALIDAÇÃO: Ticket não pode estar fechado/resolvido
+    if (isTicketClosed(ticket)) {
+      return res.status(403).json({
+        error: 'Não é possível adicionar tempo em ticket concluído',
+        reason: 'ticket_closed',
+        status: ticket.status
+      });
+    }
+
+    // Converter horas para segundos
+    const durationInSeconds = Math.floor(parseFloat(hours) * 3600);
+    const now = new Date();
+
+    // Criar registro de tempo manual
+    const timeEntry = await TimeEntry.create({
+      ticketId,
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      description: description || 'Tempo adicionado manualmente',
+      startTime: now,
+      endTime: now,
+      duration: durationInSeconds,
+      isActive: false,
+      status: 'stopped',
+      totalPausedTime: 0
+    });
+
+    // Recarregar com informações do usuário
+    await timeEntry.reload({
+      include: [
+        {
+          model: OrganizationUser,
+          as: 'user',
+          attributes: ['id', 'name', 'email']
+        }
+      ]
+    });
+
+    logger.info(`Tempo manual adicionado: ${hours}h no ticket ${ticketId} por ${req.user.name}`);
+
+    // 🔔 NOTIFICAR WATCHERS SOBRE TEMPO MANUAL ADICIONADO
+    try {
+      const fullTicket = await Ticket.findByPk(ticketId, {
+        include: [
+          { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] }
+        ]
+      });
+
+      if (fullTicket) {
+        const { notifyTicketWatchers } = await import('../../services/watcherNotificationService.js');
+        await notifyTicketWatchers(fullTicket, 'time_added_manually', {
+          addedBy: req.user.name,
+          hours: parseFloat(hours).toFixed(2),
+          description: description || null
+        });
+        logger.info(`✅ Watchers notificados sobre tempo manual adicionado no ticket ${fullTicket.ticketNumber}`);
+      }
+    } catch (error) {
+      logger.error(`❌ Erro ao notificar watchers sobre tempo manual:`, error);
+    }
+
+    res.json({
+      success: true,
+      entry: timeEntry,
+      totalHours: parseFloat(hours).toFixed(2)
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
 // Auto-consumir tempo ao concluir ticket
 export const autoConsumeOnTicketComplete = async (ticketId, userId, organizationId) => {
@@ -466,6 +572,59 @@ export const autoConsumeOnTicketComplete = async (ticketId, userId, organization
   }
 };
 
+// Listar registros de tempo finalizados (histórico)
+export const getTimeEntries = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    // Importar OrganizationUser dinamicamente
+    const { OrganizationUser } = await import('../models/index.js');
+
+    // Verificar se ticket existe e pertence à organização
+    const ticket = await Ticket.findOne({
+      where: {
+        id: ticketId,
+        organizationId: req.user.organizationId
+      }
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Buscar apenas registros finalizados (isActive: false)
+    const entries = await TimeEntry.findAll({
+      where: {
+        ticketId,
+        organizationId: req.user.organizationId,
+        isActive: false,
+        status: 'stopped'
+      },
+      include: [
+        {
+          model: OrganizationUser,
+          as: 'user',
+          attributes: ['id', 'name', 'email']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    // Calcular total de tempo
+    const totalSeconds = entries.reduce((sum, entry) => sum + (entry.duration || 0), 0);
+
+    res.json({
+      success: true,
+      entries,
+      totalSeconds,
+      totalHours: (totalSeconds / 3600).toFixed(2)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 export default {
   startTimer,
   pauseTimer,
@@ -473,5 +632,7 @@ export default {
   stopTimer,
   getActiveTimer,
   getTicketTimers,
+  getTimeEntries,
+  addManualTime,
   autoConsumeOnTicketComplete
 };

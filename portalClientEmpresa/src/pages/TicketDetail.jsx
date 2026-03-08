@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ticketService } from '../services/api'
-import { ArrowLeft, Clock, User, MessageSquare, Send, Paperclip, Download, FileText } from 'lucide-react'
+import { ArrowLeft, Clock, User, MessageSquare, Send, Paperclip, Download, FileText, Eye } from 'lucide-react'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -9,6 +9,7 @@ import Swal from 'sweetalert2'
 import FileUpload from '../components/FileUpload'
 import RichTextEditor from '../components/RichTextEditor'
 import TimeTrackerReadOnly from '../components/TimeTrackerReadOnly'
+import AttachmentViewer from '../components/AttachmentViewer'
 
 const TicketDetail = () => {
   const { id } = useParams()
@@ -19,6 +20,7 @@ const TicketDetail = () => {
   const [submitting, setSubmitting] = useState(false)
   const [attachments, setAttachments] = useState([])
   const [commentAttachments, setCommentAttachments] = useState([])
+  const [viewingAttachment, setViewingAttachment] = useState(null)
 
   useEffect(() => {
     loadTicket()
@@ -272,15 +274,29 @@ const TicketDetail = () => {
                 {attachments.map((attachment) => (
                   <div
                     key={attachment.id}
-                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                    onClick={() => handleDownloadAttachment(attachment.id, attachment.originalName)}
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border"
                   >
                     <FileText className="w-8 h-8 text-gray-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{attachment.originalName}</p>
                       <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
                     </div>
-                    <Download className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setViewingAttachment(attachment)}
+                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                        title="Visualizar"
+                      >
+                        <Eye className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                      </button>
+                      <button
+                        onClick={() => handleDownloadAttachment(attachment.id, attachment.originalName)}
+                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                        title="Download"
+                      >
+                        <Download className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -508,6 +524,16 @@ Você pode usar formatação para:
           )}
         </div>
       </div>
+
+      {/* Attachment Viewer */}
+      {viewingAttachment && (
+        <AttachmentViewer
+          attachment={viewingAttachment}
+          ticketId={id}
+          onDownload={handleDownloadAttachment}
+          onClose={() => setViewingAttachment(null)}
+        />
+      )}
     </div>
   )
 }

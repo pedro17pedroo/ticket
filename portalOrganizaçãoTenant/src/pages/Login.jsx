@@ -5,6 +5,7 @@ import { authService } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { LogIn, Mail, Lock, ArrowLeft } from 'lucide-react'
+import ContextSelector from '../components/ContextSelector'
 
 const Login = () => {
   const navigate = useNavigate()
@@ -17,6 +18,11 @@ const Login = () => {
   const [recoveryStep, setRecoveryStep] = useState(1)
   const [recoveryEmail, setRecoveryEmail] = useState('')
   const [recoveryLoading, setRecoveryLoading] = useState(false)
+  
+  // Context selection state
+  const [showContextSelector, setShowContextSelector] = useState(false)
+  const [availableContexts, setAvailableContexts] = useState([])
+  const [loginCredentials, setLoginCredentials] = useState(null)
   
   console.log('🔄 Login component renderizado, token:', token ? 'presente' : 'ausente')
   
@@ -43,6 +49,17 @@ const Login = () => {
       const response = await authService.login(data.email, data.password)
       console.log('✅ Resposta da API:', response)
       
+      // Check if multiple contexts are available
+      if (response.requiresContextSelection && response.contexts) {
+        console.log('🔀 Múltiplos contextos disponíveis, mostrando seletor')
+        setAvailableContexts(response.contexts)
+        setLoginCredentials({ email: data.email, password: data.password })
+        setShowContextSelector(true)
+        setLoading(false)
+        return
+      }
+      
+      // Single context - proceed with login
       if (!response || !response.user || !response.token) {
         throw new Error('Resposta inválida do servidor')
       }
@@ -120,6 +137,65 @@ const Login = () => {
     setRecoveryLoading(false)
   }
 
+  const handleContextSelect = async (context) => {
+    if (!loginCredentials) {
+      toast.error('Credenciais não encontradas. Por favor, faça login novamente.')
+      setShowContextSelector(false)
+      return
+    }
+
+    setLoading(true)
+    console.log('🔀 Selecionando contexto:', context)
+
+    try {
+      const response = await authService.selectContext(
+        loginCredentials.email,
+        loginCredentials.password,
+        context.contextId,
+        context.contextType
+      )
+
+      console.log('✅ Contexto selecionado:', response)
+
+      if (!response || !response.user || !response.token) {
+        throw new Error('Resposta inválida do servidor')
+      }
+
+      console.log('💾 Salvando autenticação com contexto...')
+      setAuth(response.user, response.token)
+      console.log('✅ Autenticação salva com sucesso!')
+
+      toast.success(`Acesso a ${context.organizationName || context.clientName} realizado com sucesso!`)
+
+      // Redirect to appropriate portal based on context type
+      if (context.type === 'client') {
+        // Redirect to Portal Client Empresa
+        const clientPortalUrl = import.meta.env.VITE_CLIENT_PORTAL_URL || 'http://localhost:5174'
+        console.log('🚀 Redirecionando para Portal Cliente:', clientPortalUrl)
+        window.location.href = clientPortalUrl
+      } else {
+        // Stay in Portal Organização
+        console.log('🚀 Navegando para dashboard da organização...')
+        navigate('/', { replace: true })
+      }
+    } catch (error) {
+      console.error('❌ Erro ao selecionar contexto:', error)
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Erro ao selecionar contexto.'
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleBackToLogin = () => {
+    setShowContextSelector(false)
+    setAvailableContexts([])
+    setLoginCredentials(null)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -137,17 +213,38 @@ const Login = () => {
 
         {/* Form Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          <div className="flex items-center justify-center mb-6">
-            <div className="p-3 bg-primary-100 dark:bg-primary-900/20 rounded-full">
-              <LogIn className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            </div>
-          </div>
-
-          {!showRecovery ? (
+          {showContextSelector ? (
             <>
-              <h2 className="text-2xl font-bold text-center mb-6">Iniciar Sessão</h2>
+              {/* Context Selector View */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-2"
+                  disabled={loading}
+                >
+                  <ArrowLeft className="w-4 h-4" /> Voltar ao login
+                </button>
+              </div>
+              <ContextSelector
+                contexts={availableContexts}
+                onSelect={handleContextSelect}
+                loading={loading}
+              />
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-center mb-6">
+                <div className="p-3 bg-primary-100 dark:bg-primary-900/20 rounded-full">
+                  <LogIn className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                </div>
+              </div>
 
-              <form onSubmit={handleSubmitLogin(onSubmit)} className="space-y-4">
+              {!showRecovery ? (
+                <>
+                  <h2 className="text-2xl font-bold text-center mb-6">Iniciar Sessão</h2>
+
+                  <form onSubmit={handleSubmitLogin(onSubmit)} className="space-y-4">
                 {/* Email */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Email</label>
@@ -207,9 +304,9 @@ const Login = () => {
                   {loading ? 'A entrar...' : 'Entrar'}
                 </button>
               </form>
-            </>
+                </>
           ) : (
-            <>
+              <>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold">Recuperar Senha</h2>
                 <button
@@ -314,7 +411,9 @@ const Login = () => {
                   </button>
                 </form>
               )}
-            </>
+              </>
+            )}
+          </>
           )}
         </div>
       </div>

@@ -30,17 +30,27 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const message = error.response?.data?.error || error.message || 'Erro desconhecido'
+    const details = error.response?.data?.message || error.response?.data?.details
 
-    // Se token expirou, fazer logout
+    // Se token expirou ou sessão inválida, fazer logout
     if (error.response?.status === 401) {
       // Só fazer logout e redirecionar se não estiver na página de login
       const isLoginPage = window.location.pathname === '/login'
 
       if (!isLoginPage) {
-        console.log('🚪 Token expirado, fazendo logout...')
+        console.log('🚪 Token expirado ou sessão inválida, fazendo logout...')
+        
+        // Mensagem específica para sessão expirada
+        let errorMessage = 'Sessão expirada. Faça login novamente.'
+        if (message.includes('Sessão expirada') || details?.includes('Sessão expirada')) {
+          errorMessage = 'Sua sessão expirou. Por favor, faça login novamente.'
+        } else if (message.includes('Contexto inválido') || details?.includes('Contexto inválido')) {
+          errorMessage = 'Contexto inválido. Por favor, faça login novamente.'
+        }
+        
         useAuthStore.getState().logout()
         window.location.href = '/login'
-        toast.error('Sessão expirada. Faça login novamente.')
+        toast.error(errorMessage)
       } else {
         console.log('❌ Erro 401 na página de login:', message)
         // Na página de login, não mostrar toast aqui - o componente Login já trata isso
@@ -59,6 +69,15 @@ export default api
 export const authService = {
   login: async (email, password) => {
     const response = await api.post('/auth/login', { email, password, portalType: 'organization' })
+    return response.data
+  },
+  selectContext: async (email, password, contextId, contextType) => {
+    const response = await api.post('/auth/select-context', { 
+      email, 
+      password, 
+      contextId, 
+      contextType 
+    })
     return response.data
   },
   requestPasswordReset: async (email, portalType = 'organization') => {

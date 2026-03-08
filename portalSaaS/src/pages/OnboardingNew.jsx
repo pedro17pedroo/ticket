@@ -21,6 +21,9 @@ import {
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { saasAPI } from '../services/api';
+import PaymentMethodSelector from '../components/payments/PaymentMethodSelector';
+import PaymentInstructions from '../components/payments/PaymentInstructions';
+import paymentService from '../services/paymentService';
 
 // Input memoizado para evitar perda de foco
 const MemoizedInput = memo(({ register, type, className, placeholder, errors, fieldName }) => (

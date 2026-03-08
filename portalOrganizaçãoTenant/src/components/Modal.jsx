@@ -36,8 +36,8 @@ const Modal = ({ isOpen, onClose, children }) => {
   const modalRoot = document.getElementById('modal-root') || document.body
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 animate-in fade-in duration-200">
-      <div onClick={(e) => e.stopPropagation()}>
+    <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
+      <div onClick={(e) => e.stopPropagation()} className="w-full flex items-center justify-center">
         {children}
       </div>
     </div>,

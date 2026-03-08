@@ -10,6 +10,7 @@ const Users = () => {
   const [directions, setDirections] = useState([])
   const [departments, setDepartments] = useState([])
   const [sections, setSections] = useState([])
+  const [roles, setRoles] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
@@ -32,11 +33,12 @@ const Users = () => {
     isActive: true
   })
 
-  const roles = [
-    { value: 'org-admin', label: 'Administrador', color: 'red' },
-    { value: 'org-manager', label: 'Gestor', color: 'orange' },
-    { value: 'agent', label: 'Agente', color: 'blue' },
-    { value: 'technician', label: 'Técnico', color: 'green' }
+  // Roles padrão (fallback se a API falhar)
+  const defaultRoles = [
+    { value: 'org-admin', label: 'Administrador da Organização', color: 'red', description: 'Acesso total à organização', priority: 1000 },
+    { value: 'org-manager', label: 'Gestor', color: 'orange', description: 'Gestão de equipes e tickets', priority: 700 },
+    { value: 'agent', label: 'Agente', color: 'blue', description: 'Atendimento de tickets', priority: 500 },
+    { value: 'technician', label: 'Técnico', color: 'green', description: 'Suporte técnico e inventário', priority: 400 }
   ]
 
   useEffect(() => {
@@ -45,22 +47,67 @@ const Users = () => {
 
   const loadData = async () => {
     try {
-      const [usersRes, dirsRes, deptsRes, sectsRes] = await Promise.all([
+      const [usersRes, dirsRes, deptsRes, sectsRes, rolesRes] = await Promise.all([
         api.get('/users'),
         api.get('/directions'),
         api.get('/departments'),
-        api.get('/sections')
+        api.get('/sections'),
+        api.get('/rbac/system-roles').catch(() => ({ data: { roles: [] } })) // Fallback se falhar
       ])
+      
       setUsers(usersRes.data.users || [])
       setDirections(dirsRes.data.directions || [])
       setDepartments(deptsRes.data.departments || [])
       setSections(sectsRes.data.sections || [])
+      
+      // Processar roles da API
+      const apiRoles = rolesRes.data.roles || []
+      
+      // Mapear roles para o formato do select
+      const systemRoles = apiRoles.map(role => ({
+        value: role.name,
+        label: role.displayName,
+        description: role.description,
+        priority: role.priority,
+        color: getRoleColor(role.name)
+      }))
+      
+      // Se não houver roles da API, usar os padrão
+      if (systemRoles.length > 0) {
+        setRoles(systemRoles)
+        console.log('✅ Roles carregados da API:', systemRoles.length, systemRoles.map(r => r.value))
+      } else {
+        setRoles(defaultRoles)
+        console.log('⚠️ Usando roles padrão (API não retornou roles)')
+      }
     } catch (error) {
       console.error('Erro:', error)
       showError('Erro ao carregar dados', error.response?.data?.error || error.message)
+      // Em caso de erro, usar roles padrão
+      setRoles(defaultRoles)
     } finally {
       setLoading(false)
     }
+  }
+  
+  // Função auxiliar para definir cor do role
+  const getRoleColor = (roleName) => {
+    const colorMap = {
+      'org-admin': 'red',
+      'admin': 'red',
+      'super-admin': 'red',
+      'org-manager': 'orange',
+      'gerente': 'orange',
+      'supervisor': 'yellow',
+      'agent': 'blue',
+      'agente': 'blue',
+      'technician': 'green',
+      'tecnico': 'green',
+      'client-admin': 'purple',
+      'client-manager': 'purple',
+      'client-user': 'gray'
+    }
+    return colorMap[roleName] || 'gray'
   }
 
   const handleSubmit = async (e) => {
@@ -196,14 +243,14 @@ const Users = () => {
     setEditingUser(null)
   }
 
-  const getRoleColor = (role) => {
-    const roleObj = roles.find(r => r.value === role)
-    return roleObj?.color || 'gray'
-  }
-
   const getRoleLabel = (role) => {
     const roleObj = roles.find(r => r.value === role)
     return roleObj?.label || role
+  }
+  
+  const getRoleColorFromState = (role) => {
+    const roleObj = roles.find(r => r.value === role)
+    return roleObj?.color || 'gray'
   }
 
   const filteredUsers = users.filter(user => {
@@ -297,7 +344,7 @@ const Users = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs rounded-full bg-${getRoleColor(user.role)}-100 text-${getRoleColor(user.role)}-800`}>
+                  <span className={`px-2 py-1 text-xs rounded-full bg-${getRoleColorFromState(user.role)}-100 text-${getRoleColorFromState(user.role)}-800`}>
                     {getRoleLabel(user.role)}
                   </span>
                 </td>
@@ -482,6 +529,12 @@ const Users = () => {
                         <option key={role.value} value={role.value}>{role.label}</option>
                       ))}
                     </select>
+                    {formData.role && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1">
+                        <Shield className="w-3 h-3" />
+                        {roles.find(r => r.value === formData.role)?.description}
+                      </p>
+                    )}
                   </div>
 
                   {!editingUser && (
@@ -667,7 +720,7 @@ const Users = () => {
                     <p className="font-semibold text-gray-900 dark:text-white text-lg">{resetPasswordUser?.name}</p>
                     <p className="text-gray-500 text-base">{resetPasswordUser?.email}</p>
                     {resetPasswordUser?.role && (
-                      <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full bg-${getRoleColor(resetPasswordUser.role)}-100 text-${getRoleColor(resetPasswordUser.role)}-800`}>
+                      <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full bg-${getRoleColorFromState(resetPasswordUser.role)}-100 text-${getRoleColorFromState(resetPasswordUser.role)}-800`}>
                         {getRoleLabel(resetPasswordUser.role)}
                       </span>
                     )}

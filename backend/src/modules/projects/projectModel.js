@@ -16,6 +16,16 @@ const Project = sequelize.define('Project', {
       key: 'id'
     }
   },
+  clientId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'client_id',
+    references: {
+      model: 'clients',
+      key: 'id'
+    },
+    comment: 'Client associated with this project (null for internal projects)'
+  },
   code: {
     type: DataTypes.STRING(20),
     allowNull: false,
@@ -91,6 +101,7 @@ const Project = sequelize.define('Project', {
   underscored: true,
   indexes: [
     { fields: ['organization_id'] },
+    { fields: ['client_id'] },
     { fields: ['status'] },
     { fields: ['methodology'] },
     { fields: ['created_by'] },

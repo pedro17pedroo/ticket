@@ -50,6 +50,7 @@ import ProjectDetail from './pages/ProjectDetail'
 import ProjectKanban from './pages/ProjectKanban'
 import ProjectGantt from './pages/ProjectGantt'
 import ProjectReports from './pages/ProjectReports'
+import TodoList from './pages/TodoList'
 
 // Componente de rota protegida básica (apenas autenticação)
 const PrivateRoute = ({ children }) => {
@@ -158,6 +159,7 @@ function App() {
                       <Route path="/projects/:id/edit" element={<ProtectedRoute permission="projects.update"><ProjectForm /></ProtectedRoute>} />
                       <Route path="/projects/:id/kanban" element={<ProtectedRoute permission="projects.view"><ProjectKanban /></ProtectedRoute>} />
                       <Route path="/projects/:id/gantt" element={<ProtectedRoute permission="projects.view"><ProjectGantt /></ProtectedRoute>} />
+                      <Route path="/todos" element={<TodoList />} />
                       <Route path="*" element={<Navigate to="/" />} />
                     </Routes>
                   </Layout>

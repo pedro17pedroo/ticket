@@ -415,3 +415,89 @@ export const getSubscriptionStats = async (req, res, next) => {
     next(error);
   }
 };
+
+// GET /api/subscription - Obter subscrição da organização atual (para portal da organização)
+export const getCurrentOrganizationSubscription = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organizationId;
+
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Usuário não está associado a uma organização'
+      });
+    }
+
+    const subscription = await Subscription.findOne({
+      where: { organizationId },
+      include: [
+        {
+          model: Plan,
+          as: 'plan'
+        }
+      ]
+    });
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        error: 'Subscrição não encontrada'
+      });
+    }
+
+    // Calcular uso atual (isso deve vir de uma query real no futuro)
+    const organization = await Organization.findByPk(organizationId);
+    
+    // TODO: Implementar queries reais para obter uso atual
+    const usage = {
+      current: {
+        users: 0, // await OrganizationUser.count({ where: { organizationId } })
+        clients: 0, // await Client.count({ where: { organizationId } })
+        ticketsThisMonth: 0, // await Ticket.count({ where: { organizationId, createdAt: { [Op.gte]: startOfMonth } } })
+        storageUsedGB: 0 // Calcular do total de attachments
+      },
+      percentages: {
+        users: 0,
+        clients: 0,
+        tickets: 0,
+        storage: 0
+      }
+    };
+
+    // Calcular percentagens
+    if (subscription.plan.limits.maxUsers) {
+      usage.percentages.users = Math.round((usage.current.users / subscription.plan.limits.maxUsers) * 100);
+    }
+    if (subscription.plan.limits.maxClients) {
+      usage.percentages.clients = Math.round((usage.current.clients / subscription.plan.limits.maxClients) * 100);
+    }
+    if (subscription.plan.limits.maxTicketsPerMonth) {
+      usage.percentages.tickets = Math.round((usage.current.ticketsThisMonth / subscription.plan.limits.maxTicketsPerMonth) * 100);
+    }
+
+    // Verificar se está em trial
+    const isInTrial = subscription.status === 'trial';
+    let trialDaysRemaining = 0;
+    if (isInTrial && subscription.trialEndsAt) {
+      const now = new Date();
+      const trialEnd = new Date(subscription.trialEndsAt);
+      trialDaysRemaining = Math.max(0, Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24)));
+    }
+
+    res.json({
+      success: true,
+      data: {
+        subscription: {
+          ...subscription.toJSON(),
+          isInTrial,
+          trialDaysRemaining
+        },
+        plan: subscription.plan,
+        usage
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao obter subscrição atual:', error);
+    next(error);
+  }
+};

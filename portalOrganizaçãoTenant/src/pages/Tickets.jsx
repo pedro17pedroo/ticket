@@ -86,7 +86,7 @@ const Tickets = () => {
     try {
       const params = { ...activeFilters }
       if (showMyTickets) {
-        params.assigneeId = user.id
+        params.requesterOrgUserId = user.id
       }
       
       // Filtrar por origem do ticket

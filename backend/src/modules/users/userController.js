@@ -404,11 +404,70 @@ export const resetPassword = async (req, res, next) => {
 
     await user.update({ password: newPassword }); // Será hasheado pelo hook
 
+    // Sincronizar senha em todos os contextos do usuário
+    try {
+      const { syncPasswordAcrossContexts } = await import('../../utils/passwordSync.js');
+      await user.reload();
+      await syncPasswordAcrossContexts(user.email, user.password);
+      logger.info(`✅ Senha sincronizada em todos os contextos para ${user.email}`);
+    } catch (syncError) {
+      logger.error('Erro ao sincronizar senha entre contextos:', syncError);
+    }
+
     logger.info(`Senha redefinida para: ${user.email} por ${req.user.email}`);
 
     res.json({
       success: true,
       message: 'Senha redefinida com sucesso'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/users/assignable - Listar usuários que podem ser atribuídos a tickets
+export const getAssignableUsers = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organizationId;
+
+    // Buscar usuários que têm permissão de ser atribuídos a tickets
+    // Isso inclui usuários com permissões: tickets.assign_self, tickets.assign_team, tickets.assign_all
+    const users = await OrganizationUser.findAll({
+      where: {
+        organizationId,
+        isActive: true
+      },
+      attributes: [
+        'id', 'name', 'email', 'phone', 'role',
+        'directionId', 'departmentId', 'sectionId'
+      ],
+      include: [
+        {
+          model: Direction,
+          as: 'direction',
+          attributes: ['id', 'name']
+        },
+        {
+          model: Department,
+          as: 'department',
+          attributes: ['id', 'name']
+        },
+        {
+          model: Section,
+          as: 'section',
+          attributes: ['id', 'name']
+        }
+      ],
+      order: [['name', 'ASC']]
+    });
+
+    // Filtrar usuários que têm permissões de atribuição
+    // Por enquanto, retornar todos os usuários ativos da organização
+    // O backend já valida as permissões no middleware de atribuição
+    
+    res.json({
+      success: true,
+      users
     });
   } catch (error) {
     next(error);

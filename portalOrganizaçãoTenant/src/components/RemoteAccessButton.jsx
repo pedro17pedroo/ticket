@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react';
 import { Monitor, X, Clock, CheckCircle, XCircle } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '../store/authStore';
+import { usePermissions } from '../hooks/usePermissions';
 
 const RemoteAccessButton = ({ ticket }) => {
-  const { user } = useAuthStore();
+  const { hasPermission } = usePermissions();
   const [showModal, setShowModal] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [activeRequest, setActiveRequest] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  
+  // Verificar permissão para solicitar acesso remoto
+  const canRequestRemoteAccess = hasPermission('remote_access.request');
 
   // Verificar se já existe solicitação ativa ao carregar
   useEffect(() => {
@@ -79,11 +82,10 @@ const RemoteAccessButton = ({ ticket }) => {
     }
   };
 
-  // O botão só aparece para técnicos/admins atendendo tickets de clientes
-  const isTechnician = user?.role === 'agent' || user?.role === 'org-admin' || user?.role === 'super-admin';
+  // O botão só aparece para quem tem permissão e o ticket é de cliente
   const isClientRequester = ticket?.requester?.role === 'cliente-org';
 
-  if (!isTechnician || !isClientRequester) {
+  if (!canRequestRemoteAccess || !isClientRequester) {
     return null;
   }
 

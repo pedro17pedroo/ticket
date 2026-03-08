@@ -1,9 +1,10 @@
-import { Menu, Moon, Sun, LogOut, User } from 'lucide-react'
+import { Menu, Moon, Sun, LogOut, User, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import NotificationBell from './NotificationBell'
+import ContextSwitcher from './ContextSwitcher'
 
 const Header = ({ toggleSidebar }) => {
   const { user, logout } = useAuthStore()
@@ -29,52 +30,59 @@ const Header = ({ toggleSidebar }) => {
   }
 
   return (
-    <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 flex items-center justify-between sticky top-0 z-10">
+    <header className="h-14 sm:h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 md:px-6 flex items-center justify-between sticky top-0 z-10">
       {/* Left */}
       <button
         onClick={toggleSidebar}
-        className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+        className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        aria-label="Abrir menu"
       >
         <Menu className="w-5 h-5" />
       </button>
 
       {/* Right */}
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-1 sm:gap-2 md:gap-3">
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           aria-label="Alternar tema"
         >
           {theme === 'light' ? (
-            <Moon className="w-5 h-5" />
+            <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
           ) : (
-            <Sun className="w-5 h-5" />
+            <Sun className="w-4 h-4 sm:w-5 sm:h-5" />
           )}
         </button>
 
         {/* Notifications */}
         <NotificationBell />
 
+        {/* Context Switcher - Hidden on small mobile */}
+        <div className="hidden sm:block">
+          <ContextSwitcher />
+        </div>
+
         {/* User Menu */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="Menu do usuário"
           >
-            <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
               {user?.name?.charAt(0).toUpperCase()}
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-sm font-medium">{user?.name}</p>
+              <p className="text-sm font-medium max-w-[120px] truncate">{user?.name}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {(() => {
                   if (!user?.role) return 'Utilizador'
 
                   const roleLabels = {
                     'super-admin': 'Super Admin',
-                    'org-admin': 'Administrador da Organização',
-                    'client-admin': 'Administrador do Cliente',
+                    'org-admin': 'Admin Org',
+                    'client-admin': 'Admin Cliente',
                     'agent': 'Agente'
                   }
 
@@ -82,14 +90,20 @@ const Header = ({ toggleSidebar }) => {
                 })()}
               </p>
             </div>
+            <ChevronDown className="hidden md:block w-4 h-4" />
           </button>
 
           {/* Dropdown Menu */}
           {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2">
+            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 animate-fadeIn">
               <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
+                <p className="text-sm font-medium truncate">{user?.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+              </div>
+
+              {/* Context Switcher on mobile */}
+              <div className="sm:hidden px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                <ContextSwitcher />
               </div>
 
               <button
@@ -97,7 +111,7 @@ const Header = ({ toggleSidebar }) => {
                   navigate('/profile')
                   setShowUserMenu(false)
                 }}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <User className="w-4 h-4" />
                 Perfil
@@ -105,7 +119,7 @@ const Header = ({ toggleSidebar }) => {
 
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
                 Sair

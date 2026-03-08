@@ -33,7 +33,6 @@ const ClientUser = sequelize.define('ClientUser', {
   email: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
     validate: {
       isEmail: true
     }
@@ -118,11 +117,26 @@ const ClientUser = sequelize.define('ClientUser', {
   lastLogin: {
     type: DataTypes.DATE,
     field: 'last_login'
+  },
+  passwordResetToken: {
+    type: DataTypes.STRING,
+    field: 'password_reset_token'
+  },
+  passwordResetExpires: {
+    type: DataTypes.DATE,
+    field: 'password_reset_expires'
   }
 }, {
   tableName: 'client_users',
   timestamps: true,
   underscored: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['email', 'client_id'],
+      name: 'client_users_email_client_unique'
+    }
+  ],
   defaultScope: {
     attributes: { exclude: ['password'] }
   },

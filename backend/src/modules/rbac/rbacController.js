@@ -8,6 +8,42 @@ import logger from '../../config/logger.js';
 import { Op } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 
+// ==================== PUBLIC ROUTES ====================
+
+// GET /api/rbac/system-roles - Listar apenas roles do sistema (para formulários)
+// Esta rota é acessível a todos os usuários autenticados
+export const getSystemRoles = async (req, res, next) => {
+  try {
+    const { organizationId, role: userRole } = req.user;
+
+    // Buscar apenas roles do sistema (isSystem: true) de nível organization
+    const roles = await Role.findAll({
+      where: {
+        isSystem: true,
+        level: 'organization',
+        organizationId: null
+      },
+      attributes: ['id', 'name', 'displayName', 'description', 'priority', 'level'],
+      order: [['priority', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      roles: roles.map(role => ({
+        id: role.id,
+        name: role.name,
+        displayName: role.displayName,
+        description: role.description,
+        priority: role.priority,
+        level: role.level
+      }))
+    });
+  } catch (error) {
+    logger.error('Erro ao listar roles do sistema:', error);
+    next(error);
+  }
+};
+
 // ==================== ROLES ====================
 
 // GET /api/rbac/roles - Listar todos os roles
@@ -17,26 +53,44 @@ export const getRoles = async (req, res, next) => {
 
     let where = {};
 
-    // admin-org vê TODOS os roles (sistema + todos os customizados)
+    // admin-org vê TODOS os roles da organização (EXCETO super-admin e provider-admin)
     if (userRole === 'org-admin') {
-      // Sem filtro - vê tudo
+      where = {
+        [Op.or]: [
+          { 
+            organizationId: null, 
+            isSystem: true,
+            name: { [Op.notIn]: ['super-admin', 'provider-admin'] } // Filtrar roles de sistema
+          },
+          { organizationId }, // Roles da organização
+          { organizationId, clientId: { [Op.ne]: null } } // Roles dos clientes da org
+        ]
+      };
     } 
     // Roles de ORGANIZAÇÃO (gerente, supervisor, agente)
-    // Veem: roles do sistema + roles da sua org + roles dos clientes da org
+    // Veem: roles do sistema (EXCETO super-admin e provider-admin) + roles da sua org + roles dos clientes da org
     else if (['gerente', 'supervisor', 'agente'].includes(userRole)) {
       where = {
         [Op.or]: [
-          { organizationId: null, isSystem: true }, // Roles do sistema
+          { 
+            organizationId: null, 
+            isSystem: true,
+            name: { [Op.notIn]: ['super-admin', 'provider-admin'] } // Filtrar roles de sistema
+          },
           { organizationId, clientId: null }, // Roles da organização
           { organizationId, clientId: { [Op.ne]: null } } // Roles dos clientes da org
         ]
       };
     }
-    // client-admin vê apenas roles do sistema + roles do seu cliente
+    // client-admin vê apenas roles do sistema (EXCETO super-admin e provider-admin) + roles do seu cliente
     else if (userRole === 'client-admin') {
       where = {
         [Op.or]: [
-          { organizationId: null, isSystem: true }, // Roles do sistema
+          { 
+            organizationId: null, 
+            isSystem: true,
+            name: { [Op.notIn]: ['super-admin', 'provider-admin'] } // Filtrar roles de sistema
+          },
           { clientId } // Roles do seu cliente
         ]
       };
@@ -45,7 +99,11 @@ export const getRoles = async (req, res, next) => {
     else {
       where = {
         [Op.or]: [
-          { organizationId: null, isSystem: true },
+          { 
+            organizationId: null, 
+            isSystem: true,
+            name: { [Op.notIn]: ['super-admin', 'provider-admin'] } // Filtrar roles de sistema
+          },
           { organizationId },
           { clientId }
         ]
@@ -64,7 +122,11 @@ export const getRoles = async (req, res, next) => {
 
     // Determinar permissões de edição/eliminação
     const canEditRole = (role) => {
-      if (role.isSystem) return false;
+      // Roles do sistema podem ter permissões editadas (mas não outros campos)
+      if (role.isSystem) {
+        // Apenas org-admin pode editar permissões de roles do sistema
+        return userRole === 'org-admin';
+      }
       if (userRole === 'org-admin') return true;
       if (['gerente', 'supervisor'].includes(userRole) && role.organizationId === organizationId) return true;
       if (userRole === 'client-admin' && role.clientId === clientId) return true;
@@ -213,15 +275,50 @@ export const updateRole = async (req, res, next) => {
       });
     }
 
-    // Não pode editar roles do sistema
+    // Para roles do sistema, apenas org-admin pode editar permissões
     if (role.isSystem) {
-      return res.status(400).json({
-        success: false,
-        error: 'Não é possível editar roles do sistema'
+      if (req.user.role !== 'org-admin') {
+        return res.status(403).json({
+          success: false,
+          error: 'Apenas org-admin pode editar permissões de roles do sistema'
+        });
+      }
+
+      // Para roles do sistema, apenas atualizar permissões (não outros campos)
+      if (permissions) {
+        // Remover permissões antigas
+        await RolePermission.destroy({
+          where: { roleId: role.id }
+        });
+
+        // Adicionar novas
+        for (const permissionId of permissions) {
+          await RolePermission.create({
+            roleId: role.id,
+            permissionId,
+            granted: true
+          });
+        }
+      }
+
+      logger.info(`Permissões do role do sistema atualizadas: ${role.name} por ${req.user.email}`);
+
+      // Recarregar com permissões
+      const updatedRole = await Role.findByPk(role.id, {
+        include: [{
+          model: Permission,
+          as: 'permissions'
+        }]
+      });
+
+      return res.json({
+        success: true,
+        message: 'Permissões do role atualizadas com sucesso',
+        role: updatedRole
       });
     }
 
-    // Verificar ownership
+    // Verificar ownership para roles customizados
     if (role.organizationId !== req.user.organizationId) {
       return res.status(403).json({
         success: false,
@@ -229,7 +326,7 @@ export const updateRole = async (req, res, next) => {
       });
     }
 
-    // Atualizar role
+    // Atualizar role customizado
     await role.update({
       displayName,
       description,

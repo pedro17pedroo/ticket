@@ -7,6 +7,7 @@ import { auditLog } from '../middleware/audit.js';
 import { upload } from '../middleware/upload.js';
 import uploadConfig from '../config/multer.js';
 import { validateAssignment, validateUserManagement } from '../middleware/validateHierarchy.js';
+import { validateContext, injectContext } from '../middleware/contextMiddleware.js';
 
 import * as authController from '../modules/auth/authController.js';
 import * as userController from '../modules/users/userController.js';
@@ -62,6 +63,11 @@ router.get('/setup/status', authenticate, setupController.checkSetupStatus);
 // ==================== AUTH ====================
 router.post('/auth/register', validate(schemas.register), authController.register);
 router.post('/auth/login', validate(schemas.login), authController.login);
+router.post('/auth/select-context', authController.selectContext);
+router.post('/auth/switch-context', authenticate, validateContext, injectContext, authController.switchContext);
+router.get('/auth/contexts', authenticate, validateContext, injectContext, authController.listUserContexts);
+router.get('/auth/contexts/history', authenticate, validateContext, injectContext, authController.getContextHistory);
+router.get('/auth/contexts/audit', authenticate, validateContext, injectContext, authController.getContextAudit);
 router.get('/auth/profile', authenticate, authController.getProfile);
 router.put('/auth/profile', authenticate, validate(schemas.updateProfile), authController.updateProfile);
 router.put('/auth/change-password', authenticate, validate(schemas.changePassword), authController.changePassword);
@@ -81,79 +87,81 @@ router.post('/auth/password-reset/reset', validate(schemas.resetPasswordWithToke
 
 // ==================== USERS ====================
 // Profile routes (devem vir ANTES de /users/:id para não serem capturadas como ID)
-router.get('/users/profile', authenticate, authController.getProfile);
-router.put('/users/profile', authenticate, auditLog('update', 'user'), authController.updateProfile);
-router.put('/users/password', authenticate, auditLog('update', 'user'), authController.changePassword);
-router.put('/users/preferences', authenticate, auditLog('update', 'user'), authController.updateProfile);
+router.get('/users/profile', authenticate, validateContext, injectContext, authController.getProfile);
+router.put('/users/profile', authenticate, validateContext, injectContext, auditLog('update', 'user'), authController.updateProfile);
+router.put('/users/password', authenticate, validateContext, injectContext, auditLog('update', 'user'), authController.changePassword);
+router.put('/users/preferences', authenticate, validateContext, injectContext, auditLog('update', 'user'), authController.updateProfile);
 
-router.get('/users', authenticate, requirePermission('users', 'read'), userController.getUsers);
-router.get('/users/:id', authenticate, requirePermission('users', 'read'), userController.getUserById);
-router.post('/users', authenticate, requirePermission('users', 'create'), validate(schemas.createUser), validateUserManagement, auditLog('create', 'user'), userController.createUser);
-router.put('/users/:id', authenticate, requirePermission('users', 'update'), validate(schemas.updateUser), validateUserManagement, auditLog('update', 'user'), userController.updateUser);
-router.put('/users/:id/activate', authenticate, requirePermission('users', 'update'), auditLog('update', 'user'), userController.activateUser);
-router.put('/users/:id/reset-password', authenticate, requirePermission('users', 'reset_password'), validate(schemas.resetPassword), auditLog('update', 'user'), userController.resetPassword);
-router.delete('/users/:id', authenticate, requirePermission('users', 'delete'), auditLog('delete', 'user'), userController.deleteUser);
+router.get('/users', authenticate, validateContext, injectContext, requirePermission('users', 'read'), userController.getUsers);
+router.get('/users/assignable', authenticate, validateContext, injectContext, requirePermission('users', 'read'), userController.getAssignableUsers);
+router.get('/users/:id', authenticate, validateContext, injectContext, requirePermission('users', 'read'), userController.getUserById);
+router.post('/users', authenticate, validateContext, injectContext, requirePermission('users', 'create'), validate(schemas.createUser), validateUserManagement, auditLog('create', 'user'), userController.createUser);
+router.put('/users/:id', authenticate, validateContext, injectContext, requirePermission('users', 'update'), validate(schemas.updateUser), validateUserManagement, auditLog('update', 'user'), userController.updateUser);
+router.put('/users/:id/activate', authenticate, validateContext, injectContext, requirePermission('users', 'update'), auditLog('update', 'user'), userController.activateUser);
+router.put('/users/:id/reset-password', authenticate, validateContext, injectContext, requirePermission('users', 'reset_password'), validate(schemas.resetPassword), auditLog('update', 'user'), userController.resetPassword);
+router.delete('/users/:id', authenticate, validateContext, injectContext, requirePermission('users', 'delete'), auditLog('delete', 'user'), userController.deleteUser);
 
 // ==================== TICKETS ====================
-router.get('/tickets', authenticate, requireSmartPermission('tickets', 'read'), ticketController.getTickets);
-router.get('/tickets/statistics', authenticate, requireSmartPermission('tickets', 'read'), ticketController.getStatistics);
+router.get('/tickets', authenticate, validateContext, injectContext, requireSmartPermission('tickets', 'read'), ticketController.getTickets);
+router.get('/tickets/statistics', authenticate, validateContext, injectContext, requireSmartPermission('tickets', 'read'), ticketController.getStatistics);
 // 🆕 Endpoint unificado para listar meus tickets (substitui /catalog/requests)
-router.get('/tickets/my-tickets', authenticate, ticketController.getMyTickets);
-router.get('/tickets/:id', authenticate, requireSmartPermission('tickets', 'read'), ticketController.getTicketById);
-router.post('/tickets', authenticate, requirePermission('tickets', 'create'), validate(schemas.createTicket), auditLog('create', 'ticket'), ticketController.createTicket);
-router.put('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
-router.patch('/tickets/:id', authenticate, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
-router.patch('/tickets/:id/watchers', authenticate, requirePermission('tickets', 'update'), auditLog('update', 'ticket_watchers'), ticketController.updateTicketWatchers);
+router.get('/tickets/my-tickets', authenticate, validateContext, injectContext, ticketController.getMyTickets);
+router.get('/tickets/:id', authenticate, validateContext, injectContext, requireSmartPermission('tickets', 'read'), ticketController.getTicketById);
+router.post('/tickets', authenticate, validateContext, injectContext, requirePermission('tickets', 'create'), validate(schemas.createTicket), auditLog('create', 'ticket'), ticketController.createTicket);
+router.put('/tickets/:id', authenticate, validateContext, injectContext, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
+router.patch('/tickets/:id', authenticate, validateContext, injectContext, requirePermission('tickets', 'update'), validate(schemas.updateTicket), validateAssignment, auditLog('update', 'ticket'), ticketController.updateTicket);
+router.patch('/tickets/:id/watchers', authenticate, validateContext, injectContext, requirePermission('tickets', 'update'), auditLog('update', 'ticket_watchers'), ticketController.updateTicketWatchers);
 // 🆕 Endpoints de aprovação/rejeição (unificação)
-router.patch('/tickets/:id/approve', authenticate, requirePermission('tickets', 'update'), auditLog('approve', 'ticket'), ticketController.approveTicket);
-router.patch('/tickets/:id/reject', authenticate, requirePermission('tickets', 'update'), auditLog('reject', 'ticket'), ticketController.rejectTicket);
-router.post('/tickets/:id/comments', authenticate, requirePermission('comments', 'create'), validate(schemas.createComment), auditLog('create', 'ticket'), ticketController.addComment);
+router.patch('/tickets/:id/approve', authenticate, validateContext, injectContext, requirePermission('tickets', 'update'), auditLog('approve', 'ticket'), ticketController.approveTicket);
+router.patch('/tickets/:id/reject', authenticate, validateContext, injectContext, requirePermission('tickets', 'update'), auditLog('reject', 'ticket'), ticketController.rejectTicket);
+router.post('/tickets/:id/comments', authenticate, validateContext, injectContext, requirePermission('comments', 'create'), validate(schemas.createComment), auditLog('create', 'ticket'), ticketController.addComment);
 
 // Comment routes (endpoints separados)
 router.use('/tickets', commentRoutes);
 
 // Ticket Attachments
-router.post('/tickets/:ticketId/upload', authenticate, uploadConfig.array('files', 5), auditLog('create', 'attachment'), ticketController.uploadAttachments);
-router.get('/tickets/:ticketId/attachments', authenticate, ticketController.getAttachments);
-router.get('/tickets/:ticketId/attachments/:attachmentId/download', authenticate, ticketController.downloadAttachment);
-router.delete('/tickets/:ticketId/attachments/:attachmentId', authenticate, auditLog('delete', 'attachment'), ticketController.deleteAttachment);
+router.post('/tickets/:ticketId/upload', authenticate, validateContext, injectContext, uploadConfig.array('files', 5), auditLog('create', 'attachment'), ticketController.uploadAttachments);
+router.get('/tickets/:ticketId/attachments', authenticate, validateContext, injectContext, ticketController.getAttachments);
+router.get('/tickets/:ticketId/attachments/:attachmentId/download', authenticate, validateContext, injectContext, ticketController.downloadAttachment);
+router.get('/tickets/:ticketId/attachments/:attachmentId/view', authenticate, validateContext, injectContext, ticketController.viewAttachment);
+router.delete('/tickets/:ticketId/attachments/:attachmentId', authenticate, validateContext, injectContext, auditLog('delete', 'attachment'), ticketController.deleteAttachment);
 
 // Client History
-router.get('/users/:userId/tickets/history', authenticate, ticketController.getClientHistory);
+router.get('/users/:userId/tickets/history', authenticate, validateContext, injectContext, ticketController.getClientHistory);
 
 // Ticket Relationships
-router.post('/tickets/:ticketId/relationships', authenticate, ticketController.addRelationship);
-router.get('/tickets/:ticketId/relationships', authenticate, ticketController.getRelatedTickets);
-router.delete('/relationships/:relationshipId', authenticate, ticketController.removeRelationship);
+router.post('/tickets/:ticketId/relationships', authenticate, validateContext, injectContext, ticketController.addRelationship);
+router.get('/tickets/:ticketId/relationships', authenticate, validateContext, injectContext, ticketController.getRelatedTickets);
+router.delete('/relationships/:relationshipId', authenticate, validateContext, injectContext, ticketController.removeRelationship);
 
 // Ticket History & Management
-router.get('/tickets/:ticketId/history', authenticate, ticketController.getHistory);
-router.get('/tickets/:ticketId/permissions', authenticate, ticketController.getTicketPermissions);
-router.get('/tickets/:ticketId/eligible-assignees', authenticate, ticketController.getEligibleAssignees);
-router.post('/tickets/:ticketId/transfer', authenticate, auditLog('transfer', 'ticket'), ticketController.transferTicket);
-router.patch('/tickets/:ticketId/internal-priority', authenticate, auditLog('update_internal_priority', 'ticket'), ticketController.updateInternalPriority);
-router.patch('/tickets/:ticketId/resolution-status', authenticate, auditLog('update_resolution_status', 'ticket'), ticketController.updateResolutionStatus);
+router.get('/tickets/:ticketId/history', authenticate, validateContext, injectContext, ticketController.getHistory);
+router.get('/tickets/:ticketId/permissions', authenticate, validateContext, injectContext, ticketController.getTicketPermissions);
+router.get('/tickets/:ticketId/eligible-assignees', authenticate, validateContext, injectContext, ticketController.getEligibleAssignees);
+router.post('/tickets/:ticketId/transfer', authenticate, validateContext, injectContext, auditLog('transfer', 'ticket'), ticketController.transferTicket);
+router.patch('/tickets/:ticketId/internal-priority', authenticate, validateContext, injectContext, auditLog('update_internal_priority', 'ticket'), ticketController.updateInternalPriority);
+router.patch('/tickets/:ticketId/resolution-status', authenticate, validateContext, injectContext, auditLog('update_resolution_status', 'ticket'), ticketController.updateResolutionStatus);
 
 // ==================== DIRECTIONS ====================
-router.get('/directions', authenticate, directionController.getDirections);
-router.get('/directions/:id', authenticate, directionController.getDirectionById);
-router.post('/directions', authenticate, authorize('org-admin'), validate(schemas.createDirection), auditLog('create', 'direction'), directionController.createDirection);
-router.put('/directions/:id', authenticate, authorize('org-admin'), validate(schemas.updateDirection), auditLog('update', 'direction'), directionController.updateDirection);
-router.delete('/directions/:id', authenticate, authorize('org-admin'), auditLog('delete', 'direction'), directionController.deleteDirection);
+router.get('/directions', authenticate, validateContext, injectContext, directionController.getDirections);
+router.get('/directions/:id', authenticate, validateContext, injectContext, directionController.getDirectionById);
+router.post('/directions', authenticate, validateContext, injectContext, authorize('org-admin'), validate(schemas.createDirection), auditLog('create', 'direction'), directionController.createDirection);
+router.put('/directions/:id', authenticate, validateContext, injectContext, authorize('org-admin'), validate(schemas.updateDirection), auditLog('update', 'direction'), directionController.updateDirection);
+router.delete('/directions/:id', authenticate, validateContext, injectContext, authorize('org-admin'), auditLog('delete', 'direction'), directionController.deleteDirection);
 
 // ==================== DEPARTMENTS ====================
-router.get('/departments', authenticate, departmentController.getDepartments);
-router.get('/departments/:id', authenticate, departmentController.getDepartmentById);
-router.post('/departments', authenticate, authorize('org-admin'), validate(schemas.createDepartment), auditLog('create', 'department'), departmentController.createDepartment);
-router.put('/departments/:id', authenticate, authorize('org-admin'), validate(schemas.updateDepartment), auditLog('update', 'department'), departmentController.updateDepartment);
-router.delete('/departments/:id', authenticate, authorize('org-admin'), auditLog('delete', 'department'), departmentController.deleteDepartment);
+router.get('/departments', authenticate, validateContext, injectContext, departmentController.getDepartments);
+router.get('/departments/:id', authenticate, validateContext, injectContext, departmentController.getDepartmentById);
+router.post('/departments', authenticate, validateContext, injectContext, authorize('org-admin'), validate(schemas.createDepartment), auditLog('create', 'department'), departmentController.createDepartment);
+router.put('/departments/:id', authenticate, validateContext, injectContext, authorize('org-admin'), validate(schemas.updateDepartment), auditLog('update', 'department'), departmentController.updateDepartment);
+router.delete('/departments/:id', authenticate, validateContext, injectContext, authorize('org-admin'), auditLog('delete', 'department'), departmentController.deleteDepartment);
 
 // ==================== SECTIONS ====================
-router.get('/sections', authenticate, sectionController.getSections);
-router.get('/sections/:id', authenticate, sectionController.getSectionById);
-router.post('/sections', authenticate, authorize('org-admin'), validate(schemas.createSection), auditLog('create', 'section'), sectionController.createSection);
-router.put('/sections/:id', authenticate, authorize('org-admin'), validate(schemas.updateSection), auditLog('update', 'section'), sectionController.updateSection);
-router.delete('/sections/:id', authenticate, authorize('org-admin'), auditLog('delete', 'section'), sectionController.deleteSection);
+router.get('/sections', authenticate, validateContext, injectContext, sectionController.getSections);
+router.get('/sections/:id', authenticate, validateContext, injectContext, sectionController.getSectionById);
+router.post('/sections', authenticate, validateContext, injectContext, authorize('org-admin'), validate(schemas.createSection), auditLog('create', 'section'), sectionController.createSection);
+router.put('/sections/:id', authenticate, validateContext, injectContext, authorize('org-admin'), validate(schemas.updateSection), auditLog('update', 'section'), sectionController.updateSection);
+router.delete('/sections/:id', authenticate, validateContext, injectContext, authorize('org-admin'), auditLog('delete', 'section'), sectionController.deleteSection);
 
 // ==================== ORGANIZATIONAL STRUCTURE (Aliases) ====================
 // Rotas alternativas para compatibilidade com frontend
@@ -248,9 +256,24 @@ router.put('/plans/:id/activate', authenticate, authorize('super-admin', 'provid
 router.put('/plans/:id/deactivate', authenticate, authorize('super-admin', 'provider-admin'), auditLog('update', 'plan'), planController.deactivatePlan);
 router.get('/plans/:id/subscriptions', authenticate, authorize('super-admin', 'provider-admin'), planController.getPlanSubscriptions);
 
+// ==================== PAYMENTS (Gestão de Pagamentos TPagamento) ====================
+import paymentRoutes from '../modules/payments/paymentRoutes.js';
+import { handleTPagamentoWebhook } from '../modules/payments/webhookController.js';
+
+// Rotas de pagamento (requer autenticação)
+router.use('/payments', paymentRoutes);
+
+// Webhook TPagamento (público - sem autenticação)
+router.post('/webhooks/tpagamento', handleTPagamentoWebhook);
+
+// ==================== SUBSCRIPTIONS (Gestão de Subscrições) ====================
 // ==================== SUBSCRIPTIONS (Gestão de Subscrições) ====================
 import * as subscriptionController from '../modules/subscriptions/subscriptionController.js';
 
+// Rota para organização obter sua própria subscrição (deve vir ANTES de /subscriptions/:id)
+router.get('/subscription', authenticate, validateContext, injectContext, subscriptionController.getCurrentOrganizationSubscription);
+
+// Rotas admin (super-admin e provider-admin)
 router.get('/subscriptions', authenticate, authorize('super-admin', 'provider-admin'), subscriptionController.getSubscriptions);
 router.get('/subscriptions/pending', authenticate, authorize('super-admin', 'provider-admin'), subscriptionController.getPendingSubscriptions);
 router.get('/subscriptions/stats', authenticate, authorize('super-admin', 'provider-admin'), subscriptionController.getSubscriptionStats);
@@ -295,34 +318,34 @@ router.delete('/clients/:clientId/users/:userId', authenticate, requireSmartPerm
 
 // ==================== CLIENT STRUCTURE (Estrutura organizacional) ====================
 // Directions
-router.get('/client/directions', authenticate, requirePermission('directions', 'read'), clientStructureController.getDirections);
-router.post('/client/directions', authenticate, requirePermission('directions', 'create'), auditLog('create', 'client_direction'), clientStructureController.createDirection);
-router.put('/client/directions/:id', authenticate, requirePermission('directions', 'update'), auditLog('update', 'client_direction'), clientStructureController.updateDirection);
-router.delete('/client/directions/:id', authenticate, requirePermission('directions', 'delete'), auditLog('delete', 'client_direction'), clientStructureController.deleteDirection);
-router.put('/client/directions/:id/activate', authenticate, requirePermission('directions', 'update'), auditLog('activate', 'client_direction'), clientStructureController.reactivateDirection);
+router.get('/client/directions', authenticate, validateContext, injectContext, requirePermission('directions', 'read'), clientStructureController.getDirections);
+router.post('/client/directions', authenticate, validateContext, injectContext, requirePermission('directions', 'create'), auditLog('create', 'client_direction'), clientStructureController.createDirection);
+router.put('/client/directions/:id', authenticate, validateContext, injectContext, requirePermission('directions', 'update'), auditLog('update', 'client_direction'), clientStructureController.updateDirection);
+router.delete('/client/directions/:id', authenticate, validateContext, injectContext, requirePermission('directions', 'delete'), auditLog('delete', 'client_direction'), clientStructureController.deleteDirection);
+router.put('/client/directions/:id/activate', authenticate, validateContext, injectContext, requirePermission('directions', 'update'), auditLog('activate', 'client_direction'), clientStructureController.reactivateDirection);
 // Departments
-router.get('/client/departments', authenticate, requirePermission('departments', 'read'), clientStructureController.getDepartments);
-router.post('/client/departments', authenticate, requirePermission('departments', 'create'), auditLog('create', 'client_department'), clientStructureController.createDepartment);
-router.put('/client/departments/:id', authenticate, requirePermission('departments', 'update'), auditLog('update', 'client_department'), clientStructureController.updateDepartment);
-router.delete('/client/departments/:id', authenticate, requirePermission('departments', 'delete'), auditLog('delete', 'client_department'), clientStructureController.deleteDepartment);
-router.put('/client/departments/:id/activate', authenticate, requirePermission('departments', 'update'), auditLog('activate', 'client_department'), clientStructureController.reactivateDepartment);
+router.get('/client/departments', authenticate, validateContext, injectContext, requirePermission('departments', 'read'), clientStructureController.getDepartments);
+router.post('/client/departments', authenticate, validateContext, injectContext, requirePermission('departments', 'create'), auditLog('create', 'client_department'), clientStructureController.createDepartment);
+router.put('/client/departments/:id', authenticate, validateContext, injectContext, requirePermission('departments', 'update'), auditLog('update', 'client_department'), clientStructureController.updateDepartment);
+router.delete('/client/departments/:id', authenticate, validateContext, injectContext, requirePermission('departments', 'delete'), auditLog('delete', 'client_department'), clientStructureController.deleteDepartment);
+router.put('/client/departments/:id/activate', authenticate, validateContext, injectContext, requirePermission('departments', 'update'), auditLog('activate', 'client_department'), clientStructureController.reactivateDepartment);
 // Sections
-router.get('/client/sections', authenticate, requirePermission('sections', 'read'), clientStructureController.getSections);
-router.post('/client/sections', authenticate, requirePermission('sections', 'create'), auditLog('create', 'client_section'), clientStructureController.createSection);
-router.put('/client/sections/:id', authenticate, requirePermission('sections', 'update'), auditLog('update', 'client_section'), clientStructureController.updateSection);
-router.delete('/client/sections/:id', authenticate, requirePermission('sections', 'delete'), auditLog('delete', 'client_section'), clientStructureController.deleteSection);
-router.put('/client/sections/:id/activate', authenticate, requirePermission('sections', 'update'), auditLog('activate', 'client_section'), clientStructureController.reactivateSection);
+router.get('/client/sections', authenticate, validateContext, injectContext, requirePermission('sections', 'read'), clientStructureController.getSections);
+router.post('/client/sections', authenticate, validateContext, injectContext, requirePermission('sections', 'create'), auditLog('create', 'client_section'), clientStructureController.createSection);
+router.put('/client/sections/:id', authenticate, validateContext, injectContext, requirePermission('sections', 'update'), auditLog('update', 'client_section'), clientStructureController.updateSection);
+router.delete('/client/sections/:id', authenticate, validateContext, injectContext, requirePermission('sections', 'delete'), auditLog('delete', 'client_section'), clientStructureController.deleteSection);
+router.put('/client/sections/:id/activate', authenticate, validateContext, injectContext, requirePermission('sections', 'update'), auditLog('activate', 'client_section'), clientStructureController.reactivateSection);
 // Users
-router.get('/client/users', authenticate, requirePermission('client_users', 'read'), clientStructureController.getClientUsers);
-router.post('/client/users', authenticate, requirePermission('client_users', 'create'), auditLog('create', 'client_user'), clientStructureController.createClientUser);
-router.put('/client/users/:id', authenticate, requirePermission('client_users', 'update'), auditLog('update', 'client_user'), clientStructureController.updateClientUser);
-router.delete('/client/users/:id', authenticate, requirePermission('client_users', 'delete'), auditLog('delete', 'client_user'), clientStructureController.deleteClientUser);
+router.get('/client/users', authenticate, validateContext, injectContext, requirePermission('client_users', 'read'), clientStructureController.getClientUsers);
+router.post('/client/users', authenticate, validateContext, injectContext, requirePermission('client_users', 'create'), auditLog('create', 'client_user'), clientStructureController.createClientUser);
+router.put('/client/users/:id', authenticate, validateContext, injectContext, requirePermission('client_users', 'update'), auditLog('update', 'client_user'), clientStructureController.updateClientUser);
+router.delete('/client/users/:id', authenticate, validateContext, injectContext, requirePermission('client_users', 'delete'), auditLog('delete', 'client_user'), clientStructureController.deleteClientUser);
 
 // ==================== CLIENT HOURS BANK (Bolsa de Horas - Cliente) ====================
-router.get('/client/hours-banks', authenticate, requirePermission('hours_bank', 'view'), clientHoursController.getClientHoursBanks);
-router.get('/client/hours-banks/:id', authenticate, requirePermission('hours_bank', 'view'), clientHoursController.getClientHoursBankById);
-router.get('/client/hours-banks/:id/transactions', authenticate, requirePermission('hours_bank', 'view'), clientHoursController.getClientHoursBankTransactions);
-router.get('/client/hours-transactions', authenticate, requirePermission('hours_bank', 'view'), clientHoursController.getClientAllTransactions);
+router.get('/client/hours-banks', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), clientHoursController.getClientHoursBanks);
+router.get('/client/hours-banks/:id', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), clientHoursController.getClientHoursBankById);
+router.get('/client/hours-banks/:id/transactions', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), clientHoursController.getClientHoursBankTransactions);
+router.get('/client/hours-transactions', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), clientHoursController.getClientAllTransactions);
 
 // ==================== CLIENT TODOS (Tarefas do Cliente) ====================
 import * as todoController from '../modules/todos/todoController.js';
@@ -336,29 +359,45 @@ router.delete('/client/todos/:id', authenticate, todoController.deleteTodo);
 router.post('/client/todos/:id/collaborators', authenticate, todoController.addCollaborator);
 router.delete('/client/todos/:id/collaborators/:collaboratorId', authenticate, todoController.removeCollaborator);
 
+// ==================== ORGANIZATION TODOS (Tarefas da Organização) ====================
+import * as todoControllerV2 from '../modules/todos/todoControllerV2.js';
+router.get('/organization/todos', authenticate, todoControllerV2.getOrganizationTodos);
+router.post('/organization/todos', authenticate, todoControllerV2.createOrganizationTodo);
+router.put('/organization/todos/reorder', authenticate, todoControllerV2.reorderOrganizationTodos);
+router.get('/organization/todos/available-users', authenticate, todoControllerV2.getAvailableUsersForOrganization);
+router.put('/organization/todos/:id', authenticate, todoControllerV2.updateOrganizationTodo);
+router.put('/organization/todos/:id/move', authenticate, todoControllerV2.moveOrganizationTodo);
+router.delete('/organization/todos/:id', authenticate, todoControllerV2.deleteOrganizationTodo);
+router.post('/organization/todos/:id/collaborators', authenticate, todoControllerV2.addOrganizationCollaborator);
+router.delete('/organization/todos/:id/collaborators/:collaboratorId', authenticate, todoControllerV2.removeOrganizationCollaborator);
+
 // ==================== HOURS BANK (Bolsa de Horas) ====================
-router.get('/hours-banks', authenticate, requirePermission('hours_bank', 'view'), hoursController.getHoursBanks);
-router.get('/hours-banks/statistics', authenticate, requirePermission('hours_bank', 'view'), hoursController.getStatistics);
-router.get('/hours-banks/:id', authenticate, requirePermission('hours_bank', 'view'), hoursController.getHoursBankById);
-router.post('/hours-banks', authenticate, requirePermission('hours_bank', 'manage'), auditLog('create', 'hours_bank'), hoursController.createHoursBank);
-router.put('/hours-banks/:id', authenticate, requirePermission('hours_bank', 'manage'), auditLog('update', 'hours_bank'), hoursController.updateHoursBank);
-router.post('/hours-banks/:id/add', authenticate, requirePermission('hours_bank', 'manage'), auditLog('update', 'hours_bank'), hoursController.addHours);
-router.post('/hours-banks/:id/consume', authenticate, requirePermission('hours_bank', 'consume'), auditLog('update', 'hours_bank'), hoursController.consumeHours);
-router.post('/hours-banks/:id/adjust', authenticate, requirePermission('hours_bank', 'manage'), auditLog('update', 'hours_bank'), hoursController.adjustHours);
+router.get('/hours-banks', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), hoursController.getHoursBanks);
+router.get('/hours-banks/statistics', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), hoursController.getStatistics);
+router.get('/hours-banks/:id', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), hoursController.getHoursBankById);
+router.post('/hours-banks', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'manage'), auditLog('create', 'hours_bank'), hoursController.createHoursBank);
+router.put('/hours-banks/:id', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'manage'), auditLog('update', 'hours_bank'), hoursController.updateHoursBank);
+router.post('/hours-banks/:id/add', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'manage'), auditLog('update', 'hours_bank'), hoursController.addHours);
+router.post('/hours-banks/:id/consume', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'consume'), auditLog('update', 'hours_bank'), hoursController.consumeHours);
+router.post('/hours-banks/:id/adjust', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'manage'), auditLog('update', 'hours_bank'), hoursController.adjustHours);
 
 // Hours Transactions
-router.get('/hours-transactions', authenticate, requirePermission('hours_bank', 'view'), hoursController.getTransactions);
+router.get('/hours-transactions', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), hoursController.getTransactions);
 
-// Tickets para consumo de horas
-router.get('/hours-banks/tickets/completed', authenticate, requirePermission('hours_bank', 'view'), hoursController.getCompletedTickets);
+// Tickets e Projetos para consumo de horas
+router.get('/hours-banks/tickets/completed', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), hoursController.getCompletedTickets);
+router.get('/hours-banks/:bankId/available-tickets', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), hoursController.getAvailableTickets);
+router.get('/hours-banks/:bankId/available-projects', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), hoursController.getAvailableProjects);
+router.get('/tickets/:ticketId/total-time', authenticate, validateContext, injectContext, requirePermission('hours_bank', 'view'), hoursController.getTicketTotalTime);
 
 // ==================== TIME TRACKING (Cronômetro) ====================
-router.post('/tickets/:ticketId/timer/start', authenticate, timeTrackingController.startTimer);
-router.put('/timers/:id/pause', authenticate, timeTrackingController.pauseTimer);
-router.put('/timers/:id/resume', authenticate, timeTrackingController.resumeTimer);
-router.put('/timers/:id/stop', authenticate, timeTrackingController.stopTimer);
-router.get('/tickets/:ticketId/timer/active', authenticate, timeTrackingController.getActiveTimer);
-router.get('/tickets/:ticketId/timers', authenticate, timeTrackingController.getTicketTimers);
+router.post('/tickets/:ticketId/timer/start', authenticate, validateContext, injectContext, timeTrackingController.startTimer);
+router.put('/timers/:id/pause', authenticate, validateContext, injectContext, timeTrackingController.pauseTimer);
+router.put('/timers/:id/resume', authenticate, validateContext, injectContext, timeTrackingController.resumeTimer);
+router.put('/timers/:id/stop', authenticate, validateContext, injectContext, timeTrackingController.stopTimer);
+router.get('/tickets/:ticketId/timer/active', authenticate, validateContext, injectContext, timeTrackingController.getActiveTimer);
+router.get('/tickets/:ticketId/time-entries', authenticate, validateContext, injectContext, timeTrackingController.getTimeEntries);
+router.post('/tickets/:ticketId/time-entries/manual', authenticate, validateContext, injectContext, requirePermission('time_tracking', 'create'), auditLog('create', 'time_entry'), timeTrackingController.addManualTime);
 
 // ==================== TAGS ====================
 router.get('/tags', authenticate, tagController.getTags);
@@ -397,11 +436,11 @@ router.get('/tickets/:ticketId/duplicates', authenticate, ticketMergeController.
 // router.get('/catalog/statistics', authenticate, catalogController.getCatalogStatistics);
 
 // ==================== NOTIFICATIONS ====================
-router.get('/notifications', authenticate, notificationController.getNotifications);
-router.get('/notifications/unread-count', authenticate, notificationController.getUnreadCount);
-router.patch('/notifications/:id/read', authenticate, notificationController.markAsRead);
-router.patch('/notifications/mark-all-read', authenticate, notificationController.markAllAsRead);
-router.delete('/notifications/:id', authenticate, notificationController.deleteNotification);
+router.get('/notifications', authenticate, validateContext, injectContext, notificationController.getNotifications);
+router.get('/notifications/unread-count', authenticate, validateContext, injectContext, notificationController.getUnreadCount);
+router.patch('/notifications/:id/read', authenticate, validateContext, injectContext, notificationController.markAsRead);
+router.patch('/notifications/mark-all-read', authenticate, validateContext, injectContext, notificationController.markAllAsRead);
+router.delete('/notifications/:id', authenticate, validateContext, injectContext, notificationController.deleteNotification);
 
 // ==================== INVENTORY ====================
 router.get('/inventory/assets', authenticate, requireSmartPermission('assets', 'read'), inventoryController.getAssets);
@@ -488,6 +527,10 @@ router.use('/integrations', integrationRoutes);
 // ==================== SERVICE CATALOG V2 (Com Hierarquia e Tipos) ====================
 import catalogRoutes from '../modules/catalog/catalogRoutes.js';
 router.use('/catalog', catalogRoutes);
+
+// ==================== CATALOG ACCESS CONTROL ====================
+import catalogAccessRoutes from '../modules/catalogAccess/catalogAccessRoutes.js';
+router.use('/catalog-access', catalogAccessRoutes);
 
 // ==================== RBAC (Role-Based Access Control) ====================
 import rbacRoutes from './rbacRoutes.js';

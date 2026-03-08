@@ -97,41 +97,54 @@ const MyRequests = () => {
   };
 
 
-  // Status configs
-  const statusConfig = {
-    pending_approval: {
+  // Status configs para tickets
+  const ticketStatusConfig = {
+    novo: {
+      label: 'Novo',
+      icon: AlertCircle,
+      color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/20',
+      iconColor: 'text-blue-600'
+    },
+    aguardando_aprovacao: {
       label: 'Aguardando Aprovação',
       icon: Clock,
       color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20',
       iconColor: 'text-yellow-600'
     },
-    approved: {
-      label: 'Aprovado',
+    em_progresso: {
+      label: 'Em Progresso',
+      icon: Clock,
+      color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/20',
+      iconColor: 'text-purple-600'
+    },
+    aguardando_cliente: {
+      label: 'Aguardando Cliente',
+      icon: AlertCircle,
+      color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/20',
+      iconColor: 'text-orange-600'
+    },
+    resolvido: {
+      label: 'Resolvido',
       icon: CheckCircle,
       color: 'text-green-600 bg-green-100 dark:bg-green-900/20',
       iconColor: 'text-green-600'
     },
-    rejected: {
-      label: 'Rejeitado',
+    fechado: {
+      label: 'Fechado',
+      icon: CheckCircle,
+      color: 'text-gray-600 bg-gray-100 dark:bg-gray-900/20',
+      iconColor: 'text-gray-600'
+    },
+    cancelado: {
+      label: 'Cancelado',
       icon: XCircle,
       color: 'text-red-600 bg-red-100 dark:bg-red-900/20',
       iconColor: 'text-red-600'
     },
-    in_progress: {
-      label: 'Em Andamento',
+    // Fallback para quando não há ticket ainda
+    pending: {
+      label: 'Processando',
       icon: Clock,
-      color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/20',
-      iconColor: 'text-blue-600'
-    },
-    completed: {
-      label: 'Concluído',
-      icon: CheckCircle,
-      color: 'text-green-600 bg-green-100 dark:bg-green-900/20',
-      iconColor: 'text-green-600'
-    },
-    cancelled: {
-      label: 'Cancelado',
-      icon: XCircle,
       color: 'text-gray-600 bg-gray-100 dark:bg-gray-900/20',
       iconColor: 'text-gray-600'
     }
@@ -149,7 +162,7 @@ const MyRequests = () => {
 
   // Filter requests client-side with advanced filters
   const filteredRequests = requests.filter(request => {
-    // Status filter
+    // Status filter - usar status do ticket diretamente
     if (filterStatus !== 'all' && request.status !== filterStatus) {
       return false;
     }
@@ -159,8 +172,9 @@ const MyRequests = () => {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
         request.catalogItem?.name?.toLowerCase().includes(searchLower) ||
-        request.id?.toLowerCase().includes(searchLower) ||
-        request.ticketId?.toLowerCase().includes(searchLower);
+        request.subject?.toLowerCase().includes(searchLower) ||
+        request.ticketNumber?.toLowerCase().includes(searchLower) ||
+        request.id?.toLowerCase().includes(searchLower);
       
       if (!matchesSearch) return false;
     }
@@ -322,11 +336,12 @@ const MyRequests = () => {
             : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
         >
-          Todas ({filteredRequests.length})
+          Todas ({requests.length})
         </button>
 
-        {Object.entries(statusConfig).map(([status, config]) => {
-          const count = filteredRequests.filter(r => r.status === status).length;
+        {Object.entries(ticketStatusConfig).filter(([status]) => status !== 'pending').map(([status, config]) => {
+          const count = requests.filter(r => r.status === status).length;
+          if (count === 0) return null;
           return (
             <button
               key={status}
@@ -338,7 +353,7 @@ const MyRequests = () => {
             >
               <config.icon className="w-4 h-4" />
               {config.label}
-              {count > 0 && <span className="opacity-60">({count})</span>}
+              <span className="opacity-60">({count})</span>
             </button>
           );
         })}
@@ -368,7 +383,8 @@ const MyRequests = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {currentRequests.map((request) => {
-            const config = statusConfig[request.status] || statusConfig.in_progress;
+            // Usar status do ticket diretamente
+            const config = ticketStatusConfig[request.status] || ticketStatusConfig.pending;
             const StatusIcon = config.icon;
             const CatalogIcon = getIconComponent(request.catalogItem?.icon);
 
@@ -413,17 +429,12 @@ const MyRequests = () => {
                         )}
                       </div>
                       {/* Ticket ID */}
-                      {request.ticketId || request.ticketNumber ? (
+                      {request.ticketNumber ? (
                         <div className="flex items-center gap-1.5 text-sm">
                           <CheckCircle className="w-4 h-4 text-primary-500" />
                           <span className="font-medium text-primary-600 dark:text-primary-400">
-                            #{request.ticketNumber || request.ticketId}
+                            #{request.ticketNumber}
                           </span>
-                          {request.ticket?.status && (
-                            <span className="ml-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-full">
-                              {request.ticket.status}
-                            </span>
-                          )}
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -469,7 +480,7 @@ const MyRequests = () => {
                   </div>
 
                   {/* Approval/Rejection info */}
-                  {request.status === 'approved' && request.approvalComments && (
+                  {request.approvalStatus === 'approved' && request.approvalComments && (
                     <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                       <div className="text-xs font-medium text-green-800 dark:text-green-300 mb-1">
                         ✓ Aprovado
@@ -480,7 +491,7 @@ const MyRequests = () => {
                     </div>
                   )}
 
-                  {request.status === 'rejected' && request.rejectionReason && (
+                  {request.approvalStatus === 'rejected' && request.rejectionReason && (
                     <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                       <div className="text-xs font-medium text-red-800 dark:text-red-300 mb-1">
                         ✗ Rejeitado
@@ -494,23 +505,13 @@ const MyRequests = () => {
 
                 {/* Footer com ação */}
                 <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-                  {request.ticketId || request.id ? (
-                    <button
-                      onClick={() => navigate(`/tickets/${request.ticketId || request.id}`)}
-                      className="w-full px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors font-medium"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Ver Ticket
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => navigate(`/my-requests/${request.id}`)}
-                      className="w-full px-4 py-2.5 border-2 border-primary-500 text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg flex items-center justify-center gap-2 transition-colors font-medium"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Ver Detalhes
-                    </button>
-                  )}
+                  <button
+                    onClick={() => navigate(`/tickets/${request.id}`)}
+                    className="w-full px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center justify-center gap-2 transition-colors font-medium"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Ver Ticket
+                  </button>
                 </div>
               </div>
             );

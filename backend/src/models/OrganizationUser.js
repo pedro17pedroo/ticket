@@ -169,4 +169,31 @@ OrganizationUser.prototype.toJSON = function() {
   return values;
 };
 
+// Definir associações
+OrganizationUser.associate = (models) => {
+  // Pertence a uma organização
+  OrganizationUser.belongsTo(models.Organization, {
+    foreignKey: 'organizationId',
+    as: 'organization'
+  });
+
+  // Pertence a uma direção (opcional)
+  OrganizationUser.belongsTo(models.Direction, {
+    foreignKey: 'directionId',
+    as: 'direction'
+  });
+
+  // Pertence a um departamento (opcional)
+  OrganizationUser.belongsTo(models.Department, {
+    foreignKey: 'departmentId',
+    as: 'department'
+  });
+
+  // Pertence a uma seção (opcional)
+  OrganizationUser.belongsTo(models.Section, {
+    foreignKey: 'sectionId',
+    as: 'section'
+  });
+};
+
 export default OrganizationUser;

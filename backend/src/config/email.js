@@ -13,16 +13,16 @@ const createTransporter = () => {
     },
   };
 
-  // Se não houver configuração SMTP, usar ethereal para testes
-  if (!config.auth.user) {
-    logger.warn('Configuração SMTP não encontrada. Usando modo de teste (emails não serão enviados).');
+  // Se não houver configuração SMTP, não criar transporter
+  if (!config.auth.user || !config.auth.pass) {
+    logger.warn('Configuração SMTP não encontrada. Emails não serão enviados.');
     return null;
   }
 
   const transporter = nodemailer.createTransport(config);
 
-  // Verificar conexão
-  transporter.verify((error, success) => {
+  // Verificar conexão apenas se tiver credenciais válidas
+  transporter.verify((error) => {
     if (error) {
       logger.error('Erro ao conectar ao servidor SMTP:', error);
     } else {

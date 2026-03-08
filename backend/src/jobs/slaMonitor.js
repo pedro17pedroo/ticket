@@ -95,7 +95,14 @@ class SLAMonitor {
         await this.checkTicketSLA(ticket);
       }
     } catch (error) {
+      // Tabela client_users é ESSENCIAL - erro deve ser tratado como crítico
+      if (error.message?.includes('client_users') && error.original?.code === '42P01') {
+        logger.error('❌ ERRO CRÍTICO: Tabela client_users não existe! Sistema SaaS multi-nível incompleto.');
+        logger.error('Execute: PGPASSWORD=postgres psql -h localhost -U postgres -d tatuticket -f backend/migrations/20251104000003-create-client-users-table.sql');
+        throw error;
+      }
       logger.error('Erro ao verificar violações de SLA:', error);
+      throw error;
     }
   }
 

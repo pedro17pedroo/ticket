@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Plus, Edit2, UserX, X } from 'lucide-react'
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
-import { useAuthStore } from '../store/authStore'
+import { usePermissions } from '../hooks/usePermissions'
 
 const Sections = () => {
-  const { user } = useAuthStore()
-  const isClientAdmin = user?.role === 'cliente-org' && user?.settings?.clientAdmin === true
+  const { hasPermission } = usePermissions()
+  const canManageSections = hasPermission('sections', 'create') || hasPermission('sections', 'update')
+  const canViewSections = hasPermission('sections', 'read')
 
   const [sections, setSections] = useState([])
   const [departments, setDepartments] = useState([])
@@ -88,10 +89,10 @@ const Sections = () => {
     setEditingSection(null)
   }
 
-  if (!isClientAdmin) {
+  if (!canViewSections) {
     return (
       <div className="text-center p-12">
-        <p className="text-gray-500">Acesso restrito.</p>
+        <p className="text-gray-500">Acesso restrito. Não tem permissão para visualizar secções.</p>
       </div>
     )
   }
@@ -103,10 +104,12 @@ const Sections = () => {
           <h1 className="text-3xl font-bold">Secções</h1>
           <p className="text-gray-600 dark:text-gray-400">Gerir secções da empresa</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg">
-          <Plus className="w-4 h-4" />
-          Nova Secção
-        </button>
+        {canManageSections && (
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg">
+            <Plus className="w-4 h-4" />
+            Nova Secção
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -138,10 +141,12 @@ const Sections = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => handleEdit(section)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      {section.isActive && (
+                      {canManageSections && (
+                        <button onClick={() => handleEdit(section)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canManageSections && section.isActive && (
                         <button onClick={() => handleDelete(section.id)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg">
                           <UserX className="w-4 h-4" />
                         </button>

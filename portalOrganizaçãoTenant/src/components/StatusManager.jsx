@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, AlertCircle, X } from 'lucide-react'
+import { Check, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../services/api'
 
@@ -13,9 +13,24 @@ const STATUS_OPTIONS = [
 
 const StatusManager = ({ ticketId, currentStatus, onUpdate }) => {
   const [selectedStatus, setSelectedStatus] = useState(currentStatus || 'novo')
-  const [notes, setNotes] = useState('')
-  const [showNotes, setShowNotes] = useState(false)
   const [updating, setUpdating] = useState(false)
+
+  const handleStartService = async () => {
+    setUpdating(true)
+    try {
+      await api.patch(`/tickets/${ticketId}`, {
+        status: 'em_progresso'
+      })
+
+      toast.success('Atendimento iniciado com sucesso')
+      if (onUpdate) onUpdate()
+    } catch (error) {
+      console.error('Erro ao iniciar atendimento:', error)
+      toast.error(error.response?.data?.error || 'Erro ao iniciar atendimento')
+    } finally {
+      setUpdating(false)
+    }
+  }
 
   const handleUpdate = async () => {
     if (selectedStatus === currentStatus) {
@@ -30,8 +45,6 @@ const StatusManager = ({ ticketId, currentStatus, onUpdate }) => {
       })
 
       toast.success('Status atualizado com sucesso')
-      setNotes('')
-      setShowNotes(false)
       if (onUpdate) onUpdate()
     } catch (error) {
       console.error('Erro ao atualizar status:', error)
@@ -67,7 +80,26 @@ const StatusManager = ({ ticketId, currentStatus, onUpdate }) => {
         </div>
       </div>
 
-      {/* Seletor de Status */}
+      {currentStatus === 'novo' && (
+        <button
+          onClick={handleStartService}
+          disabled={updating}
+          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mb-4 font-semibold text-base"
+        >
+          {updating ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Iniciando...
+            </>
+          ) : (
+            <>
+              <Check className="w-5 h-5" />
+              🚀 Iniciar Atendimento
+            </>
+          )}
+        </button>
+      )}
+
       <div className="space-y-3 mb-4">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           Alterar Status
@@ -85,7 +117,6 @@ const StatusManager = ({ ticketId, currentStatus, onUpdate }) => {
         </select>
       </div>
 
-      {/* Botão de Atualizar */}
       {selectedStatus !== currentStatus && (
         <button
           onClick={handleUpdate}
@@ -106,7 +137,6 @@ const StatusManager = ({ ticketId, currentStatus, onUpdate }) => {
         </button>
       )}
 
-      {/* Informações sobre o status */}
       <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
         <p className="text-xs text-blue-800 dark:text-blue-200">
           ℹ️ <strong>Nota:</strong> Alterar o status do ticket irá notificar o cliente e o responsável.

@@ -1,0 +1,83 @@
+================================================================================
+                    BUG FIX SUMMARY - CONTEXT SELECTION
+================================================================================
+
+DATE: 02/03/2026
+STATUS: ✅ FIXED - PENDING MANUAL TEST
+PRIORITY: 🔴 CRITICAL
+
+================================================================================
+PROBLEM
+================================================================================
+
+Error: "Acesso negado" when selecting context after login
+
+================================================================================
+ROOT CAUSE
+================================================================================
+
+Frontend sent wrong field:
+  - Sent: context.id (userId)
+  - Expected: context.contextId (organizationId)
+
+================================================================================
+SOLUTION
+================================================================================
+
+Changed 2 files:
+  1. portalOrganizaçãoTenant/src/pages/Login.jsx (line ~169)
+  2. portalClientEmpresa/src/pages/Login.jsx (line ~145)
+
+Changed:
+  context.id → context.contextId
+  context.type → context.contextType
+
+================================================================================
+QUICK TEST
+================================================================================
+
+1. Start servers:
+   cd backend && npm run dev
+   cd portalOrganizaçãoTenant && npm run dev
+
+2. Login:
+   http://localhost:5173
+   Email: multicontext@test.com
+   Password: Test@123
+
+3. Select any context
+
+4. Expected: ✅ Login successful (no "Acesso negado" error)
+
+================================================================================
+DOCUMENTATION
+================================================================================
+
+Quick Start:        PROXIMOS-PASSOS-TESTE.md
+Technical Details:  CORRECAO-BUG-CONTEXT-SELECTION.md
+Test Guide:         TESTE-CORRECAO-BUG.md
+Visual Diagrams:    DIAGRAMA-CORRECAO-BUG.md
+Full Index:         INDICE-CORRECAO-BUG.md
+
+================================================================================
+IMPACT
+================================================================================
+
+Severity:     CRITICAL (blocked multi-context login)
+Users:        100% with multiple contexts
+Complexity:   LOW (4 lines changed)
+Risk:         LOW (simple, isolated change)
+Time:         30 minutes (diagnosis + fix + docs)
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Manual test in browser
+2. Validate all 7 test scenarios
+3. Deploy to staging
+4. Deploy to production
+
+================================================================================
+STATUS: READY FOR TESTING 🚀
+================================================================================

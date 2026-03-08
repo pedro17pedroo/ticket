@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Plus, Edit2, UserX, UserCheck, X } from 'lucide-react'
 import api from '../services/api'
 import { confirmDelete, showSuccess, showError } from '../utils/alerts'
-import { useAuthStore } from '../store/authStore'
+import { usePermissions } from '../hooks/usePermissions'
 
 const Directions = () => {
-  const { user } = useAuthStore()
-  const isClientAdmin = user?.role === 'cliente-org' && user?.settings?.clientAdmin === true
+  const { hasPermission } = usePermissions()
+  const canManageDirections = hasPermission('directions', 'create') || hasPermission('directions', 'update')
+  const canViewDirections = hasPermission('directions', 'read')
 
   const [directions, setDirections] = useState([])
   const [loading, setLoading] = useState(true)
@@ -81,10 +82,10 @@ const Directions = () => {
     setEditingDirection(null)
   }
 
-  if (!isClientAdmin) {
+  if (!canViewDirections) {
     return (
       <div className="text-center p-12">
-        <p className="text-gray-500">Acesso restrito. Apenas administradores do cliente podem gerir direções.</p>
+        <p className="text-gray-500">Acesso restrito. Não tem permissão para visualizar direções.</p>
       </div>
     )
   }
@@ -97,13 +98,15 @@ const Directions = () => {
           <h1 className="text-3xl font-bold">Direções</h1>
           <p className="text-gray-600 dark:text-gray-400">Gerir direções da empresa</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Direção
-        </button>
+        {canManageDirections && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Direção
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -138,10 +141,12 @@ const Directions = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => handleEdit(direction)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title="Editar">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      {direction.isActive && (
+                      {canManageDirections && (
+                        <button onClick={() => handleEdit(direction)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title="Editar">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canManageDirections && direction.isActive && (
                         <button onClick={() => handleDelete(direction.id)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg" title="Desativar">
                           <UserX className="w-4 h-4" />
                         </button>

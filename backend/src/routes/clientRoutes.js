@@ -1,7 +1,7 @@
 import express from 'express';
 import * as clientB2BController from '../modules/clients/clientManagementController.js';
 import * as clientUserController from '../modules/clients/clientUserManagementController.js';
-import * as catalogAccessController from '../modules/catalogAccess/catalogAccessController.js';
+import * as clientCatalogAccessController from '../modules/clients/clientCatalogAccessController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { requireSmartPermission } from '../middleware/smartPermission.js';
 import { auditLog } from '../middleware/audit.js';
@@ -34,17 +34,17 @@ router.get('/:id/stats', clientB2BController.getClientStats);
 
 // ==================== CATALOG ACCESS (Permissões de Catálogo) ====================
 // GET /api/clients/:id/catalog-access - Obter permissões de catálogo do cliente
-router.get('/:id/catalog-access', requireSmartPermission('clients', 'read'), catalogAccessController.getClientCatalogAccess);
+router.get('/:id/catalog-access', requireSmartPermission('clients', 'read'), clientCatalogAccessController.getClientCatalogAccess);
 
 // PUT /api/clients/:id/catalog-access - Atualizar permissões de catálogo do cliente
 router.put('/:id/catalog-access', 
-  authorize('org-admin', 'tenant-admin', 'super-admin', 'provider-admin'),
+  requireSmartPermission('clients', 'update'),
   auditLog('update', 'client_catalog_access'),
-  catalogAccessController.updateClientCatalogAccess
+  clientCatalogAccessController.updateClientCatalogAccess
 );
 
 // GET /api/clients/:id/catalog-access/audit - Histórico de alterações
-router.get('/:id/catalog-access/audit', requireSmartPermission('clients', 'read'), catalogAccessController.getClientCatalogAccessAudit);
+router.get('/:id/catalog-access/audit', requireSmartPermission('clients', 'read'), clientCatalogAccessController.getClientCatalogAccessAudit);
 
 // ==================== USUÁRIOS DO CLIENTE ====================
 // Listar usuários de um cliente

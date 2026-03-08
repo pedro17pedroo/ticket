@@ -5,10 +5,12 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Configuração PostgreSQL (Banco principal)
+const pgPassword = process.env.POSTGRES_PASSWORD;
+
 export const sequelize = new Sequelize(
   process.env.POSTGRES_DB,
   process.env.POSTGRES_USER,
-  String(process.env.POSTGRES_PASSWORD), // Ensure password is a string
+  pgPassword || undefined, // undefined means no password
   {
     host: process.env.POSTGRES_HOST,
     port: process.env.POSTGRES_PORT,

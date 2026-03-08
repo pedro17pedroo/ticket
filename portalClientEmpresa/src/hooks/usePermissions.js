@@ -42,9 +42,6 @@ export const usePermissions = () => {
     return (resource, action) => {
       if (!user) return false;
       
-      // admin-org tem todas as permissões
-      if (user.role === 'admin-org') return true;
-      
       // Verificar nas permissões
       if (!user.permissions || !Array.isArray(user.permissions)) {
         return false;
@@ -64,7 +61,6 @@ export const usePermissions = () => {
   const canAny = useMemo(() => {
     return (permissions) => {
       if (!user) return false;
-      if (user.role === 'admin-org') return true;
       
       return permissions.some(([resource, action]) => can(resource, action));
     };
@@ -78,7 +74,6 @@ export const usePermissions = () => {
   const canAll = useMemo(() => {
     return (permissions) => {
       if (!user) return false;
-      if (user.role === 'admin-org') return true;
       
       return permissions.every(([resource, action]) => can(resource, action));
     };
@@ -138,20 +133,22 @@ export const usePermissions = () => {
   }, [user]);
 
   /**
-   * Verificar se é admin
+   * Verificar se é admin (baseado em permissões)
    * @returns {boolean}
    */
   const isAdmin = useMemo(() => {
-    return user?.role === 'admin-org';
-  }, [user]);
+    // Admin é quem tem permissão de gerenciar configurações do sistema
+    return can('settings', 'update') || can('users', 'delete');
+  }, [can]);
 
   /**
-   * Verificar se é cliente admin
+   * Verificar se é cliente admin (baseado em permissões)
    * @returns {boolean}
    */
   const isClientAdmin = useMemo(() => {
-    return user?.role === 'client-admin';
-  }, [user]);
+    // Cliente admin é quem tem permissão de gerenciar usuários do cliente
+    return can('client_users', 'create') || can('client_users', 'delete');
+  }, [can]);
 
   /**
    * Verificar se pode acessar configurações

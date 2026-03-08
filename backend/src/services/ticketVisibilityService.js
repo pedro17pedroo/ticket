@@ -269,8 +269,11 @@ class TicketVisibilityService {
    * @returns {Object} Condições WHERE para Sequelize
    */
   buildVisibilityFilter(user) {
+    logger.info(`🔍 buildVisibilityFilter chamado para usuário: ${user.email} (${user.id})`);
+    
     // Admin vê tudo da organização
     if (user.role === 'org-admin') {
+      logger.info(`👑 Usuário é org-admin, retornando filtro vazio (vê tudo)`);
       return {};
     }
 
@@ -283,9 +286,18 @@ class TicketVisibilityService {
     conditions.push({
       orgWatchers: { [Op.contains]: [user.id] }
     });
+    
+    // IMPORTANTE: Sempre pode ver tickets que ele mesmo criou
+    conditions.push({ 
+      requesterType: 'organization',
+      requesterOrgUserId: user.id 
+    });
+    
+    logger.info(`✅ Condições base adicionadas: assignee, watcher, criador`);
 
     // Construir condições baseadas na estrutura do usuário
-    if (user.directionId) {
+    // APENAS PARA MANAGERS - usuários comuns (agent, technician) só veem tickets onde são assignee/watcher/criador
+    if (user.directionId && ['org-manager', 'org-admin'].includes(user.role)) {
       // Se usuário é chefe da direção (sem dept específico)
       if (this._isDirectionHead(user, user.directionId)) {
         // Vê todos os tickets da sua direção
@@ -312,7 +324,7 @@ class TicketVisibilityService {
               sectionId: user.sectionId
             });
           } else {
-            // Usuário comum da secção - vê apenas tickets da sua secção
+            // Manager comum da secção - vê apenas tickets da sua secção
             conditions.push({
               directionId: user.directionId,
               departmentId: user.departmentId,
@@ -320,7 +332,7 @@ class TicketVisibilityService {
             });
           }
         } else {
-          // Usuário do departamento sem secção - vê tickets do departamento sem secção
+          // Manager do departamento sem secção - vê tickets do departamento sem secção
           // E tickets onde departamento é o dele
           conditions.push({
             directionId: user.directionId,
@@ -333,18 +345,24 @@ class TicketVisibilityService {
           });
         }
       } else {
-        // Usuário da direção sem departamento - vê tickets da direção sem departamento
+        // Manager da direção sem departamento - vê tickets da direção sem departamento
         conditions.push({
           directionId: user.directionId,
           departmentId: null
         });
       }
     }
+    
+    // NOTA: Usuários comuns (agent, technician) NÃO veem tickets por estrutura organizacional
+    // Eles só veem tickets onde são assignee, watcher ou criador (já adicionado acima)
 
-    // Tickets sem direção são visíveis a todos (tickets legados ou gerais)
-    conditions.push({ directionId: null });
-
-    return { [Op.or]: conditions };
+    logger.info(`📊 Total de condições: ${conditions.length}`);
+    logger.info(`🎯 Condições finais:`, JSON.stringify(conditions, null, 2));
+    
+    const filter = { [Op.or]: conditions };
+    logger.info(`✅ Filtro final retornado:`, JSON.stringify(filter, null, 2));
+    
+    return filter;
   }
 
   /**

@@ -102,7 +102,9 @@ const RoleManagement = () => {
   };
 
   const handleEdit = (role) => {
-    if (!role.canEdit) {
+    // Permitir edição de permissões para roles do sistema (apenas org-admin)
+    // Permitir edição completa para roles customizados
+    if (!role.canEdit && !role.isSystem) {
       message.warning('Não pode editar este role');
       return;
     }
@@ -157,8 +159,16 @@ const RoleManagement = () => {
       };
 
       if (selectedRole) {
-        await rbacService.updateRole(selectedRole.id, payload);
-        message.success('Role atualizado com sucesso');
+        // Se for role do sistema, enviar apenas permissões
+        if (selectedRole.isSystem) {
+          await rbacService.updateRole(selectedRole.id, {
+            permissions: values.permissions
+          });
+          message.success('Permissões do role atualizadas com sucesso');
+        } else {
+          await rbacService.updateRole(selectedRole.id, payload);
+          message.success('Role atualizado com sucesso');
+        }
       } else {
         await rbacService.createRole(payload);
         message.success('Role criado com sucesso');
@@ -287,8 +297,8 @@ const RoleManagement = () => {
             />
           </Tooltip>
           
-          {record.canEdit && (
-            <Tooltip title="Editar">
+          {(record.canEdit || record.isSystem) && (
+            <Tooltip title={record.isSystem ? "Editar Permissões" : "Editar"}>
               <Button
                 type="text"
                 icon={<EditOutlined />}
@@ -341,7 +351,7 @@ const RoleManagement = () => {
             message="Gestão de Roles da Organização"
             description={
               <>
-                <p>• <strong>Roles do Sistema:</strong> Roles padrão (não podem ser editados)</p>
+                <p>• <strong>Roles do Sistema:</strong> Roles padrão (permissões podem ser editadas por administradores)</p>
                 <p>• <strong>Roles da Organização:</strong> Roles customizados para a sua organização</p>
                 {canCreateForClients && (
                   <p>• <strong>Roles de Clientes:</strong> Roles específicos criados para os seus clientes</p>
@@ -370,7 +380,13 @@ const RoleManagement = () => {
 
       {/* Modal de Criar/Editar */}
       <Modal
-        title={selectedRole ? 'Editar Role' : 'Criar Role'}
+        title={
+          selectedRole?.isSystem 
+            ? `Editar Permissões: ${selectedRole.displayName}` 
+            : selectedRole 
+              ? 'Editar Role' 
+              : 'Criar Role'
+        }
         open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
@@ -386,6 +402,17 @@ const RoleManagement = () => {
           layout="vertical"
           onFinish={handleSubmit}
         >
+          {/* Alert para roles do sistema */}
+          {selectedRole?.isSystem && (
+            <Alert
+              message="Role do Sistema"
+              description="Este é um role do sistema. Apenas as permissões podem ser editadas."
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
           {/* Escopo: Organização ou Cliente */}
           {!selectedRole && canCreateForClients && (
             <>
@@ -408,7 +435,7 @@ const RoleManagement = () => {
           )}
 
           {/* Cliente (se escopo = client) */}
-          {roleScope === 'client' && (
+          {roleScope === 'client' && !selectedRole?.isSystem && (
             <Form.Item
               name="clientId"
               label="Cliente"
@@ -428,51 +455,58 @@ const RoleManagement = () => {
             </Form.Item>
           )}
 
-          <Form.Item
-            name="name"
-            label="Nome Técnico"
-            rules={[
-              { required: true, message: 'Nome é obrigatório' },
-              { pattern: /^[a-z0-9-]+$/, message: 'Apenas letras minúsculas, números e hífens' }
-            ]}
+          {!selectedRole?.isSystem && (
+            <>
+              <Form.Item
+                name="name"
+                label="Nome Técnico"
+                rules={[
+                  { required: true, message: 'Nome é obrigatório' },
+                  { pattern: /^[a-z0-9-]+$/, message: 'Apenas letras minúsculas, números e hífens' }
+                ]}
+              >
+                <Input placeholder="suporte-nivel-1" disabled={!!selectedRole} />
+              </Form.Item>
+
+              <Form.Item
+                name="displayName"
+                label="Nome de Exibição"
+                rules={[{ required: true, message: 'Nome de exibição é obrigatório' }]}
+              >
+                <Input placeholder="Suporte Nível 1" />
+              </Form.Item>
+
+              <Form.Item name="description" label="Descrição">
+                <Input.TextArea rows={3} placeholder="Descrição do role..." />
+              </Form.Item>
+
+              <Form.Item
+                name="level"
+                label="Nível"
+                rules={[{ required: true, message: 'Nível é obrigatório' }]}
+              >
+                <Select placeholder="Selecione o nível">
+                  <Option value="organization">Organização</Option>
+                  <Option value="client">Cliente</Option>
+                  <Option value="user">Utilizador</Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                name="priority"
+                label="Prioridade"
+                rules={[{ required: true, message: 'Prioridade é obrigatória' }]}
+                tooltip="100-999"
+              >
+                <Input type="number" min={100} max={999} placeholder="500" />
+              </Form.Item>
+            </>
+          )}
+
+          <Form.Item 
+            name="permissions" 
+            label={selectedRole?.isSystem ? "Permissões do Role do Sistema" : "Permissões"}
           >
-            <Input placeholder="suporte-nivel-1" disabled={!!selectedRole} />
-          </Form.Item>
-
-          <Form.Item
-            name="displayName"
-            label="Nome de Exibição"
-            rules={[{ required: true, message: 'Nome de exibição é obrigatório' }]}
-          >
-            <Input placeholder="Suporte Nível 1" />
-          </Form.Item>
-
-          <Form.Item name="description" label="Descrição">
-            <Input.TextArea rows={3} placeholder="Descrição do role..." />
-          </Form.Item>
-
-          <Form.Item
-            name="level"
-            label="Nível"
-            rules={[{ required: true, message: 'Nível é obrigatório' }]}
-          >
-            <Select placeholder="Selecione o nível">
-              <Option value="organization">Organização</Option>
-              <Option value="client">Cliente</Option>
-              <Option value="user">Utilizador</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="priority"
-            label="Prioridade"
-            rules={[{ required: true, message: 'Prioridade é obrigatória' }]}
-            tooltip="100-999"
-          >
-            <Input type="number" min={100} max={999} placeholder="500" />
-          </Form.Item>
-
-          <Form.Item name="permissions" label="Permissões">
             <div style={{ maxHeight: '300px', overflow: 'auto', border: '1px solid #d9d9d9', padding: '12px' }}>
               <Collapse accordion>
                 {Object.keys(groupedPermissions).map(category => (

@@ -11,9 +11,8 @@ export const useAuthStore = create(
       permissionsLoaded: false,
       
       setAuth: (user, token) => {
-        const permissions = (user?.role === 'org-admin' || user?.role === 'admin') 
-          ? ['*'] 
-          : (user?.permissions || []);
+        // ✅ RBAC: Usar permissões do backend, sem fallback hardcoded
+        const permissions = user?.permissions || [];
         
         set({ 
           user, 
@@ -41,30 +40,52 @@ export const useAuthStore = create(
         user: { ...state.user, ...userData } 
       })),
 
-      // Verificar se é admin
+      // Verificar se é admin (baseado em permissões, não em role)
       isAdmin: () => {
-        const { user, permissions } = get()
-        return user?.role === 'org-admin' || 
-               user?.role === 'admin' || 
-               permissions.includes('*')
+        const { permissions } = get()
+        // Admin é quem tem permissão de gerenciar roles
+        return permissions.some(p => 
+          (typeof p === 'object' && p.resource === 'settings' && p.action === 'manage_roles') ||
+          (typeof p === 'string' && p === 'settings.manage_roles')
+        )
       },
 
-      // Verificar permissão
+      // Verificar permissão (baseado em RBAC, não em role)
       hasPermission: (permission) => {
-        const { user, permissions } = get()
+        const { permissions } = get()
         if (!permission) return true
         
-        // Admin tem todas as permissões
-        if (user?.role === 'org-admin' || user?.role === 'admin' || permissions.includes('*')) {
-          return true
+        // Verificar se permissões estão carregadas
+        if (!permissions || permissions.length === 0) return false
+        
+        // Suportar formato string "resource.action"
+        if (typeof permission === 'string') {
+          const [resource, action] = permission.split('.')
+          
+          // Verificar permissão exata no formato objeto
+          const hasObjectPermission = permissions.some(p => 
+            typeof p === 'object' && 
+            p.resource === resource && 
+            p.action === action
+          )
+          
+          if (hasObjectPermission) return true
+          
+          // Verificar permissão exata no formato string
+          if (permissions.includes(permission)) return true
+          
+          // Verificar wildcard de recurso
+          if (permissions.includes(`${resource}.*`)) return true
+          
+          // Verificar permissão all (ex: tickets.assign_all inclui tickets.assign_team)
+          const allAction = `${action}_all`
+          const hasAllPermission = permissions.some(p =>
+            (typeof p === 'object' && p.resource === resource && p.action === allAction) ||
+            (typeof p === 'string' && p === `${resource}.${allAction}`)
+          )
+          
+          if (hasAllPermission) return true
         }
-        
-        // Verificar permissão exata
-        if (permissions.includes(permission)) return true
-        
-        // Verificar wildcard de recurso
-        const [resource] = permission.split('.')
-        if (permissions.includes(`${resource}.*`)) return true
         
         return false
       }

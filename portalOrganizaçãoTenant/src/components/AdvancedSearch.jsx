@@ -32,7 +32,7 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
       const [categoriesRes, departmentsRes, usersRes, clientsRes] = await Promise.all([
         api.get('/catalog/categories'),
         api.get('/departments'),
-        api.get('/users'),
+        api.get('/users/assignable'), // Usar endpoint que retorna apenas usuários atribuíveis
         api.get('/clients-b2b')
       ]);
 
@@ -222,7 +222,7 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
               >
                 <option value="">Todos</option>
                 <option value="unassigned">Não atribuído</option>
-                {users.filter(u => u.role === 'agent' || u.role === 'org-admin').map(user => (
+                {users.map(user => (
                   <option key={user.id} value={user.id}>{user.name}</option>
                 ))}
               </select>

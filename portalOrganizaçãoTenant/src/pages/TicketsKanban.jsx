@@ -11,13 +11,18 @@ import {
   MessageSquare,
   Paperclip,
   MoreVertical,
-  Eye
+  Filter,
+  X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ticketService } from '../services/api';
+import clientService from '../services/clientService';
+import { getUsers } from '../services/userService';
+import { useAuthStore } from '../store/authStore';
 
 const TicketsKanban = () => {
+  const { user: currentUser } = useAuthStore();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [columns, setColumns] = useState({
@@ -28,6 +33,16 @@ const TicketsKanban = () => {
     resolvido: [],
     fechado: []
   });
+
+  // Estados de filtros
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    clientId: '',
+    assigneeId: '',
+    myTickets: false
+  });
+  const [clients, setClients] = useState([]);
+  const [users, setUsers] = useState([]);
 
   const statusConfig = {
     novo: {
@@ -76,12 +91,31 @@ const TicketsKanban = () => {
 
   useEffect(() => {
     loadTickets();
+    loadClients();
+    loadUsers();
   }, []);
+
+  useEffect(() => {
+    loadTickets();
+  }, [filters]);
 
   const loadTickets = async () => {
     setLoading(true);
     try {
-      const response = await ticketService.getTickets({ limit: 100 });
+      const params = { limit: 100 };
+      
+      // Aplicar filtros
+      if (filters.clientId) {
+        params.clientId = filters.clientId;
+      }
+      if (filters.assigneeId) {
+        params.assigneeId = filters.assigneeId;
+      }
+      if (filters.myTickets && currentUser) {
+        params.assigneeId = currentUser.id;
+      }
+
+      const response = await ticketService.getTickets(params);
       const ticketsData = response.tickets || [];
       
       // Garantir que todos os tickets têm ID válido
@@ -106,6 +140,45 @@ const TicketsKanban = () => {
       setLoading(false);
     }
   };
+
+  const loadClients = async () => {
+    try {
+      const response = await clientService.getAll();
+      setClients(response.clients || []);
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await getUsers();
+      setUsers(response.users || []);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+    }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+      // Se selecionar "Meus Tickets", limpar assigneeId
+      ...(key === 'myTickets' && value ? { assigneeId: '' } : {}),
+      // Se selecionar assigneeId, desmarcar "Meus Tickets"
+      ...(key === 'assigneeId' && value ? { myTickets: false } : {})
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      clientId: '',
+      assigneeId: '',
+      myTickets: false
+    });
+  };
+
+  const hasActiveFilters = filters.clientId || filters.assigneeId || filters.myTickets;
 
   const onDragEnd = async (result) => {
     console.log('🎯 onDragEnd chamado:', result.draggableId, '->', result.destination?.droppableId);
@@ -232,13 +305,108 @@ const TicketsKanban = () => {
             Arraste e solte para alterar o status dos tickets
           </p>
         </div>
-        <Link
-          to="/tickets"
-          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
-        >
-          Ver Tabela
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              hasActiveFilters
+                ? 'bg-primary-600 text-white hover:bg-primary-700'
+                : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            <Filter className="w-5 h-5" />
+            Filtros
+            {hasActiveFilters && (
+              <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">
+                {[filters.clientId, filters.assigneeId, filters.myTickets].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+          <Link
+            to="/tickets"
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
+          >
+            Ver Tabela
+          </Link>
+        </div>
       </div>
+
+      {/* Filtros */}
+      {showFilters && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900 dark:text-white">Filtros</h3>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-1"
+              >
+                <X className="w-4 h-4" />
+                Limpar Filtros
+              </button>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Filtro por Cliente */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Cliente
+              </label>
+              <select
+                value={filters.clientId}
+                onChange={(e) => handleFilterChange('clientId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">Todos os clientes</option>
+                {clients.map(client => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtro por Usuário */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Atribuído a
+              </label>
+              <select
+                value={filters.assigneeId}
+                onChange={(e) => handleFilterChange('assigneeId', e.target.value)}
+                disabled={filters.myTickets}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Todos os usuários</option>
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Meus Tickets */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Visualização
+              </label>
+              <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <input
+                  type="checkbox"
+                  checked={filters.myTickets}
+                  onChange={(e) => handleFilterChange('myTickets', e.target.checked)}
+                  className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-white">
+                  Apenas meus tickets
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
@@ -286,62 +454,70 @@ const TicketsKanban = () => {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-move ${
+                                className={`bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-move h-[200px] flex flex-col ${
                                   snapshot.isDragging ? 'shadow-lg ring-2 ring-primary-500' : ''
                                 }`}
                               >
                                 {/* Ticket Card */}
-                                <div className="space-y-3">
-                                  {/* Header */}
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1">
+                                <div className="flex flex-col h-full">
+                                  {/* Header - Fixo no topo */}
+                                  <div className="flex items-start justify-between gap-2 mb-3">
+                                    <div className="flex-1 min-w-0">
                                       <Link
                                         to={`/tickets/${ticket.id}`}
-                                        className="font-medium text-sm hover:text-primary-600 dark:hover:text-primary-400 line-clamp-2"
+                                        className="font-medium text-sm hover:text-primary-600 dark:hover:text-primary-400 block"
+                                        title={ticket.subject}
                                       >
-                                        {ticket.subject}
+                                        <span className="line-clamp-2">
+                                          {ticket.subject}
+                                        </span>
                                       </Link>
                                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                         #{ticket.ticketNumber}
                                       </p>
                                     </div>
-                                    <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                    <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0">
                                       <MoreVertical className="w-4 h-4" />
                                     </button>
                                   </div>
 
-                                  {/* Priority */}
-                                  <div className="flex items-center gap-2">
-                                    <Tag className={`w-3 h-3 ${getPriorityColor(ticket.priority)}`} />
-                                    <span className={`text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
-                                      {getPriorityLabel(ticket.priority)}
-                                    </span>
-                                  </div>
-
-                                  {/* Requester */}
-                                  {ticket.requester && (
-                                    <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                                      <User className="w-3 h-3" />
-                                      <span className="truncate">{ticket.requester.name}</span>
-                                    </div>
-                                  )}
-
-                                  {/* Assignee */}
-                                  {ticket.assignee && (
+                                  {/* Conteúdo do meio - Flexível */}
+                                  <div className="flex-1 space-y-2 min-h-0">
+                                    {/* Priority */}
                                     <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
-                                        <span className="text-xs font-medium text-primary-600 dark:text-primary-400">
-                                          {ticket.assignee.name.charAt(0).toUpperCase()}
-                                        </span>
-                                      </div>
-                                      <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                        {ticket.assignee.name}
+                                      <Tag className={`w-3 h-3 flex-shrink-0 ${getPriorityColor(ticket.priority)}`} />
+                                      <span className={`text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
+                                        {getPriorityLabel(ticket.priority)}
                                       </span>
                                     </div>
-                                  )}
 
-                                  {/* Footer */}
-                                  <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                                    {/* Requester */}
+                                    {ticket.requester && (
+                                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 min-w-0">
+                                        <User className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate" title={ticket.requester.name}>
+                                          {ticket.requester.name}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {/* Assignee */}
+                                    {ticket.assignee && (
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-6 h-6 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center flex-shrink-0">
+                                          <span className="text-xs font-medium text-primary-600 dark:text-primary-400">
+                                            {ticket.assignee.name.charAt(0).toUpperCase()}
+                                          </span>
+                                        </div>
+                                        <span className="text-xs text-gray-600 dark:text-gray-400 truncate" title={ticket.assignee.name}>
+                                          {ticket.assignee.name}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Footer - Fixo no fundo */}
+                                  <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700 mt-auto">
                                     <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                                       {ticket._count?.comments > 0 && (
                                         <div className="flex items-center gap-1">

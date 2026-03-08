@@ -1,0 +1,233 @@
+================================================================================
+1. ESTRUTURA DO BANCO DE DADOS
+================================================================================
+
+1.1 Tabelas RBAC:
+    tablename     | columns | exists 
+------------------+---------+--------
+ permissions      |      11 |      1
+ role_permissions |       6 |      1
+ roles            |      12 |      1
+ user_permissions |       9 |      1
+(4 rows)
+
+
+1.2 Contagem de registros:
+      tabela      | registros 
+------------------+-----------
+ roles            |         8
+ permissions      |        71
+ role_permissions |        66
+ user_permissions |         0
+(4 rows)
+
+
+================================================================================
+2. PERMISSÕES
+================================================================================
+
+2.1 Recursos cadastrados:
+       resource       | permission_count |                                  actions                                  
+----------------------+------------------+---------------------------------------------------------------------------
+ assets               |                6 | create, delete, read, read_all, update, view
+ catalog              |                6 | approve, create, delete, manage, read, update
+ clients              |                5 | create, delete, read, read_all, update
+ comments             |                3 | create, create_internal, view
+ dashboard            |                1 | view
+ desktop_agent        |                3 | manage, read, view
+ hours_bank           |                3 | consume, manage, view
+ knowledge            |                4 | create, delete, read, update
+ project_stakeholders |                1 | manage
+ project_tasks        |                4 | create, delete, update, view
+ projects             |                6 | create, delete, manage_tasks, read, update, view
+ reports              |                4 | advanced, create, export, view
+ settings             |                3 | manage_roles, read, update
+ tags                 |                5 | create, delete, read, update, view
+ templates            |                5 | create, delete, read, update, view
+ tickets              |                8 | assign_all, assign_self, assign_team, close, create, delete, read, update
+ users                |                4 | create, delete, read, update
+(17 rows)
+
+
+2.2 Permissões sem display_name:
+ resource | action | description 
+----------+--------+-------------
+(0 rows)
+
+
+2.3 Permissões por applicable_to:
+    level     | count 
+--------------+-------
+ system       |    60
+ organization |    11
+(2 rows)
+
+
+================================================================================
+3. ROLES
+================================================================================
+
+3.1 Roles cadastrados:
+      name      |    level     |         display_name         | permission_count 
+----------------+--------------+------------------------------+------------------
+ agent          | organization | Agente                       |               34
+ org-admin      | organization | Administrador da Organização |               26
+ org-manager    | organization | Gerente                      |                1
+ user           | organization | Usuário                      |                5
+ client-admin   | client       | Administrador do Cliente     |                0
+ client-user    | client       | Usuário Cliente              |                0
+ provider-admin | system       | Administrador Provider       |                0
+ super-admin    | system       | Super Administrador          |                0
+(8 rows)
+
+
+3.2 Roles sem permissões:
+      name      | level  |       display_name       
+----------------+--------+--------------------------
+ client-admin   | client | Administrador do Cliente
+ client-user    | client | Usuário Cliente
+ provider-admin | system | Administrador Provider
+ super-admin    | system | Super Administrador
+(4 rows)
+
+
+3.3 Distribuição de permissões por role:
+   role_name    |    level     | permission_count |                                                                                                                                                                                                                                                                                 permissions                                                                                                                                                                                                                                                                                 
+----------------+--------------+------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ agent          | organization |               34 | assets.read, assets.view, catalog.create, catalog.read, catalog.update, clients.read, comments.create, comments.create_internal, comments.view, dashboard.view, desktop_agent.read, desktop_agent.view, hours_bank.consume, hours_bank.view, knowledge.create, knowledge.read, knowledge.update, project_tasks.update, project_tasks.view, projects.create, projects.read, projects.update, projects.view, reports.view, tags.read, tags.view, templates.read, templates.view, tickets.assign_self, tickets.close, tickets.create, tickets.read, tickets.update, users.read
+ org-admin      | organization |               26 | catalog.approve, catalog.create, catalog.delete, catalog.read, catalog.update, projects.create, projects.delete, projects.manage_tasks, projects.read, projects.update, reports.advanced, reports.export, reports.view, settings.manage_roles, settings.read, settings.update, tickets.assign_all, tickets.close, tickets.create, tickets.delete, tickets.read, tickets.update, users.create, users.delete, users.read, users.update
+ user           | organization |                5 | catalog.read, projects.read, settings.read, tickets.read, users.read
+ org-manager    | organization |                1 | tickets.assign_team
+ client-user    | client       |                0 | 
+ provider-admin | system       |                0 | 
+ client-admin   | client       |                0 | 
+ super-admin    | system       |                0 | 
+(8 rows)
+
+
+================================================================================
+4. PERMISSÕES CRÍTICAS
+================================================================================
+
+4.1 Permissões de atribuição de tickets:
+     permission      |       display_name        |    roles    
+---------------------+---------------------------+-------------
+ tickets.assign_all  | Atribuir Tickets          | org-admin
+ tickets.assign_self | Auto-atribuir Tickets     | agent
+ tickets.assign_team | Atribuir Tickets à Equipe | org-manager
+(3 rows)
+
+
+4.2 Permissões de usuários:
+  permission  |   display_name   |         roles          
+--------------+------------------+------------------------
+ users.create | Criar Usuários   | org-admin
+ users.delete | Deletar Usuários | org-admin
+ users.read   | Ver Usuários     | agent, org-admin, user
+ users.update | Editar Usuários  | org-admin
+(4 rows)
+
+
+4.3 Permissões de tickets:
+   action    |       display_name        |         roles          
+-------------+---------------------------+------------------------
+ assign_all  | Atribuir Tickets          | org-admin
+ assign_self | Auto-atribuir Tickets     | agent
+ assign_team | Atribuir Tickets à Equipe | org-manager
+ close       | Fechar Tickets            | agent, org-admin
+ create      | Criar Tickets             | agent, org-admin
+ delete      | Deletar Tickets           | org-admin
+ read        | Ver Tickets               | agent, org-admin, user
+ update      | Editar Tickets            | agent, org-admin
+(8 rows)
+
+
+================================================================================
+5. PERMISSÕES NÃO UTILIZADAS
+================================================================================
+
+5.1 Permissões não atribuídas a nenhum role:
+       resource       |  action  |       display_name       |                 description                 
+----------------------+----------+--------------------------+---------------------------------------------
+ assets               | create   | Criar Asset              | Criar novos assets
+ assets               | delete   | Excluir Asset            | Remover assets
+ assets               | read_all | Ver Todo Inventário      | Ver todo o inventário
+ assets               | update   | Atualizar Asset          | Editar assets
+ catalog              | manage   | Gerenciar Catálogo       | Gerenciar catálogo de serviços
+ clients              | create   | Criar Cliente            | Criar novos clientes
+ clients              | delete   | Excluir Cliente          | Remover clientes
+ clients              | read_all | Ver Todos os Clientes    | Visualizar todos os clientes da organização
+ clients              | update   | Atualizar Cliente        | Editar informações de clientes
+ desktop_agent        | manage   | Gerenciar Desktop Agent  | Gerenciar desktop agent
+ hours_bank           | manage   | Gerenciar Bolsa de Horas | Criar e gerenciar bolsas de horas
+ knowledge            | delete   | Excluir Artigo           | Remover artigos
+ project_stakeholders | manage   | Gerenciar Stakeholders   | Gerenciar stakeholders de projetos
+ project_tasks        | create   | Criar Tarefa             | Criar novas tarefas
+ project_tasks        | delete   | Excluir Tarefa           | Remover tarefas
+ reports              | create   | Criar Relatório          | Criar novos relatórios
+ tags                 | create   | Criar Tag                | Criar novas tags
+ tags                 | delete   | Excluir Tag              | Remover tags
+ tags                 | update   | Atualizar Tag            | Editar tags
+ templates            | create   | Criar Template           | Criar novos templates
+ templates            | delete   | Excluir Template         | Remover templates
+ templates            | update   | Atualizar Template       | Editar templates
+(22 rows)
+
+
+================================================================================
+6. USUÁRIOS E ROLES
+================================================================================
+
+6.1 Distribuição de usuários por role (organization_users):
+   role    | user_count | active_count 
+-----------+------------+--------------
+ org-admin |          1 |            1
+ agent     |          1 |            1
+(2 rows)
+
+
+6.2 Usuários com permissões customizadas:
+ name | email | role | custom_permissions 
+------+-------+------+--------------------
+(0 rows)
+
+
+================================================================================
+7. ANÁLISE DE CONSISTÊNCIA
+================================================================================
+
+7.1 Verificar integridade referencial:
+                    issue                    | count 
+---------------------------------------------+-------
+ role_permissions com role_id inválido       |     0
+ role_permissions com permission_id inválido |     0
+ user_permissions com user_id inválido       |     0
+(3 rows)
+
+
+7.2 Permissões duplicadas:
+ resource | action | duplicates 
+----------+--------+------------
+(0 rows)
+
+
+================================================================================
+8. RECOMENDAÇÕES
+================================================================================
+
+8.1 Roles que precisam de atenção:
+   - Roles sem permissões (ver seção 3.2)
+   - Roles com poucas permissões (< 5)
+    name     |    level     | permission_count 
+-------------+--------------+------------------
+ org-manager | organization |                1
+(1 row)
+
+
+8.2 Permissões que precisam de atenção:
+   - Permissões não utilizadas (ver seção 5.1)
+   - Permissões sem display_name (ver seção 2.2)
+
+================================================================================
+AUDITORIA CONCLUÍDA
+================================================================================

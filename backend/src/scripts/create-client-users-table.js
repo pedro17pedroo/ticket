@@ -1,102 +1,59 @@
 import { sequelize } from '../config/database.js';
-import ClientUser from '../modules/clients/clientUserModel.js';
-
-/**
- * Script para criar a tabela client_users
- * Executa a migration e sincroniza o modelo
- */
+import logger from '../config/logger.js';
 
 async function createClientUsersTable() {
   try {
-    console.log('🚀 Iniciando criação da tabela client_users...\n');
+    logger.info('🔄 Criando tabela client_users...');
 
-    // Verificar conexão
-    await sequelize.authenticate();
-    console.log('✅ Conexão com banco de dados estabelecida\n');
-
-    // Verificar se tabela já existe
-    const [results] = await sequelize.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'client_users'
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS client_users (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'client' CHECK (role IN ('client', 'client-admin')),
+        avatar VARCHAR(500),
+        phone VARCHAR(50),
+        position VARCHAR(255),
+        department_name VARCHAR(255),
+        direction_id UUID REFERENCES directions(id) ON DELETE SET NULL,
+        department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+        section_id UUID REFERENCES sections(id) ON DELETE SET NULL,
+        location JSONB,
+        permissions JSONB DEFAULT '{}',
+        settings JSONB DEFAULT '{"notifications": true, "language": "pt", "timezone": "Europe/Lisbon"}',
+        is_active BOOLEAN DEFAULT true,
+        email_verified BOOLEAN DEFAULT false,
+        email_verified_at TIMESTAMP WITH TIME ZONE,
+        last_login TIMESTAMP WITH TIME ZONE,
+        password_reset_token VARCHAR(255),
+        password_reset_expires TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT client_users_email_client_unique UNIQUE (email, client_id)
       );
     `);
 
-    if (results[0].exists) {
-      console.log('⚠️  Tabela client_users já existe!');
-      console.log('   Use o script de migration para modificá-la.\n');
-      return;
-    }
-
-    console.log('📋 Criando tabela client_users...\n');
-
-    // Criar ENUM para roles
+    // Criar índices
     await sequelize.query(`
-      DO $$ BEGIN
-        CREATE TYPE enum_client_users_role AS ENUM ('client-admin', 'client-manager', 'client-user');
-      EXCEPTION
-        WHEN duplicate_object THEN null;
-      END $$;
-    `);
-    console.log('✅ ENUM enum_client_users_role criado');
-
-    // Criar tabela usando o modelo Sequelize
-    await ClientUser.sync({ force: false });
-    console.log('✅ Tabela client_users criada com sucesso!\n');
-
-    // Verificar estrutura
-    const [columns] = await sequelize.query(`
-      SELECT column_name, data_type, is_nullable, column_default
-      FROM information_schema.columns
-      WHERE table_name = 'client_users'
-      ORDER BY ordinal_position;
+      CREATE INDEX IF NOT EXISTS client_users_organization_id_idx ON client_users(organization_id);
+      CREATE INDEX IF NOT EXISTS client_users_client_id_idx ON client_users(client_id);
+      CREATE INDEX IF NOT EXISTS client_users_email_idx ON client_users(email);
+      CREATE INDEX IF NOT EXISTS client_users_is_active_idx ON client_users(is_active);
     `);
 
-    console.log('📊 Estrutura da tabela client_users:');
-    console.log('─'.repeat(80));
-    columns.forEach(col => {
-      console.log(`  ${col.column_name.padEnd(25)} ${col.data_type.padEnd(20)} ${col.is_nullable === 'NO' ? 'NOT NULL' : 'NULL'}`);
-    });
-    console.log('─'.repeat(80));
-    console.log();
-
-    // Verificar índices
-    const [indexes] = await sequelize.query(`
-      SELECT indexname, indexdef
-      FROM pg_indexes
-      WHERE tablename = 'client_users'
-      ORDER BY indexname;
-    `);
-
-    console.log('🔑 Índices criados:');
-    console.log('─'.repeat(80));
-    indexes.forEach(idx => {
-      console.log(`  ${idx.indexname}`);
-    });
-    console.log('─'.repeat(80));
-    console.log();
-
-    console.log('✅ Tabela client_users criada e validada com sucesso!');
-    console.log('\n📝 Próximos passos:');
-    console.log('   1. Validar autenticação para client_users');
-    console.log('   2. Testar Portal Cliente Empresa');
-    console.log('   3. Testar Desktop Agent para clientes');
-    console.log('   4. Criar usuários de teste\n');
-
+    logger.info('✅ Tabela client_users criada com sucesso!');
+    process.exit(0);
   } catch (error) {
-    console.error('❌ Erro ao criar tabela client_users:', error);
-    console.error('\n📋 Detalhes do erro:');
-    console.error(error.message);
-    if (error.original) {
-      console.error('\n🔍 Erro original do PostgreSQL:');
-      console.error(error.original.message);
+    if (error.message.includes('already exists')) {
+      logger.info('✅ Tabela client_users já existe');
+      process.exit(0);
     }
+    logger.error('❌ Erro ao criar tabela client_users:', error);
     process.exit(1);
-  } finally {
-    await sequelize.close();
   }
 }
 
-// Executar
 createClientUsersTable();
