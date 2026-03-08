@@ -23,6 +23,7 @@ export const getTickets = async (req, res, next) => {
       priority,
       type,
       assigneeId,
+      requesterOrgUserId,
       departmentId,
       directionId,
       sectionId,
@@ -40,6 +41,10 @@ export const getTickets = async (req, res, next) => {
     if (type) where.type = type;
     if (assigneeId) {
       where.assigneeId = assigneeId === 'null' ? null : assigneeId;
+    }
+    if (requesterOrgUserId) {
+      where.requesterType = 'organization';
+      where.requesterOrgUserId = requesterOrgUserId;
     }
     if (directionId) where.directionId = directionId;
     if (departmentId) where.departmentId = departmentId;
@@ -89,7 +94,20 @@ export const getTickets = async (req, res, next) => {
     }
     // Usuários da organização - aplicar filtro de visibilidade estrutural
     else {
+      logger.info(`🔍 Usuário organização detectado: ${req.user.email} (${req.user.id}) com role: ${req.user.role}`);
+      logger.info(`📊 Dados do usuário:`, JSON.stringify({
+        id: req.user.id,
+        email: req.user.email,
+        role: req.user.role,
+        organizationId: req.user.organizationId,
+        directionId: req.user.directionId,
+        departmentId: req.user.departmentId,
+        sectionId: req.user.sectionId
+      }));
+      
       const visibilityFilter = ticketVisibilityService.buildVisibilityFilter(req.user);
+      logger.info(`🎯 Filtro de visibilidade gerado:`, JSON.stringify(visibilityFilter, null, 2));
+      
       if (visibilityFilter[Op.or]) {
         // Combinar filtro de visibilidade com outros filtros
         if (where[Op.or]) {
@@ -104,6 +122,7 @@ export const getTickets = async (req, res, next) => {
           Object.assign(where, visibilityFilter);
         }
       }
+      logger.info(`📋 Filtro WHERE final para query:`, JSON.stringify(where, null, 2));
     }
 
     const offset = (page - 1) * limit;
@@ -177,6 +196,17 @@ export const getTickets = async (req, res, next) => {
       ]
     });
 
+    logger.info(`✅ Query executada: ${count} tickets encontrados, retornando ${tickets.length} tickets`);
+    if (tickets.length > 0) {
+      logger.info(`📝 Primeiros tickets:`, tickets.slice(0, 3).map(t => ({
+        ticketNumber: t.ticketNumber,
+        subject: t.subject,
+        requesterType: t.requesterType,
+        requesterOrgUserId: t.requesterOrgUserId,
+        assigneeId: t.assigneeId
+      })));
+    }
+
     // Normalizar retorno - determinar requester baseado no tipo polimórfico
     const normalizedTickets = tickets.map(ticket => {
       const ticketData = ticket.toJSON();
@@ -219,6 +249,15 @@ export const getTickets = async (req, res, next) => {
 export const getTicketById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    
+    // 🔍 LOGS DE DIAGNÓSTICO
+    console.log('🔍 [getTicketById] Buscando ticket:', id);
+    console.log('👤 [getTicketById] Usuário:', {
+      id: req.user.id,
+      role: req.user.role,
+      organizationId: req.user.organizationId,
+      clientId: req.user.clientId
+    });
 
     const ticket = await Ticket.findOne({
       where: { id, organizationId: req.user.organizationId },
@@ -341,20 +380,56 @@ export const getTicketById = async (req, res, next) => {
       ]
     });
 
+    console.log('🎫 [getTicketById] Ticket encontrado:', ticket ? 'SIM' : 'NÃO');
+    if (ticket) {
+      console.log('📋 [getTicketById] Dados do ticket:', {
+        id: ticket.id,
+        title: ticket.title,
+        requesterType: ticket.requesterType,
+        requesterId: ticket.requesterId,
+        clientId: ticket.clientId,
+        status: ticket.status
+      });
+    }
+
     if (!ticket) {
+      console.log('❌ [getTicketById] Ticket não encontrado no banco');
       return res.status(404).json({ error: 'Ticket não encontrado' });
     }
 
     // Clientes - verificar visibilidade estrutural (usar versão assíncrona para tickets sem clientId)
     const isClientUser = ['client-user', 'client-admin', 'client-manager'].includes(req.user.role);
+    console.log('🔐 [getTicketById] É usuário cliente?', isClientUser);
+    
     if (isClientUser) {
+      console.log('🔍 [getTicketById] Verificando visibilidade para cliente...');
+      console.log('🔍 [getTicketById] Dados do usuário:', {
+        id: req.user.id,
+        role: req.user.role,
+        clientId: req.user.clientId,
+        directionId: req.user.directionId,
+        departmentId: req.user.departmentId,
+        sectionId: req.user.sectionId
+      });
+      console.log('🔍 [getTicketById] Dados do ticket:', {
+        id: ticket.id,
+        ticketNumber: ticket.ticketNumber,
+        clientId: ticket.clientId,
+        requesterType: ticket.requesterType,
+        requesterClientUserId: ticket.requesterClientUserId,
+        hasRequesterClientUser: !!ticket.requesterClientUser
+      });
+      
       const canView = await clientTicketVisibilityService.canViewTicketAsync(req.user, ticket);
+      console.log('✅ [getTicketById] Pode visualizar?', canView);
       if (!canView) {
+        console.log('❌ [getTicketById] Acesso negado - usuário não tem permissão');
         return res.status(403).json({ 
           error: 'Acesso negado',
           message: 'Não tem permissão para ver este ticket.'
         });
       }
+      console.log('✅ [getTicketById] Acesso permitido');
     }
     // Usuários da organização - verificar visibilidade estrutural
     else {
@@ -415,40 +490,45 @@ export const getTicketById = async (req, res, next) => {
 
     // Buscar associação com projeto/tarefa (Requirements: 5.6)
     let projectInfo = null;
-    const projectTicket = await ProjectTicket.findOne({
-      where: { ticketId: id },
-      include: [
-        {
-          model: ProjectTask,
-          as: 'task',
-          attributes: ['id', 'title', 'status'],
-          required: false
-        }
-      ]
-    });
-
-    if (projectTicket) {
-      const project = await Project.findByPk(projectTicket.projectId, {
-        attributes: ['id', 'code', 'name', 'status', 'methodology']
+    try {
+      const projectTicket = await ProjectTicket.findOne({
+        where: { ticketId: id },
+        include: [
+          {
+            model: ProjectTask,
+            as: 'task',
+            attributes: ['id', 'title', 'status'],
+            required: false
+          }
+        ]
       });
 
-      if (project) {
-        projectInfo = {
-          project: {
-            id: project.id,
-            code: project.code,
-            name: project.name,
-            status: project.status,
-            methodology: project.methodology
-          },
-          task: projectTicket.task ? {
-            id: projectTicket.task.id,
-            title: projectTicket.task.title,
-            status: projectTicket.task.status
-          } : null,
-          linkedAt: projectTicket.linkedAt
-        };
+      if (projectTicket) {
+        const project = await Project.findByPk(projectTicket.projectId, {
+          attributes: ['id', 'code', 'name', 'status', 'methodology']
+        });
+
+        if (project) {
+          projectInfo = {
+            project: {
+              id: project.id,
+              code: project.code,
+              name: project.name,
+              status: project.status,
+              methodology: project.methodology
+            },
+            task: projectTicket.task ? {
+              id: projectTicket.task.id,
+              title: projectTicket.task.title,
+              status: projectTicket.task.status
+            } : null,
+            linkedAt: projectTicket.linkedAt
+          };
+        }
       }
+    } catch (projectError) {
+      // Ignorar erro de projeto - não deve impedir visualização do ticket
+      console.warn('Erro ao buscar informações de projeto:', projectError.message);
     }
 
     res.json({
@@ -459,6 +539,13 @@ export const getTicketById = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('❌ [getTicketById] Erro ao buscar ticket:', {
+      message: error.message,
+      stack: error.stack,
+      ticketId: req.params.id,
+      userId: req.user?.id,
+      userRole: req.user?.role
+    });
     next(error);
   }
 };
@@ -482,7 +569,7 @@ export const createTicket = async (req, res, next) => {
     let requesterOrgUserId = null;
     let requesterClientUserId = null;
 
-    if (req.user.userType === 'organization' || ['org-admin', 'org-technician', 'org-manager'].includes(req.user.role)) {
+    if (req.user.userType === 'organization' || ['org-admin', 'org-manager', 'agent', 'technician', 'supervisor', 'agente', 'tecnico', 'gerente'].includes(req.user.role)) {
       requesterType = 'organization';
       requesterOrgUserId = req.user.id;
     } else if (req.user.userType === 'client' || ['client-admin', 'client-user', 'client-viewer', 'client-manager'].includes(req.user.role)) {
@@ -819,7 +906,7 @@ export const updateTicket = async (req, res, next) => {
 
     // Auto-consumir tempo rastreado ao concluir ticket
     let autoConsumeResult = null;
-    if (updates.status === 'concluido' && oldStatus !== 'concluido') {
+    if (['fechado', 'resolvido'].includes(updates.status) && !['fechado', 'resolvido'].includes(oldStatus)) {
       const { autoConsumeOnTicketComplete } = await import('../timeTracking/timeTrackingController.js');
       autoConsumeResult = await autoConsumeOnTicketComplete(
         ticket.id,
@@ -1004,13 +1091,30 @@ export const getStatistics = async (req, res, next) => {
   try {
     const where = { organizationId: req.user.organizationId };
 
-    // Clientes veem apenas suas estatísticas
-    const isClientUser = ['client-user', 'client-admin'].includes(req.user.role);
+    // Aplicar filtro de visibilidade baseado no tipo de usuário
+    const isClientUser = ['client-user', 'client-admin', 'client-manager'].includes(req.user.role);
+    
     if (isClientUser) {
-      where[Op.or] = [
-        { requesterId: req.user.id },
-        { requesterClientUserId: req.user.id }
-      ];
+      // Clientes - aplicar filtro de visibilidade estrutural
+      logger.info(`📊 Usuário cliente detectado: ${req.user.email} (${req.user.id}) com role: ${req.user.role}`);
+      const visibilityFilter = await clientTicketVisibilityService.buildVisibilityFilter(req.user);
+      logger.info(`📊 Filtro de visibilidade gerado:`, JSON.stringify(visibilityFilter));
+      
+      if (visibilityFilter[Op.or]) {
+        Object.assign(where, visibilityFilter);
+      } else {
+        Object.assign(where, visibilityFilter);
+      }
+    } else {
+      // Usuários da organização - aplicar filtro de visibilidade estrutural
+      logger.info(`📊 Usuário organização detectado: ${req.user.email} (${req.user.id}) com role: ${req.user.role}`);
+      
+      const visibilityFilter = ticketVisibilityService.buildVisibilityFilter(req.user);
+      logger.info(`📊 Filtro de visibilidade gerado:`, JSON.stringify(visibilityFilter, null, 2));
+      
+      if (visibilityFilter[Op.or]) {
+        Object.assign(where, visibilityFilter);
+      }
     }
 
     // Aplicar filtros de data se fornecidos
@@ -1032,6 +1136,8 @@ export const getStatistics = async (req, res, next) => {
         where
       });
     }
+
+    logger.info(`📋 Filtro WHERE final para estatísticas:`, JSON.stringify(where, null, 2));
 
     let stats;
     try {
@@ -1166,26 +1272,63 @@ export const getAttachments = async (req, res, next) => {
   try {
     const { ticketId } = req.params;
 
+    console.log('📎 [getAttachments] Buscando anexos do ticket:', ticketId);
+    console.log('👤 [getAttachments] Usuário:', {
+      id: req.user.id,
+      role: req.user.role,
+      organizationId: req.user.organizationId,
+      clientId: req.user.clientId
+    });
+
     // Verificar acesso ao ticket (suporta utilizadores da organização e clientes)
     const ticket = await Ticket.findOne({
-      where: { id: ticketId }
+      where: { id: ticketId, organizationId: req.user.organizationId }
     });
 
     if (!ticket) {
+      console.log('❌ [getAttachments] Ticket não encontrado');
       return res.status(404).json({
         success: false,
         error: 'Ticket não encontrado'
       });
     }
 
+    console.log('🎫 [getAttachments] Ticket encontrado:', {
+      id: ticket.id,
+      ticketNumber: ticket.ticketNumber,
+      clientId: ticket.clientId,
+      requesterType: ticket.requesterType,
+      requesterId: ticket.requesterId,
+      requesterClientUserId: ticket.requesterClientUserId
+    });
+
     // Verificar permissão de acesso
     const isOrgUser = req.user.organizationId && ticket.organizationId === req.user.organizationId;
     const isClientUser = req.user.clientId && ticket.clientId === req.user.clientId;
     const isRequester = ticket.requesterId === req.user.id || 
                         ticket.requesterClientUserId === req.user.id ||
+                        ticket.requesterOrgUserId === req.user.id ||
                         ticket.requesterUserId === req.user.id;
 
-    if (!isOrgUser && !isClientUser && !isRequester) {
+    console.log('🔐 [getAttachments] Verificação de permissões:', {
+      isOrgUser,
+      isClientUser,
+      isRequester
+    });
+
+    // Para usuários clientes, usar o serviço de visibilidade
+    const isClientRole = ['client-user', 'client-admin', 'client-manager'].includes(req.user.role);
+    if (isClientRole) {
+      const canView = await clientTicketVisibilityService.canViewTicketAsync(req.user, ticket);
+      console.log('✅ [getAttachments] Cliente pode visualizar?', canView);
+      if (!canView) {
+        return res.status(403).json({
+          success: false,
+          error: 'Sem permissão para aceder aos anexos deste ticket'
+        });
+      }
+    } else if (!isOrgUser && !isRequester) {
+      console.log('❌ [getAttachments] Sem permissão');
       return res.status(403).json({
         success: false,
         error: 'Sem permissão para aceder aos anexos deste ticket'
@@ -1196,6 +1339,8 @@ export const getAttachments = async (req, res, next) => {
       where: { ticketId },
       order: [['createdAt', 'DESC']]
     });
+
+    console.log('📎 [getAttachments] Anexos encontrados:', attachments.length);
 
     // Separar anexos do ticket e de comentários
     const ticketAttachments = attachments.filter(a => !a.commentId);
@@ -1208,6 +1353,12 @@ export const getAttachments = async (req, res, next) => {
       commentAttachments  // Apenas anexos de comentários
     });
   } catch (error) {
+    console.error('❌ [getAttachments] Erro:', {
+      message: error.message,
+      stack: error.stack,
+      ticketId: req.params.ticketId,
+      userId: req.user?.id
+    });
     next(error);
   }
 };
@@ -1269,6 +1420,74 @@ export const downloadAttachment = async (req, res, next) => {
     res.download(attachment.path, attachment.originalName);
   } catch (error) {
     logger.error(`Erro no download de anexo:`, error);
+    next(error);
+  }
+};
+
+// Visualizar anexo (inline no navegador)
+export const viewAttachment = async (req, res, next) => {
+  try {
+    const { ticketId, attachmentId } = req.params;
+
+    logger.info(`Visualização solicitada - ticketId: ${ticketId}, attachmentId: ${attachmentId}, userId: ${req.user.id}`);
+
+    // Buscar o anexo
+    const attachment = await Attachment.findOne({
+      where: { id: attachmentId, ticketId },
+      include: [{
+        model: Ticket,
+        as: 'ticket'
+      }]
+    });
+
+    if (!attachment) {
+      logger.warn(`Anexo não encontrado - attachmentId: ${attachmentId}, ticketId: ${ticketId}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Anexo não encontrado'
+      });
+    }
+
+    logger.info(`Anexo encontrado - path: ${attachment.path}, mimeType: ${attachment.mimeType}`);
+
+    // Verificar permissão de acesso ao ticket
+    const ticket = attachment.ticket;
+    const isOrgUser = req.user.organizationId && ticket.organizationId === req.user.organizationId;
+    const isClientUser = req.user.clientId && ticket.clientId === req.user.clientId;
+    const isRequester = ticket.requesterId === req.user.id || 
+                        ticket.requesterClientUserId === req.user.id ||
+                        ticket.requesterUserId === req.user.id;
+
+    logger.info(`Verificação de permissão - isOrgUser: ${isOrgUser}, isClientUser: ${isClientUser}, isRequester: ${isRequester}`);
+
+    if (!isOrgUser && !isClientUser && !isRequester) {
+      logger.warn(`Acesso negado ao anexo - userId: ${req.user.id}, ticketId: ${ticketId}`);
+      return res.status(403).json({
+        success: false,
+        error: 'Sem permissão para aceder a este anexo'
+      });
+    }
+
+    // Verificar se arquivo existe
+    if (!fs.existsSync(attachment.path)) {
+      logger.error(`Arquivo não encontrado no disco - path: ${attachment.path}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Arquivo não encontrado no servidor'
+      });
+    }
+
+    // Definir headers para visualização inline
+    res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${attachment.originalName}"`);
+    
+    logger.info(`Enviando arquivo para visualização - path: ${attachment.path}`);
+    
+    // Enviar arquivo
+    const fileStream = fs.createReadStream(attachment.path);
+    fileStream.pipe(res);
+  } catch (error) {
+    logger.error(`Erro na visualização de anexo:`, error);
     next(error);
   }
 };
@@ -1831,7 +2050,11 @@ export const updateTicketWatchers = async (req, res, next) => {
     const { id } = req.params;
     const { orgWatchers, clientWatchers } = req.body;
 
-    const ticket = await Ticket.findByPk(id);
+    // Buscar ticket com includes mínimos para verificação
+    const ticket = await Ticket.findByPk(id, {
+      attributes: ['id', 'ticketNumber', 'organizationId']
+    });
+    
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket não encontrado' });
     }
@@ -1859,7 +2082,7 @@ export const updateTicketWatchers = async (req, res, next) => {
       ticket.id,
       req.user.id,
       {
-        action: 'watchers_updated',
+        action: 'update',
         field: 'watchers',
         oldValue: null,
         newValue: JSON.stringify({ orgWatchers, clientWatchers }),
@@ -1867,16 +2090,17 @@ export const updateTicketWatchers = async (req, res, next) => {
       }
     );
 
+    // Buscar ticket atualizado com todos os includes
     const updatedTicket = await Ticket.findByPk(id, {
       include: [
         { model: User, as: 'requesterUser', attributes: ['id', 'name', 'email'], required: false },
         { model: OrganizationUser, as: 'requesterOrgUser', attributes: ['id', 'name', 'email'], required: false },
         { model: ClientUser, as: 'requesterClientUser', attributes: ['id', 'name', 'email'], required: false },
-        { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'] },
-        { model: Department, as: 'department', attributes: ['id', 'name'] },
-        { model: CatalogCategory, as: 'catalogCategory', attributes: ['id', 'name'] },
-        { model: Priority, as: 'ticketPriority', attributes: ['id', 'name', 'color'] },
-        { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name', 'description'] }
+        { model: OrganizationUser, as: 'assignee', attributes: ['id', 'name', 'email'], required: false },
+        { model: Department, as: 'department', attributes: ['id', 'name'], required: false },
+        { model: CatalogCategory, as: 'catalogCategory', attributes: ['id', 'name'], required: false },
+        { model: Priority, as: 'priorityConfig', attributes: ['id', 'name', 'color'], required: false },
+        { model: CatalogItem, as: 'catalogItem', attributes: ['id', 'name'], required: false }
       ]
     });
 
@@ -1931,7 +2155,7 @@ export const approveTicket = async (req, res, next) => {
     }
 
     // Validar permissões - apenas usuários da organização podem aprovar
-    const isOrgUser = ['org-admin', 'org-manager', 'org-technician'].includes(role);
+    const isOrgUser = ['org-admin', 'org-manager', 'agent', 'technician', 'supervisor', 'agente', 'tecnico', 'gerente'].includes(role);
     if (!isOrgUser) {
       return res.status(403).json({ 
         error: 'Sem permissão',
@@ -2063,7 +2287,7 @@ export const rejectTicket = async (req, res, next) => {
     }
 
     // Validar permissões - apenas usuários da organização podem rejeitar
-    const isOrgUser = ['org-admin', 'org-manager', 'org-technician'].includes(role);
+    const isOrgUser = ['org-admin', 'org-manager', 'agent', 'technician', 'supervisor', 'agente', 'tecnico', 'gerente'].includes(role);
     if (!isOrgUser) {
       return res.status(403).json({ 
         error: 'Sem permissão',
@@ -2183,7 +2407,7 @@ export const getMyTickets = async (req, res, next) => {
     // Filtrar por requester baseado no tipo de usuário
     if (userType === 'client' || ['client-user', 'client-admin', 'client-manager'].includes(role)) {
       where.requesterClientUserId = userId;
-    } else if (userType === 'organization' || ['org-admin', 'org-technician', 'org-manager'].includes(role)) {
+    } else if (userType === 'organization' || ['org-admin', 'org-manager', 'agent', 'technician', 'supervisor', 'agente', 'tecnico', 'gerente'].includes(role)) {
       where[Op.or] = [
         { requesterOrgUserId: userId },
         { requesterUserId: userId }
