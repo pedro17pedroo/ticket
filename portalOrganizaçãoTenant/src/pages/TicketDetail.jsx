@@ -47,7 +47,6 @@ const TicketDetail = () => {
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [viewingAttachment, setViewingAttachment] = useState(null)
   const fileUploadRef = useRef(null)
-  const fileUploadRef = useRef(null)
   
   // Permissões baseadas em RBAC
   const canAssignTicket = hasPermission('tickets.assign_all') || hasPermission('tickets.assign_team') || hasPermission('tickets.assign_self')
