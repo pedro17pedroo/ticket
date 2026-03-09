@@ -64,6 +64,9 @@ const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
   const [projectsOpen, setProjectsOpen] = useState(
     location.pathname.startsWith('/projects')
   )
+  const [reportsOpen, setReportsOpen] = useState(
+    location.pathname.startsWith('/reports')
+  )
 
   // Menus principais (não agrupados) - com permissões
   const mainMenuItems = [
@@ -114,11 +117,16 @@ const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
     { path: '/system/roles', icon: Shield, label: 'Permissões (RBAC)', permission: 'roles.view' },
   ]
 
+  // Submenu de Relatórios
+  const reportsSubmenu = [
+    { path: '/reports', icon: BarChart3, label: 'Relatórios Avançados', permission: 'reports.view' },
+    { path: '/reports/time', icon: Clock, label: 'Relatórios de Horas', permission: 'reports.read' },
+  ]
+
   // Outros menus - com permissões
   const otherMenuItems = [
     { path: '/todos', icon: CheckSquare, label: 'Minhas Tarefas', permission: null }, // Sem permissão específica - todos podem acessar
     { path: '/hours-bank', icon: Timer, label: 'Bolsa de Horas', permission: 'hours_bank.view' },
-    { path: '/reports', icon: BarChart3, label: 'Relatórios Avançados', permission: 'reports.view' },
     { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento', permission: 'knowledge.view' },
     { path: '/tags', icon: TagsIcon, label: 'Tags', permission: 'tags.view' },
     { path: '/templates', icon: FileText, label: 'Templates', permission: 'templates.view' },
@@ -131,6 +139,7 @@ const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
   // Filtrar menus por permissão
   const filteredMainMenuItems = useMemo(() => filterByPermission(mainMenuItems), [filterByPermission])
   const filteredProjectsSubmenu = useMemo(() => filterByPermission(projectsSubmenu), [filterByPermission])
+  const filteredReportsSubmenu = useMemo(() => filterByPermission(reportsSubmenu), [filterByPermission])
   const filteredCatalogSubmenu = useMemo(() => filterByPermission(catalogSubmenu), [filterByPermission])
   const filteredInventorySubmenu = useMemo(() => filterByPermission(inventorySubmenu), [filterByPermission])
   const filteredStructureSubmenu = useMemo(() => filterByPermission(structureSubmenu), [filterByPermission])
@@ -265,7 +274,49 @@ const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
           </div>
           )}
 
-          {/* 3. Catálogo de Serviços - Grupo Expansível */}
+          {/* 3. Relatórios - Grupo Expansível */}
+          {filteredReportsSubmenu.length > 0 && (
+          <div className="space-y-1">
+            <button
+              onClick={() => setReportsOpen(!reportsOpen)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                location.pathname.startsWith('/reports')
+                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <BarChart3 className="w-5 h-5 flex-shrink-0" />
+              {isOpen && (
+                <>
+                  <span className="font-medium flex-1 text-left">Relatórios</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${reportsOpen ? 'rotate-180' : ''}`} />
+                </>
+              )}
+            </button>
+
+            {reportsOpen && isOpen && (
+              <div className="ml-8 space-y-1">
+                {filteredReportsSubmenu.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={handleLinkClick}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      location.pathname === item.path
+                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
+
+          {/* 4. Catálogo de Serviços - Grupo Expansível */}
           {filteredCatalogSubmenu.length > 0 && (
           <div className="space-y-1">
             <button
