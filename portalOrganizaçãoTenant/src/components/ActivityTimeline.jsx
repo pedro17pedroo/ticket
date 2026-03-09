@@ -16,6 +16,15 @@ const ActivityTimeline = ({ ticket, handleDownloadAttachment, formatFileSize }) 
         // Detectar autor correto (novo sistema polimórfico)
         const author = comment.authorOrgUser || comment.authorClientUser || comment.authorUser || comment.user || { name: 'Sistema' };
 
+        // Debug: verificar se comentário tem anexos
+        if (comment.attachments && comment.attachments.length > 0) {
+          console.log('📎 Comentário com anexos:', {
+            commentId: comment.id,
+            attachmentsCount: comment.attachments.length,
+            attachments: comment.attachments
+          });
+        }
+
         activities.push({
           id: `comment-${comment.id}`,
           type: 'comment',

@@ -125,9 +125,13 @@ const TicketDetail = () => {
       // Upload anexos se houver, associando ao comentário se existir
       if (commentAttachments.length > 0) {
         await ticketService.uploadAttachments(id, commentAttachments, commentId)
-        loadAttachments()
       }
 
+      // ✅ IMPORTANTE: Recarregar ticket e anexos APÓS salvar tudo
+      await loadTicket()
+      await loadAttachments()
+
+      // Limpar formulário
       setComment('')
       setIsInternal(false)
       setCommentAttachments([])
@@ -145,8 +149,6 @@ const TicketDetail = () => {
       } else {
         toast.success('Anexos adicionados com sucesso')
       }
-
-      loadTicket()
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error)
       const errorMsg = error.response?.data?.error || 'Erro ao adicionar comentário/anexos'
