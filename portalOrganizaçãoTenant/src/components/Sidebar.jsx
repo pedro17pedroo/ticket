@@ -219,7 +219,6 @@ const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
             <Link
               key={item.path}
               to={item.path}
-                    onClick={handleLinkClick}
               onClick={handleLinkClick}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                 isActive(item.path)
@@ -259,7 +258,6 @@ const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    onClick={handleLinkClick}
                     onClick={handleLinkClick}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       location.pathname === item.path
