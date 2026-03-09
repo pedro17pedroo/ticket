@@ -150,18 +150,6 @@ export const exportToCSV = (reportType, filters, data) => {
   document.body.removeChild(link);
 };
 
-export default {
-  getHoursByTicket,
-  getHoursByUser,
-  getHoursByClient,
-  getDailyReport,
-  getClientSummary,
-  getUserDetailedReport,
-  exportToCSV,
-  exportToPDF
-};
-
-
 /**
  * Exportar relatório para PDF
  * @param {string} reportType - Tipo de relatório
@@ -298,4 +286,15 @@ export const exportToPDF = async (reportType, filters, data, summary) => {
   // Salvar
   const filename = `relatorio-${reportType}-${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(filename);
+};
+
+export default {
+  getHoursByTicket,
+  getHoursByUser,
+  getHoursByClient,
+  getDailyReport,
+  getClientSummary,
+  getUserDetailedReport,
+  exportToCSV,
+  exportToPDF
 };
