@@ -49,6 +49,8 @@ import ProjectForm from './pages/ProjectForm'
 import ProjectDetail from './pages/ProjectDetail'
 import ProjectKanban from './pages/ProjectKanban'
 import TimeReports from './pages/TimeReports'
+import ReportsDashboard from './pages/ReportsDashboard'
+import AdvancedAnalytics from './pages/AdvancedAnalytics'
 import ProjectGantt from './pages/ProjectGantt'
 import ProjectReports from './pages/ProjectReports'
 import TodoList from './pages/TodoList'
@@ -131,6 +133,8 @@ function App() {
                       <Route path="/knowledge" element={<ProtectedRoute permission="knowledge.view"><Knowledge /></ProtectedRoute>} />
                       <Route path="/hours-bank" element={<ProtectedRoute permission="hours_bank.view"><HoursBank /></ProtectedRoute>} />
                       <Route path="/reports" element={<ProtectedRoute permission="reports.view"><Reports /></ProtectedRoute>} />
+                      <Route path="/reports/dashboard" element={<ProtectedRoute permission="reports.read"><ReportsDashboard /></ProtectedRoute>} />
+                      <Route path="/reports/analytics" element={<ProtectedRoute permission="reports.read"><AdvancedAnalytics /></ProtectedRoute>} />
                       <Route path="/reports/time" element={<ProtectedRoute permission="reports.read"><TimeReports /></ProtectedRoute>} />
                       <Route path="/catalog" element={<ProtectedRoute permission="catalog.view"><ServiceCatalog /></ProtectedRoute>} />
                       <Route path="/catalog/categories" element={<ProtectedRoute permission="catalog.view"><CatalogCategories /></ProtectedRoute>} />

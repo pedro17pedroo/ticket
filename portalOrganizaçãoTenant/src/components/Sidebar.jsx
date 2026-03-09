@@ -119,8 +119,10 @@ const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
 
   // Submenu de Relatórios
   const reportsSubmenu = [
-    { path: '/reports', icon: BarChart3, label: 'Relatórios Avançados', permission: 'reports.view' },
+    { path: '/reports/dashboard', icon: LayoutDashboard, label: 'Dashboard', permission: 'reports.read' },
+    { path: '/reports/analytics', icon: TrendingUp, label: 'Análises Avançadas', permission: 'reports.read' },
     { path: '/reports/time', icon: Clock, label: 'Relatórios de Horas', permission: 'reports.read' },
+    { path: '/reports', icon: BarChart3, label: 'Relatórios Avançados', permission: 'reports.view' },
   ]
 
   // Outros menus - com permissões
