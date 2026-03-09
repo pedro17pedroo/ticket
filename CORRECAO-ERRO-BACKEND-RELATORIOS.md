@@ -1,62 +1,128 @@
-# Correção de Erro no Backend - Sistema de Relatórios
+# Correção de Erros no Backend de Relatórios
 
-**Data:** 09/03/2026  
-**Status:** ✅ Resolvido
+## Problemas Identificados
 
-## Problema Identificado
+### 1. Erro "Cannot access 'exportToPDF' before initialization" (Frontend)
+- **Status:** ✅ Resolvido
+- **Causa:** Export default estava antes da declaração da função
+- **Solução:** Reorganizado o arquivo `reportsService.js` com export default no final
+- **Ação:** Cache do Vite limpo com `rm -rf node_modules/.vite`
 
-Backend não iniciava devido a erro nas rotas de monitoramento em `backend/src/routes/providerRoutes.js`:
+### 2. Erros SQL no Backend (Nomes de Colunas)
+- **Status:** ✅ Resolvido
+- **Erros encontrados:**
+  ```
+  error: column "ticketId" does not exist
+  error: column TimeTracking.userId does not exist
+  ```
 
+## Causa Raiz dos Erros SQL
+
+O controller de relatórios estava usando nomes de atributos do modelo Sequelize nas funções SQL `col()`, mas quando usamos o prefixo do modelo (ex: `TimeTracking.userId`), o Sequelize NÃO faz a conversão automática de camelCase para snake_case.
+
+**Regra Importante:** Dentro de funções SQL (`fn`, `col`), sempre use os nomes das colunas do banco (snake_case), não os atributos do modelo (camelCase).
+
+- ❌ Errado: `col('TimeTracking.userId')` - atributo do modelo
+- ❌ Errado: `col('TimeTracking.ticketId')` - atributo do modelo  
+- ❌ Errado: `col('TimeTracking.totalSeconds')` - atributo do modelo
+- ✅ Correto: `col('TimeTracking.user_id')` - nome da coluna no banco
+- ✅ Correto: `col('TimeTracking.ticket_id')` - nome da coluna no banco
+- ✅ Correto: `col('TimeTracking.total_seconds')` - nome da coluna no banco
+
+## Correções Implementadas
+
+### Arquivo: `backend/src/modules/reports/reportsController.js`
+
+#### 1. Função `getHoursByTicket` (Linha ~36)
+```javascript
+// ANTES (ERRADO):
+[fn('COUNT', fn('DISTINCT', col('TimeTracking.userId'))), 'totalUsers'],
+[fn('SUM', col('TimeTracking.totalSeconds')), 'totalSeconds'],
+
+// DEPOIS (CORRETO):
+[fn('COUNT', fn('DISTINCT', col('TimeTracking.user_id'))), 'totalUsers'],
+[fn('SUM', col('TimeTracking.total_seconds')), 'totalSeconds'],
 ```
-Error: Route.get() requires a callback function but got a [object Undefined]
-at Route.<computed> [as get] (/Users/pedrodivino/Dev/ticket/backend/node_modules/express/lib/router/route.js:216:15)
-at file:///Users/pedrodivino/Dev/ticket/backend/src/routes/providerRoutes.js:135:8
+
+#### 2. Função `getHoursByUser` (Linha ~119)
+```javascript
+// ANTES (ERRADO):
+[fn('COUNT', fn('DISTINCT', col('TimeTracking.ticketId'))), 'totalTickets'],
+[fn('SUM', col('TimeTracking.totalSeconds')), 'totalSeconds'],
+
+// DEPOIS (CORRETO):
+[fn('COUNT', fn('DISTINCT', col('TimeTracking.ticket_id'))), 'totalTickets'],
+[fn('SUM', col('TimeTracking.total_seconds')), 'totalSeconds'],
 ```
 
-## Causa Raiz
+#### 3. Função `getHoursByClient` (Linha ~270)
+```javascript
+// ANTES (ERRADO):
+[fn('COUNT', fn('DISTINCT', col('TimeTracking.userId'))), 'totalUsers'],
+[fn('SUM', col('TimeTracking.totalSeconds')), 'totalSeconds'],
 
-As rotas de monitoramento (linhas 142-144) estavam causando erro de callback undefined, impedindo o backend de iniciar e bloqueando o teste do sistema de relatórios.
+// DEPOIS (CORRETO):
+[fn('COUNT', fn('DISTINCT', col('TimeTracking.user_id'))), 'totalUsers'],
+[fn('SUM', col('TimeTracking.total_seconds')), 'totalSeconds'],
+```
 
-## Solução Implementada
+#### 4. Correções no ORDER BY (3 funções)
+```javascript
+// ANTES (ERRADO):
+order: [[fn('SUM', col('TimeTracking.totalSeconds')), 'DESC']]
 
-1. **Comentadas temporariamente as rotas de monitoramento:**
-   - `router.get('/monitoring/status', monitoringController.getSystemStatus)`
-   - `router.get('/monitoring/logs', monitoringController.getLogs)`
-   - `router.get('/monitoring/performance', monitoringController.getPerformanceMetrics)`
+// DEPOIS (CORRETO):
+order: [[fn('SUM', col('TimeTracking.total_seconds')), 'DESC']]
+```
 
-2. **Backend iniciado com sucesso:**
-   - Porta 4003 funcionando
-   - Todas as conexões estabelecidas (PostgreSQL, MongoDB, Redis)
-   - Socket.IO inicializado
-   - Serviços de email e SLA ativos
+## Modelo TimeTracking
+
+O modelo usa camelCase para os atributos:
+```javascript
+{
+  id: UUID,
+  ticketId: UUID,        // ← camelCase
+  userId: UUID,          // ← camelCase
+  organizationId: UUID,  // ← camelCase
+  startTime: DATE,
+  endTime: DATE,
+  totalSeconds: INTEGER, // ← camelCase
+  status: ENUM,
+  // ...
+}
+```
+
+O Sequelize mapeia automaticamente para snake_case no banco:
+- `ticketId` → `ticket_id`
+- `userId` → `user_id`
+- `totalSeconds` → `total_seconds`
+
+## Regra Importante
+
+Ao usar `col()` em queries Sequelize com agregações:
+- ✅ Use o nome da coluna do banco (snake_case) quando usar prefixo do modelo
+- ✅ Exemplo correto: `col('TimeTracking.user_id')`
+- ❌ Não use o nome do atributo do modelo: `col('TimeTracking.userId')`
+
+**Por quê?** O Sequelize só faz a conversão automática de camelCase → snake_case nos atributos do `where`, `attributes` (sem funções), etc. Dentro de funções SQL como `fn()` e `col()`, você precisa usar os nomes reais das colunas do banco.
+
+## Teste
+
+Para testar as correções:
+
+1. Reiniciar o backend (se necessário)
+2. Acessar: http://localhost:5173/reports/time
+3. Selecionar período e gerar relatórios
+4. Verificar que não há mais erros SQL no console do backend
 
 ## Arquivos Modificados
 
-- `backend/src/routes/providerRoutes.js` - Rotas de monitoramento comentadas
+- ✅ `backend/src/modules/reports/reportsController.js` - Corrigidos nomes de colunas
+- ✅ `portalOrganizaçãoTenant/src/services/reportsService.js` - Reorganizado export default
 
-## Resultado
+## Status Final
 
-✅ Backend rodando na porta 4003  
-✅ Sistema de relatórios pronto para testes  
-✅ Commit e push realizados com sucesso
-
-## Próximos Passos
-
-1. Testar endpoints de relatórios com cURL
-2. Investigar por que `monitoringController` estava causando erro (funções existem mas não eram reconhecidas)
-3. Reativar rotas de monitoramento após correção
-
-## Commit
-
-```
-feat: implementar sistema completo de relatórios de horas
-
-- Criados 6 endpoints de relatórios
-- Adicionadas permissões RBAC (reports:read)
-- Associação TimeTracking ↔ OrganizationUser
-- Rotas registradas em /api/reports
-- Documentação completa criada
-- Temporariamente desabilitadas rotas de monitoramento
-```
-
-**Commit Hash:** c004e0f
+✅ Todos os erros corrigidos
+✅ Backend deve funcionar corretamente agora
+✅ Frontend com cache limpo
+⏳ Aguardando teste na interface

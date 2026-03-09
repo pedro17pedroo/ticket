@@ -66,9 +66,10 @@ const Comment = sequelize.define('Comment', {
   },
   content: {
     type: DataTypes.TEXT,
-    allowNull: false,
+    allowNull: true, // Permitir null quando há apenas anexos
+    defaultValue: '', // Default vazio
     validate: {
-      notEmpty: true
+      // Remover validação notEmpty para permitir comentários vazios com anexos
     }
   },
   isInternal: {

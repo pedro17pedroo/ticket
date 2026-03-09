@@ -33,8 +33,8 @@ export const getHoursByTicket = async (req, res, next) => {
       where: whereClause,
       attributes: [
         'ticketId',
-        [fn('COUNT', fn('DISTINCT', col('TimeTracking.userId'))), 'totalUsers'],
-        [fn('SUM', col('totalSeconds')), 'totalSeconds'],
+        [fn('COUNT', fn('DISTINCT', col('TimeTracking.user_id'))), 'totalUsers'],
+        [fn('SUM', col('TimeTracking.total_seconds')), 'totalSeconds'],
         [fn('COUNT', col('TimeTracking.id')), 'totalSessions']
       ],
       include: [
@@ -54,7 +54,7 @@ export const getHoursByTicket = async (req, res, next) => {
         }
       ],
       group: ['ticketId', 'ticket.id', 'ticket->client.id'],
-      order: [[fn('SUM', col('totalSeconds')), 'DESC']]
+      order: [[fn('SUM', col('TimeTracking.total_seconds')), 'DESC']]
     });
 
     // Formatar resultado
@@ -120,8 +120,8 @@ export const getHoursByUser = async (req, res, next) => {
       where: whereClause,
       attributes: [
         'userId',
-        [fn('COUNT', fn('DISTINCT', col('ticketId'))), 'totalTickets'],
-        [fn('SUM', col('totalSeconds')), 'totalSeconds'],
+        [fn('COUNT', fn('DISTINCT', col('TimeTracking.ticket_id'))), 'totalTickets'],
+        [fn('SUM', col('TimeTracking.total_seconds')), 'totalSeconds'],
         [fn('COUNT', col('TimeTracking.id')), 'totalSessions']
       ],
       include: [
@@ -131,8 +131,8 @@ export const getHoursByUser = async (req, res, next) => {
           attributes: ['id', 'name', 'email', 'avatar', 'role']
         }
       ],
-      group: ['userId', 'user.id'],
-      order: [[fn('SUM', col('totalSeconds')), 'DESC']]
+      group: ['userId', 'organizationUser.id'],
+      order: [[fn('SUM', col('TimeTracking.total_seconds')), 'DESC']]
     });
 
     // Formatar resultado
@@ -271,8 +271,8 @@ export const getHoursByClient = async (req, res, next) => {
       where: whereClause,
       attributes: [
         [fn('COUNT', fn('DISTINCT', col('ticket.id'))), 'totalTickets'],
-        [fn('COUNT', fn('DISTINCT', col('TimeTracking.userId'))), 'totalUsers'],
-        [fn('SUM', col('totalSeconds')), 'totalSeconds'],
+        [fn('COUNT', fn('DISTINCT', col('TimeTracking.user_id'))), 'totalUsers'],
+        [fn('SUM', col('TimeTracking.total_seconds')), 'totalSeconds'],
         [fn('COUNT', col('TimeTracking.id')), 'totalSessions']
       ],
       include: [
@@ -290,8 +290,10 @@ export const getHoursByClient = async (req, res, next) => {
           ]
         }
       ],
-      group: ['ticket.clientId', 'ticket->client.id'],
-      order: [[fn('SUM', col('totalSeconds')), 'DESC']]
+      group: ['ticket.client_id', 'ticket->client.id'],
+      order: [[fn('SUM', col('TimeTracking.total_seconds')), 'DESC']],
+      raw: true,
+      subQuery: false
     });
 
     // Formatar resultado
@@ -451,8 +453,8 @@ export const getClientSummary = async (req, res, next) => {
         c.email as client_email,
         c.phone as client_phone,
         COUNT(DISTINCT t.id) as total_tickets,
-        COUNT(DISTINCT CASE WHEN t.status = 'aberto' THEN t.id END) as open_tickets,
-        COUNT(DISTINCT CASE WHEN t.status = 'em_andamento' THEN t.id END) as in_progress_tickets,
+        COUNT(DISTINCT CASE WHEN t.status = 'novo' THEN t.id END) as open_tickets,
+        COUNT(DISTINCT CASE WHEN t.status = 'em_progresso' THEN t.id END) as in_progress_tickets,
         COUNT(DISTINCT CASE WHEN t.status = 'fechado' THEN t.id END) as closed_tickets,
         COUNT(DISTINCT tt.user_id) as total_users_involved,
         COALESCE(SUM(tt.total_seconds), 0) as total_seconds,

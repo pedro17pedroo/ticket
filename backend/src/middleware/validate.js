@@ -92,7 +92,7 @@ export const schemas = {
 
   // Comentários
   createComment: Joi.object({
-    content: Joi.string().min(1).required(),
+    content: Joi.string().min(1).allow('', null).optional(), // Permitir vazio quando há anexos
     isPrivate: Joi.boolean().default(false),
     isInternal: Joi.boolean().default(false)
   }),

@@ -68,6 +68,16 @@ export const startTimer = async (req, res, next) => {
 
     logger.info(`Timer iniciado para ticket ${ticketId} por ${req.user.name}`);
 
+    // ✅ TRANSIÇÃO AUTOMÁTICA DE STATUS
+    const { applyStatusTransition } = await import('../../utils/ticketStatusTransitions.js');
+    const statusTransition = await applyStatusTransition(ticket, req.user, 'timer_start');
+    
+    if (statusTransition.updated) {
+      logger.info(
+        `Status do ticket ${ticket.ticketNumber} alterado: ${statusTransition.oldStatus} → ${statusTransition.newStatus}`
+      );
+    }
+
     // 🔔 NOTIFICAR WATCHERS SOBRE CRONÔMETRO INICIADO
     try {
       // Carregar ticket completo com relacionamentos
@@ -446,6 +456,16 @@ export const addManualTime = async (req, res, next) => {
     });
 
     logger.info(`Tempo manual adicionado: ${hours}h no ticket ${ticketId} por ${req.user.name}`);
+
+    // ✅ TRANSIÇÃO AUTOMÁTICA DE STATUS
+    const { applyStatusTransition } = await import('../../utils/ticketStatusTransitions.js');
+    const statusTransition = await applyStatusTransition(ticket, req.user, 'manual_time');
+    
+    if (statusTransition.updated) {
+      logger.info(
+        `Status do ticket ${ticket.ticketNumber} alterado: ${statusTransition.oldStatus} → ${statusTransition.newStatus}`
+      );
+    }
 
     // 🔔 NOTIFICAR WATCHERS SOBRE TEMPO MANUAL ADICIONADO
     try {

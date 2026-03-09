@@ -1,11 +1,21 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useImperativeHandle, forwardRef } from 'react'
 import { Upload, X, File, Image as ImageIcon, FileText, Film } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" }) => {
+const FileUpload = forwardRef(({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" }, ref) => {
   const [files, setFiles] = useState([])
   const [dragActive, setDragActive] = useState(false)
   const inputRef = useRef(null)
+
+  // Expor método de reset para o componente pai
+  useImperativeHandle(ref, () => ({
+    reset: () => {
+      setFiles([])
+      if (inputRef.current) {
+        inputRef.current.value = ''
+      }
+    }
+  }))
 
   const maxSizeBytes = maxSize * 1024 * 1024 // Convert MB to bytes
 
@@ -19,7 +29,7 @@ const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" 
 
   const handleFiles = (newFiles) => {
     const validFiles = Array.from(newFiles).filter(validateFile)
-    
+
     if (files.length + validFiles.length > maxFiles) {
       toast.error(`Máximo de ${maxFiles} arquivos permitidos`)
       return
@@ -110,7 +120,7 @@ const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" 
         />
 
         <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-        
+
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
           Arraste arquivos aqui ou{' '}
           <button
@@ -121,7 +131,7 @@ const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" 
             clique para selecionar
           </button>
         </p>
-        
+
         <p className="text-xs text-gray-500 dark:text-gray-500">
           Máximo {maxFiles} arquivos · Até {maxSize}MB cada
         </p>
@@ -133,7 +143,7 @@ const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" 
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Arquivos selecionados ({files.length})
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {files.map((file) => (
               <div
@@ -180,6 +190,12 @@ const FileUpload = ({ onFilesChange, maxSize = 20, maxFiles = 5, accept = "*/*" 
       )}
     </div>
   )
-}
+})
+
+FileUpload.displayName = 'FileUpload'
+
+FileUpload.displayName = 'FileUpload'
+
+FileUpload.displayName = 'FileUpload'
 
 export default FileUpload

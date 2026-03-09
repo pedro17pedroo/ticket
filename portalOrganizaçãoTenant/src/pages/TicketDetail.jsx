@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ticketService } from '../services/api'
 import api from '../services/api'
@@ -46,6 +46,8 @@ const TicketDetail = () => {
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [viewingAttachment, setViewingAttachment] = useState(null)
+  const fileUploadRef = useRef(null)
+  const fileUploadRef = useRef(null)
   
   // Permissões baseadas em RBAC
   const canAssignTicket = hasPermission('tickets.assign_all') || hasPermission('tickets.assign_team') || hasPermission('tickets.assign_self')
@@ -88,6 +90,8 @@ const TicketDetail = () => {
 
     // Validar se há comentário ou anexos (verificar HTML vazio)
     const isCommentEmpty = !comment || comment.trim() === '' || comment === '<p><br></p>'
+    
+    // ✅ PERMITIR: Comentário sem anexo, Anexo sem comentário, ou Ambos
     if (isCommentEmpty && commentAttachments.length === 0) {
       toast.error('Adicione um comentário ou anexo')
       return
@@ -100,10 +104,12 @@ const TicketDetail = () => {
       return;
     }
 
-    // Validar se ticket está atribuído (apenas para agentes)
+    // Validar se ticket está atribuído (apenas para agentes E apenas se for adicionar comentário)
     const isAgent = ['admin-org', 'agente'].includes(user.role);
     const isTicketAssigned = ticket.assigneeId !== null && ticket.assigneeId !== undefined;
-    if (isAgent && !isTicketAssigned) {
+    
+    // ✅ CORREÇÃO: Só exigir atribuição se for adicionar COMENTÁRIO (não apenas anexo)
+    if (isAgent && !isTicketAssigned && !isCommentEmpty) {
       toast.error('Ticket deve ser atribuído antes de adicionar comentários');
       return;
     }
@@ -126,19 +132,26 @@ const TicketDetail = () => {
       setComment('')
       setIsInternal(false)
       setCommentAttachments([])
+      
+      // Limpar o componente de upload
+      if (fileUploadRef.current) {
+        fileUploadRef.current.reset()
+      }
 
+      // Mensagens de sucesso mais claras
       if (!isCommentEmpty && commentAttachments.length > 0) {
-        toast.success('Comentário e anexos adicionados')
+        toast.success('Comentário e anexos adicionados com sucesso')
       } else if (!isCommentEmpty) {
-        toast.success('Comentário adicionado')
+        toast.success('Comentário adicionado com sucesso')
       } else {
-        toast.success('Anexos adicionados')
+        toast.success('Anexos adicionados com sucesso')
       }
 
       loadTicket()
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error)
-      toast.error('Erro ao adicionar comentário/anexos')
+      const errorMsg = error.response?.data?.error || 'Erro ao adicionar comentário/anexos'
+      toast.error(errorMsg)
     }
   }
 
@@ -346,53 +359,6 @@ const TicketDetail = () => {
             </div>
           )}
 
-          {/* Comment Attachments */}
-          {commentsAttachments.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-              <h2 className="font-semibold mb-4 flex items-center gap-2">
-                <Paperclip className="w-5 h-5" />
-                Anexos de Comentários ({commentsAttachments.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {commentsAttachments.map((attachment) => (
-                  <div
-                    key={attachment.id}
-                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border"
-                  >
-                    <FileText className="w-8 h-8 text-gray-400 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{attachment.originalName}</p>
-                      <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setViewingAttachment(attachment)}
-                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                        title="Visualizar"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDownloadAttachment(attachment.id, attachment.originalName)}
-                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                        title="Download"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAttachment(attachment.id)}
-                        className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Activity Timeline */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="font-semibold mb-4">
@@ -400,7 +366,11 @@ const TicketDetail = () => {
             </h2>
 
             <div className="mb-6">
-              <ActivityTimeline ticket={ticket} />
+              <ActivityTimeline 
+                ticket={ticket} 
+                formatFileSize={formatFileSize}
+                handleDownloadAttachment={handleDownloadAttachment}
+              />
             </div>
 
             {/* Add Comment Form */}
@@ -458,6 +428,7 @@ Você pode usar formatação para destacar informações importantes:
               <div>
                 <label className="block text-sm font-medium mb-1">Anexos (opcional)</label>
                 <FileUpload
+                  ref={fileUploadRef}
                   onFilesChange={setCommentAttachments}
                   maxSize={20}
                   maxFiles={5}
@@ -479,7 +450,14 @@ Você pode usar formatação para destacar informações importantes:
                   disabled={(!comment || comment === '<p><br></p>') && commentAttachments.length === 0}
                   className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
-                  {commentAttachments.length > 0 && (!comment || comment === '<p><br></p>') ? 'Adicionar Anexos' : 'Adicionar Comentário'}
+                  {(() => {
+                    const hasComment = comment && comment !== '<p><br></p>';
+                    const hasAttachments = commentAttachments.length > 0;
+                    
+                    if (hasComment && hasAttachments) return 'Adicionar Comentário e Anexos';
+                    if (hasAttachments) return 'Adicionar Anexos';
+                    return 'Adicionar Comentário';
+                  })()}
                 </button>
               </div>
             </form>

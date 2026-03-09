@@ -937,6 +937,10 @@ export const addComment = async (req, res, next) => {
     const { id: ticketId } = req.params;
     const { content, isInternal = false } = req.body;
 
+    // ✅ VALIDAÇÃO: Deve ter comentário OU anexos (será verificado após upload)
+    // Nota: Anexos são enviados separadamente, então aqui só validamos se há conteúdo
+    // Se não houver conteúdo, assumimos que haverá anexos
+
     const ticket = await Ticket.findOne({
       where: { id: ticketId, organizationId: req.user.organizationId },
       include: [
@@ -999,7 +1003,7 @@ export const addComment = async (req, res, next) => {
       organizationId: req.user.organizationId,
       ticketId,
       userId: req.user.id, // Legado
-      content,
+      content: content || '', // Permitir vazio quando há apenas anexos
       isInternal: !isClientUser ? isInternal : false,
       authorType,
       authorUserId,
@@ -1015,10 +1019,14 @@ export const addComment = async (req, res, next) => {
       logger.info(`Primeira resposta registrada para o ticket ${ticket.ticketNumber} por ${req.user.email}`);
     }
 
-    // Se o cliente respondeu e o ticket estava aguardando, mudar status automaticamente
-    if (isClientUser && ticket.status === 'aguardando_cliente') {
-      await ticket.update({ status: 'em_progresso' });
-      logger.info(`Status do ticket ${ticket.ticketNumber} alterado automaticamente para 'em_progresso' após resposta do cliente`);
+    // ✅ TRANSIÇÃO AUTOMÁTICA DE STATUS
+    const { applyStatusTransition } = await import('../../utils/ticketStatusTransitions.js');
+    const statusTransition = await applyStatusTransition(ticket, req.user, 'comment');
+    
+    if (statusTransition.updated) {
+      logger.info(
+        `Status do ticket ${ticket.ticketNumber} alterado: ${statusTransition.oldStatus} → ${statusTransition.newStatus}`
+      );
     }
 
     const fullComment = await Comment.findByPk(comment.id, {

@@ -3,7 +3,7 @@ import { MessageCircle, Paperclip, Edit, UserPlus, CheckCircle, XCircle, Tag as 
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
-const ActivityTimeline = ({ ticket }) => {
+const ActivityTimeline = ({ ticket, handleDownloadAttachment, formatFileSize }) => {
   const [activeFilter, setActiveFilter] = useState('all');
 
   // Construir timeline de atividades
@@ -15,7 +15,7 @@ const ActivityTimeline = ({ ticket }) => {
       ticket.comments.forEach(comment => {
         // Detectar autor correto (novo sistema polimórfico)
         const author = comment.authorOrgUser || comment.authorClientUser || comment.authorUser || comment.user || { name: 'Sistema' };
-        
+
         activities.push({
           id: `comment-${comment.id}`,
           type: 'comment',
@@ -132,10 +132,49 @@ const ActivityTimeline = ({ ticket }) => {
                 </div>
 
                 {activity.type === 'comment' && (
-                  <div 
-                    className="ticket-description-view text-gray-700 dark:text-gray-300"
-                    dangerouslySetInnerHTML={{ __html: activity.data.content }}
-                  />
+                  <>
+                    <div
+                      className="ticket-description-view text-gray-700 dark:text-gray-300"
+                      dangerouslySetInnerHTML={{ __html: activity.data.content }}
+                    />
+
+                    {/* Anexos do Comentário */}
+                    {activity.data.attachments && activity.data.attachments.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Paperclip className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            Anexos ({activity.data.attachments.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {activity.data.attachments.map((attachment) => (
+                            <div
+                              key={attachment.id}
+                              className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600 hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                            >
+                              <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                                  {attachment.originalName || attachment.filename}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {formatFileSize(attachment.size)}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleDownloadAttachment(attachment.id, attachment.originalName || attachment.filename)}
+                                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                title="Download"
+                              >
+                                <Download className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -144,6 +183,6 @@ const ActivityTimeline = ({ ticket }) => {
       </div>
     </div>
   );
-};
+}
 
 export default ActivityTimeline;
