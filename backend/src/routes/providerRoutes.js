@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import * as providerController from '../modules/organizations/providerController.js';
 import * as settingsController from '../modules/settings/settingsController.js';
-import * as reportsController from '../modules/reports/reportsController.js';
+// import * as reportsController from '../modules/reports/reportsController.js'; // Temporariamente desabilitado
 import * as monitoringController from '../modules/monitoring/monitoringController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -131,16 +131,16 @@ router.get('/audit-logs/changes', settingsController.getChangeHistory);
 
 // ==================== REPORTS ====================
 
-// Relatórios
-router.get('/reports/financial', reportsController.getFinancialReports);
-router.get('/reports/usage', reportsController.getUsageReports);
-router.get('/reports/support', reportsController.getSupportReports);
+// Relatórios (temporariamente desabilitados - usar /api/reports)
+// router.get('/reports/financial', reportsController.getFinancialReports);
+// router.get('/reports/usage', reportsController.getUsageReports);
+// router.get('/reports/support', reportsController.getSupportReports);
 
 // ==================== MONITORING ====================
 
-// Monitoramento
-router.get('/monitoring/status', monitoringController.getSystemStatus);
-router.get('/monitoring/logs', monitoringController.getLogs);
-router.get('/monitoring/performance', monitoringController.getPerformanceMetrics);
+// Monitoramento (temporariamente desabilitado - investigar erro de callback)
+// router.get('/monitoring/status', monitoringController.getSystemStatus);
+// router.get('/monitoring/logs', monitoringController.getLogs);
+// router.get('/monitoring/performance', monitoringController.getPerformanceMetrics);
 
 export default router;

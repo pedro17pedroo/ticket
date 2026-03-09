@@ -1,11 +1,7 @@
-import { Op, fn, col, literal } from 'sequelize';
+import { Op, fn, col } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 import TimeTracking from '../timeTracking/timeTrackingModel.js';
-import Ticket from '../tickets/ticketModel.js';
-import User from '../../models/User.js';
-import OrganizationUser from '../../models/OrganizationUser.js';
-import ClientUser from '../../models/ClientUser.js';
-import Client from '../clients/clientModel.js';
+import { Ticket, OrganizationUser, Client } from '../models/index.js';
 
 /**
  * Relatório de horas por ticket

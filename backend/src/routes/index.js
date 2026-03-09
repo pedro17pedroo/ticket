@@ -562,6 +562,3 @@ router.use('/reports', reportsRoutes);
 
 export default router;
 
-// ==================== REPORTS ====================
-import reportsRoutes from '../modules/reports/reportsRoutes.js';
-router.use('/reports', reportsRoutes);
