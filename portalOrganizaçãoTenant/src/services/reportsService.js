@@ -157,5 +157,145 @@ export default {
   getDailyReport,
   getClientSummary,
   getUserDetailedReport,
-  exportToCSV
+  exportToCSV,
+  exportToPDF
+};
+
+
+/**
+ * Exportar relatório para PDF
+ * @param {string} reportType - Tipo de relatório
+ * @param {Object} filters - Filtros aplicados
+ * @param {Array} data - Dados do relatório
+ * @param {Object} summary - Resumo do relatório
+ * @returns {Promise<void>}
+ */
+export const exportToPDF = async (reportType, filters, data, summary) => {
+  const { jsPDF } = await import('jspdf');
+  await import('jspdf-autotable');
+  
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // Título
+  doc.setFontSize(18);
+  doc.text('Relatório de Horas Trabalhadas', pageWidth / 2, 15, { align: 'center' });
+  
+  // Subtítulo com tipo de relatório
+  doc.setFontSize(12);
+  const reportTitles = {
+    'by-ticket': 'Por Ticket',
+    'by-user': 'Por Usuário',
+    'by-client': 'Por Cliente',
+    'daily': 'Diário'
+  };
+  doc.text(`Tipo: ${reportTitles[reportType] || reportType}`, pageWidth / 2, 22, { align: 'center' });
+  
+  // Período
+  doc.setFontSize(10);
+  doc.text(`Período: ${filters.startDate} a ${filters.endDate}`, pageWidth / 2, 28, { align: 'center' });
+  
+  // Resumo
+  doc.setFontSize(11);
+  doc.text('Resumo:', 14, 38);
+  doc.setFontSize(9);
+  let yPos = 44;
+  
+  if (summary) {
+    Object.entries(summary).forEach(([key, value]) => {
+      const labels = {
+        totalTickets: 'Total de Tickets',
+        totalHours: 'Total de Horas',
+        totalUsers: 'Total de Usuários',
+        totalClients: 'Total de Clientes',
+        totalDays: 'Total de Dias',
+        averageHoursPerDay: 'Média por Dia'
+      };
+      doc.text(`${labels[key] || key}: ${value}`, 14, yPos);
+      yPos += 5;
+    });
+  }
+  
+  // Tabela de dados
+  let columns = [];
+  let rows = [];
+  
+  switch (reportType) {
+    case 'by-ticket':
+      columns = ['Ticket', 'Assunto', 'Cliente', 'Usuários', 'Sessões', 'Tempo'];
+      rows = data.map(item => [
+        `#${item.ticket.ticketNumber}`,
+        item.ticket.subject.substring(0, 30) + (item.ticket.subject.length > 30 ? '...' : ''),
+        item.ticket.client?.name || 'N/A',
+        item.totalUsers,
+        item.totalSessions,
+        item.formattedTime
+      ]);
+      break;
+      
+    case 'by-user':
+      columns = ['Usuário', 'Email', 'Tickets', 'Sessões', 'Tempo'];
+      rows = data.map(item => [
+        item.user?.name || 'N/A',
+        item.user?.email || 'N/A',
+        item.totalTickets,
+        item.totalSessions,
+        item.formattedTime
+      ]);
+      break;
+      
+    case 'by-client':
+      columns = ['Cliente', 'Email', 'Tickets', 'Usuários', 'Sessões', 'Tempo'];
+      rows = data.map(item => [
+        item.client?.name || 'N/A',
+        item.client?.email || 'N/A',
+        item.totalTickets,
+        item.totalUsers,
+        item.totalSessions,
+        item.formattedTime
+      ]);
+      break;
+      
+    case 'daily':
+      columns = ['Data', 'Tickets', 'Usuários', 'Sessões', 'Tempo'];
+      rows = data.map(item => [
+        new Date(item.date).toLocaleDateString('pt-BR'),
+        item.totalTickets,
+        item.totalUsers,
+        item.totalSessions,
+        item.formattedTime
+      ]);
+      break;
+  }
+  
+  doc.autoTable({
+    head: [columns],
+    body: rows,
+    startY: yPos + 5,
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [59, 130, 246] }
+  });
+  
+  // Rodapé
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      pageWidth / 2,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'center' }
+    );
+    doc.text(
+      `Gerado em ${new Date().toLocaleString('pt-BR')}`,
+      pageWidth - 14,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'right' }
+    );
+  }
+  
+  // Salvar
+  const filename = `relatorio-${reportType}-${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(filename);
 };

@@ -9,15 +9,21 @@ import {
   Filter,
   BarChart3,
   PieChart,
-  Activity
+  Activity,
+  TrendingDown,
+  FileText
 } from 'lucide-react';
 import * as reportsService from '../services/reportsService';
 import { showSuccess, showError } from '../utils/alerts';
+import BarChartComponent from '../components/charts/BarChartComponent';
+import PieChartComponent from '../components/charts/PieChartComponent';
+import LineChartComponent from '../components/charts/LineChartComponent';
 
 const TimeReports = () => {
   const [activeTab, setActiveTab] = useState('by-ticket');
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [showCharts, setShowCharts] = useState(true);
   const [filters, setFilters] = useState({
     startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
@@ -82,6 +88,146 @@ const TimeReports = () => {
     }
     reportsService.exportToCSV(activeTab, filters, reportData.data);
     showSuccess('Relatório exportado com sucesso!');
+  };
+
+  const handleExportPDF = async () => {
+    if (!reportData || !reportData.data) {
+      showError('Nenhum dado para exportar');
+      return;
+    }
+    try {
+      await reportsService.exportToPDF(activeTab, filters, reportData.data, reportData.summary);
+      showSuccess('Relatório PDF exportado com sucesso!');
+    } catch (error) {
+      showError('Erro ao exportar PDF');
+      console.error(error);
+    }
+  };
+
+  const prepareChartData = () => {
+    if (!reportData || !reportData.data) return null;
+
+    switch (activeTab) {
+      case 'by-ticket':
+        return reportData.data.slice(0, 10).map(item => ({
+          name: `#${item.ticket.ticketNumber}`,
+          horas: item.totalHours,
+          usuarios: item.totalUsers
+        }));
+      
+      case 'by-user':
+        return reportData.data.slice(0, 10).map(item => ({
+          name: item.user?.name || 'N/A',
+          horas: item.totalHours,
+          tickets: item.totalTickets
+        }));
+      
+      case 'by-client':
+        return reportData.data.slice(0, 8).map(item => ({
+          name: item.client?.name || 'N/A',
+          horas: item.totalHours
+        }));
+      
+      case 'daily':
+        return reportData.data.map(item => ({
+          name: new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          horas: item.totalHours,
+          tickets: item.totalTickets
+        }));
+      
+      default:
+        return null;
+    }
+  };
+
+  const renderCharts = () => {
+    if (!showCharts || !reportData || !reportData.data || reportData.data.length === 0) {
+      return null;
+    }
+
+    const chartData = prepareChartData();
+    if (!chartData) return null;
+
+    return (
+      <div className="mb-6 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Gráfico de Barras */}
+          {activeTab === 'by-ticket' && (
+            <>
+              <BarChartComponent
+                data={chartData}
+                dataKey="horas"
+                xAxisKey="name"
+                title="Top 10 Tickets por Horas"
+                color="#3b82f6"
+              />
+              <BarChartComponent
+                data={chartData}
+                dataKey="usuarios"
+                xAxisKey="name"
+                title="Usuários Envolvidos por Ticket"
+                color="#10b981"
+              />
+            </>
+          )}
+
+          {activeTab === 'by-user' && (
+            <>
+              <BarChartComponent
+                data={chartData}
+                dataKey="horas"
+                xAxisKey="name"
+                title="Top 10 Usuários por Horas"
+                color="#3b82f6"
+              />
+              <PieChartComponent
+                data={chartData}
+                dataKey="horas"
+                nameKey="name"
+                title="Distribuição de Horas por Usuário"
+              />
+            </>
+          )}
+
+          {activeTab === 'by-client' && (
+            <>
+              <BarChartComponent
+                data={chartData}
+                dataKey="horas"
+                xAxisKey="name"
+                title="Horas por Cliente"
+                color="#f59e0b"
+              />
+              <PieChartComponent
+                data={chartData}
+                dataKey="horas"
+                nameKey="name"
+                title="Distribuição de Horas por Cliente"
+              />
+            </>
+          )}
+
+          {activeTab === 'daily' && (
+            <>
+              <LineChartComponent
+                data={chartData}
+                dataKey="horas"
+                xAxisKey="name"
+                title="Evolução de Horas por Dia"
+                color="#3b82f6"
+              />
+              <LineChartComponent
+                data={chartData}
+                dataKey="tickets"
+                xAxisKey="name"
+                title="Tickets Trabalhados por Dia"
+                color="#10b981"
+              />
+            </>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const renderSummaryCards = () => {
@@ -405,17 +551,48 @@ const TimeReports = () => {
       {/* Summary Cards */}
       {renderSummaryCards()}
 
-      {/* Export Button */}
-      <div className="flex justify-end mb-4">
+      {/* Toggle Charts/Table & Export Buttons */}
+      <div className="flex justify-between items-center mb-4">
         <button
-          onClick={handleExport}
-          disabled={!reportData || !reportData.data || reportData.data.length === 0}
-          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+          onClick={() => setShowCharts(!showCharts)}
+          className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
         >
-          <Download className="w-5 h-5 mr-2" />
-          Exportar CSV
+          {showCharts ? (
+            <>
+              <TrendingDown className="w-5 h-5 mr-2" />
+              Ocultar Gráficos
+            </>
+          ) : (
+            <>
+              <BarChart3 className="w-5 h-5 mr-2" />
+              Mostrar Gráficos
+            </>
+          )}
         </button>
+
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            disabled={!reportData || !reportData.data || reportData.data.length === 0}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+          >
+            <Download className="w-5 h-5 mr-2" />
+            Exportar CSV
+          </button>
+          
+          <button
+            onClick={handleExportPDF}
+            disabled={!reportData || !reportData.data || reportData.data.length === 0}
+            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+          >
+            <FileText className="w-5 h-5 mr-2" />
+            Exportar PDF
+          </button>
+        </div>
       </div>
+
+      {/* Charts */}
+      {renderCharts()}
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow">
