@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageCircle, Paperclip, Edit, UserPlus, CheckCircle, XCircle, Tag as TagIcon, Clock, Filter } from 'lucide-react';
+import { MessageCircle, Paperclip, Edit, UserPlus, CheckCircle, XCircle, Tag as TagIcon, Clock, Filter, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
