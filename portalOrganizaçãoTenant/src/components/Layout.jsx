@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import SubscriptionAlert from './SubscriptionAlert'
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false) // Iniciar fechada no mobile
@@ -54,6 +55,9 @@ const Layout = ({ children }) => {
         
         <main className="p-3 sm:p-4 md:p-6">
           <div className="max-w-7xl mx-auto">
+            {/* Alerta de Subscrição */}
+            <SubscriptionAlert />
+            
             {children}
           </div>
         </main>

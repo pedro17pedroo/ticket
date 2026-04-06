@@ -1,0 +1,425 @@
+/* ============================================
+   ESTILOS PARA PÁGINAS DO CLIENTE
+   ============================================ */
+
+/* Request Cards */
+.request-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.request-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-color: #667eea;
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.request-title h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+
+.ticket-number {
+  display: inline-block;
+  font-size: 0.875rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.status-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.request-info {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.info-item svg {
+  flex-shrink: 0;
+}
+
+.request-description {
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Todo Cards */
+.todos-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.todo-column {
+  background: #f8fafc;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  min-height: 400px;
+}
+
+.todo-column h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.todo-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.todo-card:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.todo-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.todo-header input[type="checkbox"] {
+  margin-top: 0.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+
+.todo-header h4 {
+  flex: 1;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.todo-header h4.completed {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.todo-description {
+  font-size: 0.8125rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0 0 0.75rem 2rem;
+}
+
+.todo-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: 2rem;
+  flex-wrap: wrap;
+}
+
+.priority-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.due-date {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.empty-column {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.875rem;
+  padding: 2rem 1rem;
+}
+
+/* Asset Cards */
+.asset-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+}
+
+.asset-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-color: #667eea;
+}
+
+.asset-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.asset-icon {
+  font-size: 2rem;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.asset-title {
+  flex: 1;
+}
+
+.asset-title h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+}
+
+.asset-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+.info-row .label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.info-row .value {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.asset-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.security-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.security-badge.success {
+  background: #10b98120;
+  color: #10b981;
+}
+
+.security-badge.warning {
+  background: #f59e0b20;
+  color: #f59e0b;
+}
+
+/* Hours Bank Cards */
+.hours-bank-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.bank-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.bank-header h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.bank-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background: #e2e8f0;
+  border-radius: 0.25rem;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 0.25rem;
+}
+
+.bank-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bank-notes {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.875rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: #64748b;
+}
+
+.empty-state svg {
+  margin: 0 auto 1rem;
+  opacity: 0.5;
+  stroke: currentColor;
+}
+
+.empty-state p {
+  font-size: 1rem;
+  margin: 0.5rem 0;
+}
+
+.empty-state button {
+  margin-top: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .todos-columns {
+    grid-template-columns: 1fr;
+  }
+  
+  .request-info {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .asset-header {
+    flex-direction: column;
+  }
+  
+  .asset-icon {
+    width: 100%;
+    height: 4rem;
+  }
+}
+
+/* Dark Mode Support */
+[data-theme="dark"] .request-card,
+[data-theme="dark"] .todo-card,
+[data-theme="dark"] .asset-card,
+[data-theme="dark"] .hours-bank-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .request-title h4,
+[data-theme="dark"] .todo-header h4,
+[data-theme="dark"] .asset-title h4,
+[data-theme="dark"] .bank-header h4 {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .request-description,
+[data-theme="dark"] .todo-description,
+[data-theme="dark"] .info-row .value {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .info-item,
+[data-theme="dark"] .info-row .label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .todo-column {
+  background: #0f172a;
+}
+
+[data-theme="dark"] .asset-icon {
+  background: #334155;
+}
+
+[data-theme="dark"] .empty-state {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .progress-bar {
+  background: #334155;
+}

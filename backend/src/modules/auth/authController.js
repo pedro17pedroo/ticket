@@ -116,7 +116,14 @@ export const login = async (req, res, next) => {
     
     try {
       const permissionService = (await import('../../services/permissionService.js')).default;
-      permissions = await permissionService.getUserPermissions(selectedContext.userId);
+      const permissionStrings = await permissionService.getUserPermissions(selectedContext.userId);
+      
+      // Converter strings para objetos {resource, action} para compatibilidade com frontend
+      permissions = permissionStrings.map(perm => {
+        const [resource, action] = perm.split('.');
+        return { resource, action };
+      });
+      
       debug('✅ Permissões carregadas:', permissions);
       debug('✅ Total de permissões:', permissions.length);
     } catch (error) {
@@ -254,7 +261,14 @@ export const selectContext = async (req, res, next) => {
     let permissions = contextData.permissions || [];
     try {
       const permissionService = (await import('../../services/permissionService.js')).default;
-      permissions = await permissionService.getUserPermissions(contextData.userId);
+      const permissionStrings = await permissionService.getUserPermissions(contextData.userId);
+      
+      // Converter strings para objetos {resource, action} para compatibilidade com frontend
+      permissions = permissionStrings.map(perm => {
+        const [resource, action] = perm.split('.');
+        return { resource, action };
+      });
+      
       debug('✅ Permissões carregadas:', permissions);
     } catch (error) {
       // Ignora se RBAC não estiver inicializado
@@ -592,7 +606,13 @@ export const getProfile = async (req, res, next) => {
     let permissions = [];
     try {
       const permissionService = (await import('../../services/permissionService.js')).default;
-      permissions = await permissionService.getUserPermissions(id);
+      const permissionStrings = await permissionService.getUserPermissions(id);
+      
+      // Converter strings para objetos {resource, action} para compatibilidade com frontend
+      permissions = permissionStrings.map(perm => {
+        const [resource, action] = perm.split('.');
+        return { resource, action };
+      });
     } catch (error) {
       // Ignora se RBAC não estiver inicializado; relança outros erros reais
       if (!error.message?.includes('relation') || !error.message?.includes('does not exist')) {
@@ -778,7 +798,14 @@ export const switchContext = async (req, res, next) => {
     let permissions = newContextData.permissions || [];
     try {
       const permissionService = (await import('../../services/permissionService.js')).default;
-      permissions = await permissionService.getUserPermissions(newContextData.userId);
+      const permissionStrings = await permissionService.getUserPermissions(newContextData.userId);
+      
+      // Converter strings para objetos {resource, action} para compatibilidade com frontend
+      permissions = permissionStrings.map(perm => {
+        const [resource, action] = perm.split('.');
+        return { resource, action };
+      });
+      
       debug('✅ Permissões carregadas:', permissions);
     } catch (error) {
       // Ignora se RBAC não estiver inicializado

@@ -85,17 +85,33 @@ const Tickets = () => {
     setLoading(true)
     try {
       const params = { ...activeFilters }
+      
+      // Converter "unassigned" para "null" para o backend
+      if (params.assigneeId === 'unassigned') {
+        params.assigneeId = 'null'
+      }
+      
+      // Filtro "Meus Tickets"
       if (showMyTickets) {
         params.requesterOrgUserId = user.id
+      } else {
+        // Remover explicitamente o filtro quando não está ativo
+        delete params.requesterOrgUserId
       }
       
       // Filtrar por origem do ticket
       if (ticketOriginFilter === 'catalog') {
         params.hasCatalogItem = 'true' // Apenas solicitações de serviço
-      } else if (ticketOriginFilter === 'manual') {
-        params.hasCatalogItem = 'false' // Apenas tickets manuais
+      } else if (ticketOriginFilter === 'assigned') {
+        params.assigneeId = user.id // Apenas tickets atribuídos a mim
+      } else {
+        // Remover filtros quando 'all' - mas preservar assigneeId se veio do filtro avançado
+        delete params.hasCatalogItem
+        // Só remove assigneeId se não veio do filtro avançado
+        if (!activeFilters.assigneeId) {
+          delete params.assigneeId
+        }
       }
-      // Se 'all', não adiciona filtro (mostra tudo)
       
       // Add pagination params
       params.page = currentPage
@@ -327,15 +343,15 @@ const Tickets = () => {
               Solicitações
             </button>
             <button
-              onClick={() => handleOriginFilterChange('manual')}
+              onClick={() => handleOriginFilterChange('assigned')}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                ticketOriginFilter === 'manual'
+                ticketOriginFilter === 'assigned'
                   ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
-              title="Apenas tickets criados manualmente"
+              title="Tickets atribuídos a mim"
             >
-              Manuais
+              Atribuídos a Mim
             </button>
           </div>
 

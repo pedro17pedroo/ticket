@@ -13,7 +13,7 @@ class SubscriptionService {
    * Obter planos disponíveis
    */
   async getAvailablePlans() {
-    const response = await api.get('/plans');
+    const response = await api.get('/plans/public');
     return response.data;
   }
 
@@ -41,6 +41,14 @@ class SubscriptionService {
    */
   async checkLimits() {
     const response = await api.get('/subscription/limits-check');
+    return response.data;
+  }
+
+  /**
+   * Renovar subscrição
+   */
+  async renewSubscription(paymentData) {
+    const response = await api.post('/subscription/renew', paymentData);
     return response.data;
   }
 }

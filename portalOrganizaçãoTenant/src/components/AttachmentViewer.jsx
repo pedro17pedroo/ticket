@@ -44,10 +44,20 @@ const AttachmentViewer = ({ attachment, ticketId, onDownload, onClose }) => {
           responseType: 'blob'
         })
         
-        const blob = response.data
-        const url = window.URL.createObjectURL(blob)
-        setFileUrl(url)
-        setLoading(false)
+        // Criar blob URL com o tipo MIME correto
+        const mimeType = attachment.mimetype || attachment.mimeType || response.headers['content-type'] || 'application/octet-stream';
+        const blob = new Blob([response.data], { type: mimeType });
+        const url = window.URL.createObjectURL(blob);
+        
+        console.log('📄 Arquivo carregado:', {
+          filename: attachment.originalName,
+          mimeType: mimeType,
+          size: response.data.size,
+          blobUrl: url
+        });
+        
+        setFileUrl(url);
+        setLoading(false);
       } catch (err) {
         console.error('Erro ao carregar arquivo:', err)
         setError(true)
@@ -64,7 +74,7 @@ const AttachmentViewer = ({ attachment, ticketId, onDownload, onClose }) => {
         window.URL.revokeObjectURL(fileUrl)
       }
     }
-  }, [ticketId, attachment.id])
+  }, [ticketId, attachment.id, attachment.mimetype])
 
   const handleZoomIn = () => {
     setZoom(prev => Math.min(prev + 25, 200))

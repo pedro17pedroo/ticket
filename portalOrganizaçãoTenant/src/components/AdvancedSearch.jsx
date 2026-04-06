@@ -13,7 +13,7 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
     categoryId: '',
     departmentId: '',
     assigneeId: '',
-    requesterId: '',
+    clientId: '',
     dateFrom: '',
     dateTo: ''
   });
@@ -146,11 +146,12 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
               >
                 <option value="">Todos</option>
-                <option value="aberto">Aberto</option>
-                <option value="em-progresso">Em Progresso</option>
+                <option value="novo">Novo</option>
+                <option value="aguardando_aprovacao">Aguardando Aprovação</option>
+                <option value="em_progresso">Em Progresso</option>
+                <option value="aguardando_cliente">Aguardando Cliente</option>
                 <option value="resolvido">Resolvido</option>
                 <option value="fechado">Fechado</option>
-                <option value="cancelado">Cancelado</option>
               </select>
             </div>
 
@@ -163,10 +164,10 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
               >
                 <option value="">Todas</option>
-                <option value="baixa">Baixa</option>
-                <option value="media">Média</option>
-                <option value="alta">Alta</option>
-                <option value="critica">Crítica</option>
+                <option value="Baixa">Baixa</option>
+                <option value="Média">Média</option>
+                <option value="Alta">Alta</option>
+                <option value="Crítica">Crítica</option>
               </select>
             </div>
 
@@ -232,8 +233,8 @@ const AdvancedSearch = ({ onSearch, onSaveSearch }) => {
             <div>
               <label className="block text-sm font-medium mb-2">Solicitante</label>
               <select
-                value={filters.requesterId}
-                onChange={(e) => handleFilterChange('requesterId', e.target.value)}
+                value={filters.clientId}
+                onChange={(e) => handleFilterChange('clientId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
               >
                 <option value="">Todos</option>

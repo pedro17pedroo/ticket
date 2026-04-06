@@ -4,8 +4,10 @@ import { createPortal } from 'react-dom'
 import { confirmAction, showSuccess, showError } from '../../utils/alerts'
 import organizationService from '../../services/organizationService'
 import toast from 'react-hot-toast'
+import { usePermissions } from '../../hooks/usePermissions'
 
 const SectionsTab = () => {
+  const { can } = usePermissions()
   const [sections, setSections] = useState([])
   const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -164,13 +166,15 @@ const SectionsTab = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
           />
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="ml-4 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Nova Secção
-        </button>
+        {can('sections', 'create') && (
+          <button
+            onClick={() => handleOpenModal()}
+            className="ml-4 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Nova Secção
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -203,24 +207,31 @@ const SectionsTab = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleOpenModal(section)}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                    title="Editar"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleToggleActive(section)}
-                    className={`p-1 rounded ${section.isActive
-                        ? 'hover:bg-red-100 dark:hover:bg-red-900/30'
-                        : 'hover:bg-green-100 dark:hover:bg-green-900/30'
-                      }`}
-                    title={section.isActive ? 'Desativar' : 'Reativar'}
-                  >
-                    <Power className={`w-4 h-4 ${section.isActive ? 'text-red-600' : 'text-green-600'
-                      }`} />
-                  </button>
+                  {can('sections', 'update') && (
+                    <button
+                      onClick={() => handleOpenModal(section)}
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                      title="Editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  {can('sections', 'delete') && (
+                    <button
+                      onClick={() => handleToggleActive(section)}
+                      className={`p-1 rounded ${section.isActive
+                          ? 'hover:bg-red-100 dark:hover:bg-red-900/30'
+                          : 'hover:bg-green-100 dark:hover:bg-green-900/30'
+                        }`}
+                      title={section.isActive ? 'Desativar' : 'Reativar'}
+                    >
+                      <Power className={`w-4 h-4 ${section.isActive ? 'text-red-600' : 'text-green-600'
+                        }`} />
+                    </button>
+                  )}
+                  {!can('sections', 'update') && !can('sections', 'delete') && (
+                    <span className="text-xs text-gray-400 px-2">Sem ações</span>
+                  )}
                 </div>
               </div>
               {section.description && (

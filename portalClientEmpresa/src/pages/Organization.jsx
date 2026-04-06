@@ -1,19 +1,79 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users, Building2, Briefcase, Layers } from 'lucide-react'
+import { usePermissions } from '../hooks/usePermissions'
 import UsersTab from '../components/organization/UsersTab'
 import DirectionsTab from '../components/organization/DirectionsTab'
 import DepartmentsTab from '../components/organization/DepartmentsTab'
 import SectionsTab from '../components/organization/SectionsTab'
 
 const Organization = () => {
-  const [activeTab, setActiveTab] = useState('users')
+  const { can } = usePermissions()
+  const [activeTab, setActiveTab] = useState('')
 
-  const tabs = [
-    { id: 'users', label: 'Utilizadores', icon: Users, component: UsersTab },
-    { id: 'directions', label: 'Direções', icon: Building2, component: DirectionsTab },
-    { id: 'departments', label: 'Departamentos', icon: Briefcase, component: DepartmentsTab },
-    { id: 'sections', label: 'Secções', icon: Layers, component: SectionsTab }
+  // Definir todas as tabs com suas permissões
+  const allTabs = [
+    { 
+      id: 'users', 
+      label: 'Utilizadores', 
+      icon: Users, 
+      component: UsersTab,
+      permission: ['client_users', 'view']
+    },
+    { 
+      id: 'directions', 
+      label: 'Direções', 
+      icon: Building2, 
+      component: DirectionsTab,
+      permission: ['directions', 'view']
+    },
+    { 
+      id: 'departments', 
+      label: 'Departamentos', 
+      icon: Briefcase, 
+      component: DepartmentsTab,
+      permission: ['departments', 'view']
+    },
+    { 
+      id: 'sections', 
+      label: 'Secções', 
+      icon: Layers, 
+      component: SectionsTab,
+      permission: ['sections', 'view']
+    }
   ]
+
+  // Filtrar tabs baseado em permissões
+  const tabs = allTabs.filter(tab => {
+    if (!tab.permission) return true
+    const [resource, action] = tab.permission
+    return can(resource, action)
+  })
+
+  // Definir tab ativa inicial (primeira tab com permissão)
+  useEffect(() => {
+    if (tabs.length > 0 && !activeTab) {
+      setActiveTab(tabs[0].id)
+    }
+  }, [tabs, activeTab])
+
+  // Se não há tabs disponíveis, mostrar mensagem
+  if (tabs.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Organização</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Gerir estrutura organizacional e utilizadores
+          </p>
+        </div>
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <p className="text-yellow-800 dark:text-yellow-200">
+            Não tem permissões para aceder a nenhuma secção desta página.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const ActiveComponent = tabs.find(t => t.id === activeTab)?.component
 

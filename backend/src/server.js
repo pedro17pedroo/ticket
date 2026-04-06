@@ -19,6 +19,7 @@ import healthCheckMonitor from './jobs/healthCheckMonitor.js';
 import { startExpirationJob } from './jobs/expireRemoteAccessRequests.js';
 import { startCleanupJob } from './jobs/cleanupExpiredReports.js';
 import { startSessionCleanupJob } from './jobs/cleanupExpiredSessions.js';
+import { startSubscriptionCheckJob } from './jobs/subscriptionCheckJob.js';
 import logger from './config/logger.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -110,6 +111,14 @@ const startServer = async () => {
         logger.info('✅ Job de limpeza de sessões iniciado');
       } catch (error) {
         logger.warn('⚠️ Job de limpeza de sessões desabilitado:', error.message);
+      }
+
+      // Inicializar job de verificação de subscrições
+      try {
+        startSubscriptionCheckJob();
+        logger.info('✅ Job de verificação de subscrições iniciado (diariamente às 9h)');
+      } catch (error) {
+        logger.warn('⚠️ Job de verificação de subscrições desabilitado:', error.message);
       }
     });
   } catch (error) {

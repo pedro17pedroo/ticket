@@ -14,11 +14,14 @@ import subscriptionService from '../services/subscriptionService';
 import paymentService from '../services/paymentService';
 import PaymentHistory from '../components/subscription/PaymentHistory';
 import UpgradeModal from '../components/subscription/UpgradeModal';
+import RenewModal from '../components/subscription/RenewModal';
 
 const Subscription = () => {
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showRenewModal, setShowRenewModal] = useState(false);
+  const [renewing, setRenewing] = useState(false);
 
   useEffect(() => {
     loadSubscription();
@@ -28,6 +31,7 @@ const Subscription = () => {
     try {
       setLoading(true);
       const response = await subscriptionService.getCurrentSubscription();
+      console.log('[Subscription] Loaded subscription data:', response);
       if (response.success) {
         setSubscription(response.data);
       }
@@ -35,6 +39,30 @@ const Subscription = () => {
       console.error('Error loading subscription:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRenew = async () => {
+    if (!confirm('Deseja renovar sua subscrição por mais um mês?')) {
+      return;
+    }
+
+    try {
+      setRenewing(true);
+      const response = await subscriptionService.renewSubscription({
+        paymentMethod: 'manual',
+        paymentReference: `RENEW-${Date.now()}`
+      });
+
+      if (response.success) {
+        alert('Subscrição renovada com sucesso!');
+        loadSubscription();
+      }
+    } catch (error) {
+      console.error('Error renewing subscription:', error);
+      alert('Erro ao renovar subscrição. Tente novamente.');
+    } finally {
+      setRenewing(false);
     }
   };
 
@@ -94,13 +122,22 @@ const Subscription = () => {
           <h1 className="text-2xl font-bold text-gray-900">Gestão de Subscrição</h1>
           <p className="text-gray-600">Gerencie seu plano e pagamentos</p>
         </div>
-        <button
-          onClick={() => setShowUpgradeModal(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <TrendingUp className="w-5 h-5" />
-          <span>Upgrade de Plano</span>
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowRenewModal(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <CreditCard className="w-5 h-5" />
+            <span>Renovar Plano</span>
+          </button>
+          <button
+            onClick={() => setShowUpgradeModal(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <TrendingUp className="w-5 h-5" />
+            <span>Upgrade de Plano</span>
+          </button>
+        </div>
       </div>
 
       {/* Plano Atual */}
@@ -168,7 +205,7 @@ const Subscription = () => {
                 <span className="text-sm font-medium text-gray-700">Usuários</span>
               </div>
               <span className="text-sm font-semibold text-gray-900">
-                {usage.current.users} / {plan.limits.maxUsers}
+                {usage.current.users} / {plan.maxUsers}
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -188,7 +225,7 @@ const Subscription = () => {
                 <span className="text-sm font-medium text-gray-700">Clientes</span>
               </div>
               <span className="text-sm font-semibold text-gray-900">
-                {usage.current.clients} / {plan.limits.maxClients}
+                {usage.current.clients} / {plan.maxClients}
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -208,7 +245,7 @@ const Subscription = () => {
                 <span className="text-sm font-medium text-gray-700">Tickets/Mês</span>
               </div>
               <span className="text-sm font-semibold text-gray-900">
-                {usage.current.ticketsThisMonth} / {plan.limits.maxTicketsPerMonth || '∞'}
+                {usage.current.ticketsThisMonth} / {plan.maxTicketsPerMonth || '∞'}
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -228,19 +265,19 @@ const Subscription = () => {
                 <span className="text-sm font-medium text-gray-700">Armazenamento</span>
               </div>
               <span className="text-sm font-semibold text-gray-900">
-                {usage.current.storageUsedGB} GB / {plan.limits.maxStorageGB} GB
+                {usage.current.storageUsedGB} GB / {plan.maxStorageGB} GB
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-blue-600 h-2 rounded-full transition-all"
                 style={{ 
-                  width: `${Math.min((usage.current.storageUsedGB / plan.limits.maxStorageGB) * 100, 100)}%` 
+                  width: `${Math.min((usage.current.storageUsedGB / plan.maxStorageGB) * 100, 100)}%` 
                 }}
               />
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              {Math.round((usage.current.storageUsedGB / plan.limits.maxStorageGB) * 100)}% usado
+              {Math.round((usage.current.storageUsedGB / plan.maxStorageGB) * 100)}% usado
             </div>
           </div>
         </div>
@@ -250,13 +287,22 @@ const Subscription = () => {
       <PaymentHistory />
 
       {/* Modal de Upgrade */}
-      {showUpgradeModal && (
-        <UpgradeModal
-          currentPlan={plan}
-          onClose={() => setShowUpgradeModal(false)}
-          onUpgradeComplete={loadSubscription}
-        />
-      )}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        currentPlan={plan}
+        subscription={sub}
+        onClose={() => setShowUpgradeModal(false)}
+        onUpgradeComplete={loadSubscription}
+      />
+
+      {/* Modal de Renovação */}
+      <RenewModal
+        isOpen={showRenewModal}
+        currentPlan={plan}
+        subscription={sub}
+        onClose={() => setShowRenewModal(false)}
+        onRenewComplete={loadSubscription}
+      />
     </div>
   );
 };

@@ -5,9 +5,9 @@ const MOCK_USERS = [
   // Organization Users (tabela organization_users)
   {
     id: 1,
-    name: 'Pedro Organization',
-    email: 'pedro17pedroo@gmail.com',
-    password: '123456789',
+    name: 'Admin Organização',
+    email: 'admin@organizacao.com',
+    password: 'Admin@123',
     role: 'org-admin',
     userType: 'organization',
     organizationId: 1,
@@ -27,9 +27,9 @@ const MOCK_USERS = [
   // Client Users (tabela client_users)
   {
     id: 3,
-    name: 'Pedro Cliente',
-    email: 'pedro.nekaka@gmail.com',
-    password: '123456789',
+    name: 'Cliente Empresa',
+    email: 'cliente@empresa.com',
+    password: 'Cliente@123',
     role: 'client-user',
     userType: 'client',
     organizationId: 1,
@@ -39,8 +39,8 @@ const MOCK_USERS = [
   {
     id: 4,
     name: 'Cliente Teste',
-    email: 'cliente@empresa.com',
-    password: 'Cliente@123',
+    email: 'usuario@cliente.com',
+    password: 'Usuario@123',
     role: 'client-user',
     userType: 'client',
     organizationId: 1,
@@ -74,17 +74,17 @@ console.log('='.repeat(60));
 console.log('🧪 TESTE DO SISTEMA DE LOGIN MOCK');
 console.log('='.repeat(60));
 
-testLogin('pedro17pedroo@gmail.com', '123456789');
-testLogin('pedro.nekaka@gmail.com', '123456789');
+testLogin('admin@organizacao.com', 'Admin@123');
 testLogin('tecnico@organizacao.com', 'Tecnico@123');
 testLogin('cliente@empresa.com', 'Cliente@123');
+testLogin('usuario@cliente.com', 'Usuario@123');
 
 // Teste com credenciais inválidas
 console.log('\n' + '='.repeat(60));
 console.log('🧪 TESTE COM CREDENCIAIS INVÁLIDAS');
 console.log('='.repeat(60));
-testLogin('pedro17pedroo@gmail.com', 'senha-errada');
-testLogin('email-invalido@test.com', '123456789');
+testLogin('admin@organizacao.com', 'senha-errada');
+testLogin('email-invalido@test.com', 'Usuario@123');
 
 console.log('\n' + '='.repeat(60));
 console.log('✅ TESTES CONCLUÍDOS');

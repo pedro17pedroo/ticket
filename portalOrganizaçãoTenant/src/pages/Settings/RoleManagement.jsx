@@ -110,6 +110,12 @@ const RoleManagement = () => {
     }
     setSelectedRole(role);
     setRoleScope(role.clientId ? 'client' : 'organization');
+    
+    // Extrair IDs das permissões
+    const permissionIds = role.permissions?.map(p => p.id) || [];
+    console.log('Permissões do role:', role.permissions);
+    console.log('IDs das permissões:', permissionIds);
+    
     form.setFieldsValue({
       name: role.name,
       displayName: role.displayName,
@@ -117,8 +123,9 @@ const RoleManagement = () => {
       level: role.level,
       priority: role.priority,
       clientId: role.clientId,
-      permissions: role.permissions?.map(p => p.id) || []
+      permissions: permissionIds
     });
+    
     setModalVisible(true);
   };
 
@@ -506,32 +513,31 @@ const RoleManagement = () => {
           <Form.Item 
             name="permissions" 
             label={selectedRole?.isSystem ? "Permissões do Role do Sistema" : "Permissões"}
+            valuePropName="value"
           >
-            <div style={{ maxHeight: '300px', overflow: 'auto', border: '1px solid #d9d9d9', padding: '12px' }}>
-              <Collapse accordion>
-                {Object.keys(groupedPermissions).map(category => (
-                  <Panel header={`${category} (${groupedPermissions[category].length})`} key={category}>
-                    <Form.Item name="permissions" noStyle>
-                      <Checkbox.Group style={{ width: '100%' }}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          {groupedPermissions[category].map(perm => (
-                            <Checkbox key={perm.id} value={perm.id}>
-                              <Space>
-                                <Text strong>{perm.resource}</Text>
-                                <Text code>{perm.action}</Text>
-                                {perm.displayName && (
-                                  <Text type="secondary">{perm.displayName}</Text>
-                                )}
-                              </Space>
-                            </Checkbox>
-                          ))}
-                        </Space>
-                      </Checkbox.Group>
-                    </Form.Item>
-                  </Panel>
-                ))}
-              </Collapse>
-            </div>
+            <Checkbox.Group style={{ width: '100%' }}>
+              <div style={{ maxHeight: '300px', overflow: 'auto', border: '1px solid #d9d9d9', padding: '12px' }}>
+                <Collapse>
+                  {Object.keys(groupedPermissions).map(category => (
+                    <Panel header={`${category} (${groupedPermissions[category].length})`} key={category}>
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        {groupedPermissions[category].map(perm => (
+                          <Checkbox key={perm.id} value={perm.id}>
+                            <Space>
+                              <Text strong>{perm.resource}</Text>
+                              <Text code>{perm.action}</Text>
+                              {perm.displayName && (
+                                <Text type="secondary">{perm.displayName}</Text>
+                              )}
+                            </Space>
+                          </Checkbox>
+                        ))}
+                      </Space>
+                    </Panel>
+                  ))}
+                </Collapse>
+              </div>
+            </Checkbox.Group>
           </Form.Item>
         </Form>
       </Modal>

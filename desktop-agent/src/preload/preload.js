@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Autenticação
   login: (credentials) => ipcRenderer.invoke('login', credentials),
+  selectContext: (data) => ipcRenderer.invoke('select-context', data),
+  switchContext: (data) => ipcRenderer.invoke('switch-context', data),
+  listContexts: () => ipcRenderer.invoke('list-contexts'),
   
   // Conexão
   connect: (credentials) => ipcRenderer.invoke('connect', credentials),
@@ -135,6 +138,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   onNotificationsUpdated: (callback) => {
     ipcRenderer.on('notifications-updated', (event, data) => callback(data));
+  },
+  
+  // Eventos de contexto
+  onContextChanged: (callback) => {
+    ipcRenderer.on('context-changed', (event, data) => callback(data));
   },
   
   // ==================== OFFLINE QUEUE ====================

@@ -1,4 +1,7 @@
 import { Subscription, Plan, Organization } from '../models/index.js';
+import User from '../users/userModel.js';
+import Client from '../clients/clientModel.js';
+import Ticket from '../tickets/ticketModel.js';
 import { Op } from 'sequelize';
 import { debug, info, warn, error } from '../../utils/debugLogger.js';
 
@@ -416,6 +419,58 @@ export const getSubscriptionStats = async (req, res, next) => {
   }
 };
 
+// POST /api/subscription/renew - Renovar subscrição da organização atual
+export const renewSubscription = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organizationId;
+    const { paymentMethod, paymentReference } = req.body;
+
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Usuário não está associado a uma organização'
+      });
+    }
+
+    const subscription = await Subscription.findOne({
+      where: { organizationId },
+      include: [{ model: Plan, as: 'plan' }]
+    });
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        error: 'Subscrição não encontrada'
+      });
+    }
+
+    // Calcular próximo período
+    const now = new Date();
+    const nextPeriodEnd = new Date(now);
+    nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
+
+    await subscription.update({
+      status: 'active',
+      currentPeriodStart: now,
+      currentPeriodEnd: nextPeriodEnd,
+      paymentMethod: paymentMethod || 'manual',
+      paymentReference,
+      cancelAtPeriodEnd: false
+    });
+
+    info(`✅ Subscrição renovada: ${subscription.organization?.name}`);
+
+    res.json({
+      success: true,
+      message: 'Subscrição renovada com sucesso',
+      subscription
+    });
+  } catch (error) {
+    error('Erro ao renovar subscrição:', error);
+    next(error);
+  }
+};
+
 // GET /api/subscription - Obter subscrição da organização atual (para portal da organização)
 export const getCurrentOrganizationSubscription = async (req, res, next) => {
   try {
@@ -445,16 +500,45 @@ export const getCurrentOrganizationSubscription = async (req, res, next) => {
       });
     }
 
-    // Calcular uso atual (isso deve vir de uma query real no futuro)
-    const organization = await Organization.findByPk(organizationId);
+    // Calcular uso atual com queries reais
     
-    // TODO: Implementar queries reais para obter uso atual
+    // Contar usuários ativos da organização
+    const usersCount = await User.count({
+      where: { 
+        organizationId,
+        isActive: true
+      }
+    });
+
+    // Contar clientes ativos da organização
+    const clientsCount = await Client.count({
+      where: { 
+        organizationId,
+        isActive: true
+      }
+    });
+
+    // Contar tickets criados este mês
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
+    const ticketsThisMonth = await Ticket.count({
+      where: {
+        organizationId,
+        createdAt: { [Op.gte]: startOfMonth }
+      }
+    });
+
+    // TODO: Calcular armazenamento usado (soma de attachments)
+    const storageUsedGB = 0;
+
     const usage = {
       current: {
-        users: 0, // await OrganizationUser.count({ where: { organizationId } })
-        clients: 0, // await Client.count({ where: { organizationId } })
-        ticketsThisMonth: 0, // await Ticket.count({ where: { organizationId, createdAt: { [Op.gte]: startOfMonth } } })
-        storageUsedGB: 0 // Calcular do total de attachments
+        users: usersCount,
+        clients: clientsCount,
+        ticketsThisMonth: ticketsThisMonth,
+        storageUsedGB: storageUsedGB
       },
       percentages: {
         users: 0,
@@ -464,15 +548,23 @@ export const getCurrentOrganizationSubscription = async (req, res, next) => {
       }
     };
 
-    // Calcular percentagens
-    if (subscription.plan.limits.maxUsers) {
-      usage.percentages.users = Math.round((usage.current.users / subscription.plan.limits.maxUsers) * 100);
+    // Calcular percentagens usando limites do plano
+    const plan = subscription.plan;
+    
+    if (plan.maxUsers && plan.maxUsers > 0) {
+      usage.percentages.users = Math.round((usersCount / plan.maxUsers) * 100);
     }
-    if (subscription.plan.limits.maxClients) {
-      usage.percentages.clients = Math.round((usage.current.clients / subscription.plan.limits.maxClients) * 100);
+    
+    if (plan.maxClients && plan.maxClients > 0) {
+      usage.percentages.clients = Math.round((clientsCount / plan.maxClients) * 100);
     }
-    if (subscription.plan.limits.maxTicketsPerMonth) {
-      usage.percentages.tickets = Math.round((usage.current.ticketsThisMonth / subscription.plan.limits.maxTicketsPerMonth) * 100);
+    
+    if (plan.maxTicketsPerMonth && plan.maxTicketsPerMonth > 0) {
+      usage.percentages.tickets = Math.round((ticketsThisMonth / plan.maxTicketsPerMonth) * 100);
+    }
+    
+    if (plan.maxStorageGB && plan.maxStorageGB > 0) {
+      usage.percentages.storage = Math.round((storageUsedGB / plan.maxStorageGB) * 100);
     }
 
     // Verificar se está em trial
@@ -483,6 +575,20 @@ export const getCurrentOrganizationSubscription = async (req, res, next) => {
       const trialEnd = new Date(subscription.trialEndsAt);
       trialDaysRemaining = Math.max(0, Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24)));
     }
+
+    console.log('[SubscriptionController] Returning subscription data:', {
+      subscriptionId: subscription.id,
+      planId: subscription.planId,
+      planName: plan.name,
+      status: subscription.status,
+      usage: usage.current,
+      limits: {
+        maxUsers: plan.maxUsers,
+        maxClients: plan.maxClients,
+        maxTicketsPerMonth: plan.maxTicketsPerMonth,
+        maxStorageGB: plan.maxStorageGB
+      }
+    });
 
     res.json({
       success: true,

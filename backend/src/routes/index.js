@@ -272,6 +272,7 @@ import * as subscriptionController from '../modules/subscriptions/subscriptionCo
 
 // Rota para organização obter sua própria subscrição (deve vir ANTES de /subscriptions/:id)
 router.get('/subscription', authenticate, validateContext, injectContext, subscriptionController.getCurrentOrganizationSubscription);
+router.post('/subscription/renew', authenticate, validateContext, injectContext, auditLog('update', 'subscription'), subscriptionController.renewSubscription);
 
 // Rotas admin (super-admin e provider-admin)
 router.get('/subscriptions', authenticate, authorize('super-admin', 'provider-admin'), subscriptionController.getSubscriptions);
@@ -396,6 +397,7 @@ router.put('/timers/:id/pause', authenticate, validateContext, injectContext, ti
 router.put('/timers/:id/resume', authenticate, validateContext, injectContext, timeTrackingController.resumeTimer);
 router.put('/timers/:id/stop', authenticate, validateContext, injectContext, timeTrackingController.stopTimer);
 router.get('/tickets/:ticketId/timer/active', authenticate, validateContext, injectContext, timeTrackingController.getActiveTimer);
+router.get('/tickets/:ticketId/timers', authenticate, validateContext, injectContext, timeTrackingController.getTicketTimers);
 router.get('/tickets/:ticketId/time-entries', authenticate, validateContext, injectContext, timeTrackingController.getTimeEntries);
 router.post('/tickets/:ticketId/time-entries/manual', authenticate, validateContext, injectContext, requirePermission('time_tracking', 'create'), auditLog('create', 'time_entry'), timeTrackingController.addManualTime);
 

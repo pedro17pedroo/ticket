@@ -416,7 +416,7 @@ const TicketsKanban = () => {
             const columnTickets = columns[status] || [];
 
             return (
-              <div key={status} className="flex flex-col min-w-[280px] md:min-w-[320px] flex-shrink-0">
+              <div key={status} className="flex flex-col w-[320px] flex-shrink-0">
                 {/* Column Header */}
                 <div className={`${config.color} ${config.textColor} rounded-t-lg p-4 border-b-2 ${config.borderColor}`}>
                   <div className="flex items-center justify-between">
@@ -465,8 +465,9 @@ const TicketsKanban = () => {
                                     <div className="flex-1 min-w-0">
                                       <Link
                                         to={`/tickets/${ticket.id}`}
-                                        className="font-medium text-sm hover:text-primary-600 dark:hover:text-primary-400 block"
+                                        className="font-medium text-sm hover:text-primary-600 dark:hover:text-primary-400 block break-words"
                                         title={ticket.subject}
+                                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                                       >
                                         <span className="line-clamp-2">
                                           {ticket.subject}

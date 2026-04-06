@@ -9,11 +9,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    force: true, // Força a re-otimização das dependências
+  },
   server: {
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:4003', // Porta correta do backend
         changeOrigin: true,
       },
     },

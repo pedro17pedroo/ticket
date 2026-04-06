@@ -41,6 +41,24 @@ class PaymentService {
         expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 60 minutes
       }
 
+      // Determine initial status based on payment method and TPagamento response
+      // GPO and E-Kwanza are real-time, REF is pending until manual payment
+      let initialStatus = 'pending';
+      let paidAt = null;
+      
+      if (tpagamentoResponse.status === 'paid' || tpagamentoResponse.status === 'completed') {
+        initialStatus = 'completed';
+        paidAt = new Date();
+      } else if (tpagamentoResponse.status === 'failed') {
+        initialStatus = 'failed';
+      }
+
+      debug('[PaymentService] Payment status from TPagamento:', {
+        tpagamentoStatus: tpagamentoResponse.status,
+        initialStatus,
+        method
+      });
+
       // Store transaction in database
       const transaction = await PaymentTransaction.create({
         organizationId,
@@ -48,7 +66,8 @@ class PaymentService {
         amount,
         currency: 'AOA',
         paymentMethod: method,
-        status: 'pending',
+        status: initialStatus,
+        paidAt,
         paymentId: tpagamentoResponse.paymentId,
         referenceCode: tpagamentoResponse.referenceCode,
         customerName: customer.name,
@@ -62,8 +81,15 @@ class PaymentService {
       debug('[PaymentService] Payment transaction created:', {
         id: transaction.id,
         paymentId: transaction.paymentId,
-        referenceCode: transaction.referenceCode
+        referenceCode: transaction.referenceCode,
+        status: transaction.status
       });
+
+      // If payment is already completed (real-time methods), process it immediately
+      if (initialStatus === 'completed') {
+        info('[PaymentService] Processing real-time payment immediately');
+        await this.processSuccessfulPayment(transaction);
+      }
 
       return {
         success: true,
@@ -75,7 +101,7 @@ class PaymentService {
           amount,
           currency: 'AOA',
           expiresAt,
-          status: 'pending'
+          status: initialStatus
         }
       };
     } catch (error) {
@@ -183,7 +209,8 @@ class PaymentService {
       debug('[PaymentService] Processing successful payment:', {
         transactionId: transaction.id,
         organizationId: transaction.organizationId,
-        subscriptionId: transaction.subscriptionId
+        subscriptionId: transaction.subscriptionId,
+        description: transaction.description
       });
 
       // Update subscription if exists
@@ -195,19 +222,65 @@ class PaymentService {
           const nextPeriodEnd = new Date(now);
           nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
 
-          await subscription.update({
+          const updateData = {
             status: 'active',
             currentPeriodStart: now,
             currentPeriodEnd: nextPeriodEnd,
             lastPaymentDate: transaction.paidAt || now,
-            lastPaymentAmount: transaction.amount
-          });
+            lastPaymentAmount: transaction.amount,
+            amount: transaction.amount, // Atualizar valor da subscrição
+            // Remover trial se estava em trial
+            trialEndsAt: null
+          };
+
+          // Se é um upgrade, verificar se precisa atualizar o plano
+          // A descrição contém "Upgrade para [Nome do Plano]"
+          if (transaction.description && transaction.description.includes('Upgrade para')) {
+            // Extrair nome do plano da descrição
+            const planName = transaction.description.replace('Upgrade para ', '').trim();
+            
+            // Buscar plano pelo nome
+            const newPlan = await Plan.findOne({
+              where: { name: planName }
+            });
+
+            if (newPlan) {
+              updateData.planId = newPlan.id;
+              updateData.amount = newPlan.monthlyPrice;
+              
+              info('[PaymentService] Upgrading to new plan:', {
+                oldPlanId: subscription.planId,
+                newPlanId: newPlan.id,
+                newPlanName: newPlan.name,
+                newAmount: newPlan.monthlyPrice
+              });
+            } else {
+              warn('[PaymentService] New plan not found for upgrade:', {
+                planName,
+                description: transaction.description
+              });
+            }
+          }
+
+          await subscription.update(updateData);
 
           info('[PaymentService] Subscription activated:', {
             subscriptionId: subscription.id,
-            status: 'active'
+            status: 'active',
+            currentPeriodEnd: nextPeriodEnd,
+            trialRemoved: subscription.trialEndsAt !== null,
+            amount: updateData.amount,
+            planId: updateData.planId || subscription.planId
+          });
+        } else {
+          warn('[PaymentService] Subscription not found:', {
+            subscriptionId: transaction.subscriptionId
           });
         }
+      } else {
+        warn('[PaymentService] No subscriptionId in transaction:', {
+          transactionId: transaction.id
+        });
       }
 
       // Generate receipt

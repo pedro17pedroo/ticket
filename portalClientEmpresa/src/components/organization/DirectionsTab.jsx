@@ -4,8 +4,10 @@ import { createPortal } from 'react-dom'
 import { confirmAction, showSuccess, showError } from '../../utils/alerts'
 import organizationService from '../../services/organizationService'
 import toast from 'react-hot-toast'
+import { usePermissions } from '../../hooks/usePermissions'
 
 const DirectionsTab = () => {
+  const { can } = usePermissions()
   const [directions, setDirections] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -151,13 +153,15 @@ const DirectionsTab = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
           />
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="ml-4 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Nova Direção
-        </button>
+        {can('directions', 'create') && (
+          <button
+            onClick={() => handleOpenModal()}
+            className="ml-4 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Nova Direção
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -182,24 +186,31 @@ const DirectionsTab = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleOpenModal(direction)}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                    title="Editar"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleToggleActive(direction)}
-                    className={`p-1 rounded ${direction.isActive
-                        ? 'hover:bg-red-100 dark:hover:bg-red-900/30'
-                        : 'hover:bg-green-100 dark:hover:bg-green-900/30'
-                      }`}
-                    title={direction.isActive ? 'Desativar' : 'Reativar'}
-                  >
-                    <Power className={`w-4 h-4 ${direction.isActive ? 'text-red-600' : 'text-green-600'
-                      }`} />
-                  </button>
+                  {can('directions', 'update') && (
+                    <button
+                      onClick={() => handleOpenModal(direction)}
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                      title="Editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  {can('directions', 'delete') && (
+                    <button
+                      onClick={() => handleToggleActive(direction)}
+                      className={`p-1 rounded ${direction.isActive
+                          ? 'hover:bg-red-100 dark:hover:bg-red-900/30'
+                          : 'hover:bg-green-100 dark:hover:bg-green-900/30'
+                        }`}
+                      title={direction.isActive ? 'Desativar' : 'Reativar'}
+                    >
+                      <Power className={`w-4 h-4 ${direction.isActive ? 'text-red-600' : 'text-green-600'
+                        }`} />
+                    </button>
+                  )}
+                  {!can('directions', 'update') && !can('directions', 'delete') && (
+                    <span className="text-xs text-gray-400 px-2">Sem ações</span>
+                  )}
                 </div>
               </div>
               {direction.description && (

@@ -5,8 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:3000;">
   <title>T-Desk Agent</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="../../assets/tdesk3.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../../assets/tdesk3.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="../../assets/tdesk3.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../../assets/tdesk3.png">
+  
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="styles/client-pages.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -16,15 +24,37 @@
       <div class="login-container">
         <div class="login-box">
           <div class="logo-section">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" class="app-logo">
-              <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-              <path d="M3 9h18M9 3v18" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <h1>T-Desk Agent</h1>
+            <img src="TDESK.png" alt="T-Desk" style="height: 64px; width: auto; margin: 0 auto 1rem;" />
             <p>Gestão de TI Simplificada</p>
           </div>
           
           <form id="loginForm" class="login-form">
+            <!-- Seletor de Tipo de Usuário -->
+            <div class="form-group">
+              <label>Tipo de Acesso</label>
+              <div class="user-type-selector">
+                <label class="user-type-option">
+                  <input type="radio" name="userType" value="organization" checked />
+                  <span class="user-type-label">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/>
+                      <path d="M3 9h18M9 3v18" stroke-width="2"/>
+                    </svg>
+                    Organização
+                  </span>
+                </label>
+                <label class="user-type-option">
+                  <input type="radio" name="userType" value="client" />
+                  <span class="user-type-label">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke-width="2"/>
+                    </svg>
+                    Cliente
+                  </span>
+                </label>
+              </div>
+            </div>
+
             <div class="form-group">
               <label for="loginEmail">Email</label>
               <input type="email" id="loginEmail" placeholder="seu@email.com" required autocomplete="email" />
@@ -42,23 +72,6 @@
             <div id="loginError" class="error-message" style="display: none;"></div>
           </form>
           
-          <!-- Credenciais Demo -->
-          <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(103, 126, 234, 0.1); border-radius: 0.5rem; border: 1px solid rgba(103, 126, 234, 0.2);">
-            <p style="font-size: 0.75rem; font-weight: 600; color: #667eea; margin-bottom: 0.5rem;">🔑 Credenciais Demo:</p>
-            <p style="font-size: 0.7rem; color: #64748b; margin: 0.2rem 0;">
-              <strong>Organization User:</strong> pedro17pedroo@gmail.com / 123456789
-            </p>
-            <p style="font-size: 0.7rem; color: #64748b; margin: 0.2rem 0;">
-              <strong>Client User:</strong> pedro.nekaka@gmail.com / 123456789
-            </p>
-            <p style="font-size: 0.7rem; color: #64748b; margin: 0.2rem 0;">
-              <strong>Técnico:</strong> tecnico@organizacao.com / Tecnico@123
-            </p>
-            <p style="font-size: 0.7rem; color: #64748b; margin: 0.2rem 0;">
-              <strong>Cliente:</strong> cliente@empresa.com / Cliente@123
-            </p>
-          </div>
-          
           <div class="login-footer" style="text-align: center; margin-top: 1rem;">
             <a href="#" id="forgotPasswordLink">Esqueci minha senha</a>
           </div>
@@ -71,11 +84,7 @@
       <!-- Sidebar -->
       <aside class="sidebar">
         <div class="sidebar-header">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-            <path d="M3 9h18M9 3v18" stroke="currentColor" stroke-width="2"/>
-          </svg>
-          <span class="sidebar-title">T-Desk</span>
+          <img src="TDESK.png" alt="T-Desk" style="height: 32px; width: auto;" />
         </div>
 
         <nav class="sidebar-nav">
@@ -164,6 +173,22 @@
             <h1 id="pageTitle">Dashboard</h1>
           </div>
           <div class="header-actions">
+            <!-- Context Switcher -->
+            <div id="contextSwitcher" class="context-switcher" style="display: none;">
+              <button class="context-switcher-btn" id="contextSwitcherBtn">
+                <div class="context-switcher-info">
+                  <span class="context-switcher-name" id="currentContextName">-</span>
+                  <span class="context-switcher-role" id="currentContextRole">-</span>
+                </div>
+                <svg class="context-switcher-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="context-switcher-dropdown" id="contextSwitcherDropdown">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+            
             <!-- Connection Status Indicator -->
             <div id="connectionStatus" class="connection-status online" title="Conexão ativa">
               <span class="status-dot"></span>
@@ -729,6 +754,181 @@
             </div>
           </div>
         </div>
+
+        <!-- My Requests Page (Cliente) -->
+        <div id="my-requestsPage" class="page">
+          <div class="page-actions">
+            <button class="btn btn-primary" id="newRequestBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              Nova Solicitação
+            </button>
+          </div>
+          
+          <div class="card">
+            <div class="card-body">
+              <div id="myRequestsList">
+                <div class="empty-state">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                    <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <p>Nenhuma solicitação encontrada</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Todos Page (Minhas Tarefas) -->
+        <div id="todosPage" class="page">
+          <div class="page-actions">
+            <button class="btn btn-primary" id="newTodoBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              Nova Tarefa
+            </button>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3>Minhas Tarefas</h3>
+            </div>
+            <div class="card-body">
+              <div id="todosList">
+                <div class="empty-state">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <p>Nenhuma tarefa pendente</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- My Assets Page (Meus Equipamentos) -->
+        <div id="my-assetsPage" class="page">
+          <div class="page-header" style="margin-bottom: 2rem;">
+            <h2 style="font-size: 1.5rem; color: #1e293b; margin-bottom: 0.5rem;">💻 Meus Equipamentos</h2>
+            <p style="color: #64748b; font-size: 0.875rem;">Equipamentos atribuídos a você</p>
+          </div>
+          
+          <div class="card">
+            <div class="card-body">
+              <div id="myAssetsList">
+                <div class="empty-state">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                    <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <p>Nenhum equipamento atribuído</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hours Bank Page (Bolsa de Horas) -->
+        <div id="hours-bankPage" class="page">
+          <div class="page-header" style="margin-bottom: 2rem;">
+            <h2 style="font-size: 1.5rem; color: #1e293b; margin-bottom: 0.5rem;">⏰ Bolsa de Horas</h2>
+            <p style="color: #64748b; font-size: 0.875rem;">Acompanhe seu saldo de horas</p>
+          </div>
+          
+          <div class="stats-grid" style="margin-bottom: 2rem;">
+            <div class="stat-card">
+              <div class="stat-icon stat-icon-blue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                  <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="stat-content">
+                <div class="stat-label">Saldo Atual</div>
+                <div class="stat-value" id="hoursBalance">0h</div>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon stat-icon-green">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="stat-content">
+                <div class="stat-label">Horas Adicionadas</div>
+                <div class="stat-value" id="hoursAdded">0h</div>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon stat-icon-purple">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 12H4" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="stat-content">
+                <div class="stat-label">Horas Utilizadas</div>
+                <div class="stat-value" id="hoursUsed">0h</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3>Histórico de Movimentações</h3>
+            </div>
+            <div class="card-body">
+              <div id="hoursHistory">
+                <div class="empty-state">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  <p>Nenhuma movimentação registrada</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Organization Page (Para client-admin) -->
+        <div id="organizationPage" class="page">
+          <div class="page-header" style="margin-bottom: 2rem;">
+            <h2 style="font-size: 1.5rem; color: #1e293b; margin-bottom: 0.5rem;">🏢 Organização</h2>
+            <p style="color: #64748b; font-size: 0.875rem;">Informações da sua empresa</p>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3>Dados da Empresa</h3>
+            </div>
+            <div class="card-body">
+              <div id="organizationInfo">
+                <div class="info-list">
+                  <div class="info-item">
+                    <span class="info-label">Nome</span>
+                    <span class="info-value" id="orgName">-</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Total de Usuários</span>
+                    <span class="info-value" id="orgUsers">-</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Tickets Abertos</span>
+                    <span class="info-value" id="orgTickets">-</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Equipamentos</span>
+                    <span class="info-value" id="orgAssets">-</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   </div>
@@ -744,6 +944,21 @@
     <span id="themeIcon">☀️</span>
   </button>
 
+  <!-- Modal de Seleção de Contexto -->
+  <div id="contextSelectorModal" class="context-selector-modal" style="display: none;">
+    <div class="context-selector-content">
+      <div class="context-selector-header">
+        <h2>Selecione um Contexto</h2>
+        <p>Você tem acesso a múltiplas organizações e empresas</p>
+      </div>
+      
+      <div id="contextSelectorBody">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="catalog.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -54,6 +54,7 @@ import AdvancedAnalytics from './pages/AdvancedAnalytics'
 import ProjectGantt from './pages/ProjectGantt'
 import ProjectReports from './pages/ProjectReports'
 import TodoList from './pages/TodoList'
+import Subscription from './pages/Subscription'
 
 // Componente de rota protegida básica (apenas autenticação)
 const PrivateRoute = ({ children }) => {
@@ -166,6 +167,7 @@ function App() {
                       <Route path="/projects/:id/kanban" element={<ProtectedRoute permission="projects.view"><ProjectKanban /></ProtectedRoute>} />
                       <Route path="/projects/:id/gantt" element={<ProtectedRoute permission="projects.view"><ProjectGantt /></ProtectedRoute>} />
                       <Route path="/todos" element={<TodoList />} />
+                      <Route path="/subscription" element={<Subscription />} />
                       <Route path="*" element={<Navigate to="/" />} />
                     </Routes>
                   </Layout>

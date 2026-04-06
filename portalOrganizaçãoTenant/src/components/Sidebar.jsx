@@ -41,13 +41,19 @@ import {
   FileBarChart,
   CheckSquare,
   FilePlus,
+  CreditCard,
 } from 'lucide-react'
 import { usePermissions } from '../hooks/usePermissions'
+import { useAuthStore } from '../store/authStore'
 
 const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
   const { t } = useTranslation()
   const location = useLocation()
   const { hasPermission, canAccess, isAdmin, filterByPermission } = usePermissions()
+  const { user } = useAuthStore()
+  
+  // Verificar se é admin (pode ver subscrição)
+  const canViewSubscription = user && ['admin', 'super-admin', 'org-admin'].includes(user.role)
   
   // Estados para controlar menus expansíveis
   const [inventoryOpen, setInventoryOpen] = useState(location.pathname.startsWith('/inventory'))
@@ -476,6 +482,26 @@ const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
               {isOpen && <span className="font-medium">{item.label}</span>}
             </Link>
           ))}
+
+          {/* Divider */}
+          <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+
+          {/* Subscrição - Apenas para Admins */}
+          {canViewSubscription && (
+            <Link
+              to="/subscription"
+              onClick={handleLinkClick}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                isActive('/subscription')
+                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+              title={!isOpen && !isMobile ? 'Subscrição' : ''}
+            >
+              <CreditCard className="w-5 h-5 flex-shrink-0" />
+              {(isOpen || isMobile) && <span className="font-medium">Subscrição</span>}
+            </Link>
+          )}
 
           {/* Divider */}
           <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>

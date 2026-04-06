@@ -30,7 +30,11 @@ export const getTickets = async (req, res, next) => {
       clientId,
       source,
       hasCatalogItem,
-      search
+      search,
+      dateFrom,
+      dateTo,
+      categoryId,
+      catalogCategoryId
     } = req.query;
 
     const where = { organizationId: req.user.organizationId };
@@ -51,6 +55,26 @@ export const getTickets = async (req, res, next) => {
     if (sectionId) where.sectionId = sectionId;
     if (clientId) where.clientId = clientId;
     if (source) where.source = source;
+    
+    // Filtro de categoria (suportar ambos os nomes)
+    const finalCategoryId = catalogCategoryId || categoryId;
+    if (finalCategoryId) {
+      where.catalogCategoryId = finalCategoryId;
+    }
+    
+    // Filtros de data
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) {
+        where.createdAt[Op.gte] = new Date(dateFrom);
+      }
+      if (dateTo) {
+        // Adicionar 23:59:59 ao dateTo para incluir todo o dia
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        where.createdAt[Op.lte] = endDate;
+      }
+    }
     
     // Filtrar tickets que vieram de solicitações do catálogo
     if (hasCatalogItem === 'true') {
@@ -1486,10 +1510,12 @@ export const viewAttachment = async (req, res, next) => {
     }
 
     // Definir headers para visualização inline
-    res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${attachment.originalName}"`);
+    const mimeType = attachment.mimetype || attachment.mimeType || 'application/octet-stream';
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(attachment.originalName)}"`);
+    res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache por 1 hora
     
-    logger.info(`Enviando arquivo para visualização - path: ${attachment.path}`);
+    logger.info(`Enviando arquivo para visualização - path: ${attachment.path}, mimeType: ${mimeType}`);
     
     // Enviar arquivo
     const fileStream = fs.createReadStream(attachment.path);

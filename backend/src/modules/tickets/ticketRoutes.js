@@ -13,11 +13,15 @@ import { authenticate, authorize } from '../../middleware/auth.js';
 import { validate, schemas } from '../../middleware/validate.js';
 import { auditLog } from '../../middleware/audit.js';
 import { uploadMultiple } from '../../middleware/upload.js';
+import { checkSubscriptionStatus, checkTicketLimit } from '../../middleware/planLimitsMiddleware.js';
 
 const router = express.Router();
 
 // Todas as rotas requerem autenticação
 router.use(authenticate);
+
+// Verificar status da subscrição em todas as rotas
+router.use(checkSubscriptionStatus);
 
 // Estatísticas
 router.get('/statistics', getStatistics);
@@ -32,6 +36,7 @@ router.get('/:ticketId/eligible-assignees', getEligibleAssignees);
 
 router.post(
   '/', 
+  checkTicketLimit(),
   validate(schemas.createTicket), 
   auditLog('ticket_created', 'ticket'), 
   createTicket

@@ -5,6 +5,8 @@ const SERVER_URL = window.BACKEND_URL || 'http://localhost:4003/api';
 // Importar componentes
 import { SLAIndicator } from './components/SLAIndicator.js';
 import { RemoteAccessNotifications, remoteAccessNotificationsStyles } from './components/RemoteAccessNotifications.js';
+import { sidebarManager } from './components/SidebarManager.js';
+import { renderSidebar, updateSidebarOnContextChange } from './sidebarManager.js';
 
 // Log de versão
 console.log('🚀 T-Desk Desktop Agent v2.0 - COM DETALHES DE TICKETS');
@@ -526,6 +528,15 @@ function setupEventListeners() {
   document.getElementById('refreshInfoBtn')?.addEventListener('click', handleManualScan);
   document.getElementById('saveSettingsBtn')?.addEventListener('click', handleSaveSettings);
   document.getElementById('newTicketBtn')?.addEventListener('click', handleNewTicket);
+  
+  // Páginas do Cliente
+  document.getElementById('newRequestBtn')?.addEventListener('click', () => {
+    showPage('catalog');
+  });
+  
+  document.getElementById('newTodoBtn')?.addEventListener('click', () => {
+    showNotification('Funcionalidade de criar tarefa em desenvolvimento', 'info');
+  });
 }
 
 // Adicionar mensagem ao chat em tempo real
@@ -646,6 +657,8 @@ async function handleLogin(e) {
   
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
+  const userType = document.querySelector('input[name="userType"]:checked')?.value || 'organization';
+  const portalType = userType; // 'organization' ou 'client'
   
   // Obter URL do backend da configuração (sem /api no final)
   const appConfig = await window.electronAPI.getConfig();
@@ -666,22 +679,155 @@ async function handleLogin(e) {
     updateLoadingStep(1, 'active', 'Autenticando usuário...');
     showLoadingScreen('Verificando credenciais...', 10);
     
-    console.log('🌐 Fazendo login no servidor...');
+    console.log('🌐 Fazendo login no servidor...', { email, portalType });
     
-    const { success: loginSuccess, token, user, error: loginError } = await window.electronAPI.login({
+    const loginResult = await window.electronAPI.login({
       serverUrl,
       username: email,
-      password
+      password,
+      portalType
     });
     
-    if (!loginSuccess) {
-      console.log('❌ Falha no login:', loginError);
-      throw new Error(loginError || 'Erro ao fazer login');
+    if (!loginResult.success) {
+      console.log('❌ Falha no login:', loginResult.error);
+      throw new Error(loginResult.error || 'Erro ao fazer login');
     }
+    
+    // Verificar se requer seleção de contexto
+    if (loginResult.requiresContextSelection && loginResult.contexts) {
+      console.log('🔀 Múltiplos contextos disponíveis, mostrando seletor...');
+      showContextSelector(loginResult.contexts, email, password, serverUrl);
+      return;
+    }
+    
+    // Contexto único - continuar com login
+    const { token, user, context } = loginResult;
     
     console.log('✅ Login bem-sucedido! Token:', token ? 'recebido' : 'não recebido');
     console.log('👤 Dados do usuário:', user);
+    console.log('🏢 Contexto:', context);
     
+    await completeLogin(token, user, context, serverUrl);
+    
+  } catch (error) {
+    console.error('❌ Erro no login:', error);
+    console.error('❌ Stack trace:', error.stack);
+    
+    // Voltar para tela de login
+    showLoginScreen();
+    showLoginError(error.message || 'Erro ao fazer login');
+  }
+}
+
+// Mostrar modal de seleção de contexto
+function showContextSelector(contexts, email, password, serverUrl) {
+  const modal = document.getElementById('contextSelectorModal');
+  const contextList = document.getElementById('contextList');
+  
+  if (!modal || !contextList) {
+    console.error('❌ Modal de seleção de contexto não encontrado');
+    showLoginError('Erro ao exibir seletor de contexto');
+    return;
+  }
+  
+  // Agrupar contextos por tipo
+  const organizationContexts = contexts.filter(c => c.contextType === 'organization');
+  const clientContexts = contexts.filter(c => c.contextType === 'client');
+  
+  let html = '';
+  
+  // Contextos de Organização
+  if (organizationContexts.length > 0) {
+    html += '<div class="context-group"><h4>Organizações</h4>';
+    organizationContexts.forEach(ctx => {
+      html += `
+        <div class="context-item" data-context-id="${ctx.contextId}" data-context-type="${ctx.contextType}">
+          <div class="context-icon">🏢</div>
+          <div class="context-info">
+            <div class="context-name">${escapeHTML(ctx.organizationName || ctx.name)}</div>
+            <div class="context-role">${escapeHTML(ctx.role)}</div>
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+  }
+  
+  // Contextos de Cliente
+  if (clientContexts.length > 0) {
+    html += '<div class="context-group"><h4>Empresas Cliente</h4>';
+    clientContexts.forEach(ctx => {
+      html += `
+        <div class="context-item" data-context-id="${ctx.contextId}" data-context-type="${ctx.contextType}">
+          <div class="context-icon">👤</div>
+          <div class="context-info">
+            <div class="context-name">${escapeHTML(ctx.clientName || ctx.name)}</div>
+            <div class="context-role">${escapeHTML(ctx.role)}</div>
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+  }
+  
+  contextList.innerHTML = html;
+  
+  // Adicionar event listeners aos itens
+  document.querySelectorAll('.context-item').forEach(item => {
+    item.addEventListener('click', async () => {
+      const contextId = parseInt(item.dataset.contextId);
+      const contextType = item.dataset.contextType;
+      
+      // Fechar modal
+      modal.classList.remove('active');
+      
+      // Selecionar contexto
+      await selectContext(contextId, contextType, email, password, serverUrl);
+    });
+  });
+  
+  // Mostrar modal
+  modal.classList.add('active');
+  
+  // Ocultar tela de loading
+  const loadingScreen = document.getElementById('loadingScreen');
+  if (loadingScreen) loadingScreen.style.display = 'none';
+}
+
+// Selecionar contexto específico
+async function selectContext(contextId, contextType, email, password, serverUrl) {
+  try {
+    showLoadingScreen('Selecionando contexto...', 25);
+    
+    console.log('🔀 Selecionando contexto:', { contextId, contextType });
+    
+    const result = await window.electronAPI.selectContext({
+      email,
+      password,
+      contextId,
+      contextType
+    });
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Erro ao selecionar contexto');
+    }
+    
+    const { token, user, context } = result;
+    
+    console.log('✅ Contexto selecionado:', context);
+    
+    await completeLogin(token, user, context, serverUrl);
+    
+  } catch (error) {
+    console.error('❌ Erro ao selecionar contexto:', error);
+    showLoginScreen();
+    showLoginError(error.message || 'Erro ao selecionar contexto');
+  }
+}
+
+// Completar login após autenticação e seleção de contexto
+async function completeLogin(token, user, context, serverUrl) {
+  try {
     updateLoadingStep(1, 'completed', '✓ Autenticado com sucesso');
     showLoadingScreen('Autenticado!', 25);
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -699,11 +845,12 @@ async function handleLogin(e) {
       throw new Error(result.error || 'Erro ao conectar agent');
     }
     
-    // 3. Salvar dados do usuário
+    // Salvar dados do usuário e contexto
     state.user = user;
+    state.context = context;
     state.connected = true;
     
-    // 4. Configurar eventos em tempo real
+    // Configurar eventos em tempo real
     setupTicketRealtime();
     
     updateLoadingStep(2, 'completed', '✓ Conectado ao servidor');
@@ -716,12 +863,12 @@ async function handleLogin(e) {
     
     console.log('⏰ Configurando sync automático...');
     
-    // 5. Configurar sync automático
+    // Configurar sync automático
     setupAutoSync();
     
     showLoadingScreen('Carregando usuário...', 60);
     
-    // 6. Carregar dados iniciais
+    // Carregar dados iniciais
     await loadUserData();
     
     showLoadingScreen('Carregando tickets...', 70);
@@ -734,6 +881,12 @@ async function handleLogin(e) {
     updateLoadingStep(4, 'active', 'Preparando interface...');
     showLoadingScreen('Montando dashboard...', 85);
     
+    // Atualizar UI para contexto
+    updateUIForContext(context);
+    
+    // Mostrar context switcher
+    showContextSwitcher();
+    
     console.log('✅ Login concluído com sucesso!');
     
     showLoadingScreen('Quase pronto...', 95);
@@ -743,17 +896,194 @@ async function handleLogin(e) {
     showLoadingScreen('Pronto!', 100);
     await new Promise(resolve => setTimeout(resolve, 400));
     
-    // 7. Mostrar dashboard
+    // Mostrar dashboard
     showApp();
     showPage('dashboard');
     
   } catch (error) {
-    console.error('❌ Erro no login:', error);
-    console.error('❌ Stack trace:', error.stack);
-    
-    // Voltar para tela de login
+    console.error('❌ Erro ao completar login:', error);
     showLoginScreen();
-    showLoginError(error.message || 'Erro ao fazer login');
+    showLoginError(error.message || 'Erro ao completar login');
+  }
+}
+
+// Atualizar UI baseado no contexto
+function updateUIForContext(context) {
+  console.log('🎨 Atualizando UI para contexto:', context);
+  
+  // Atualizar informações do contexto no header
+  const contextName = document.getElementById('contextName');
+  if (contextName) {
+    if (context.contextType === 'organization') {
+      contextName.textContent = context.organizationName || 'Organização';
+    } else {
+      contextName.textContent = context.clientName || 'Cliente';
+    }
+  }
+  
+  // Renderizar sidebar baseada no tipo de usuário
+  if (state.user) {
+    renderSidebar(state.user, context);
+  }
+  
+  // Renderização condicional baseada no tipo de contexto
+  // Organizações têm acesso a mais funcionalidades
+  const isOrganization = context.contextType === 'organization';
+  
+  // Exemplo: Ocultar/mostrar menus baseado no contexto
+  // (Adicionar lógica específica conforme necessário)
+  
+  console.log('✅ UI atualizada para contexto:', context.contextType);
+}
+
+// Mostrar context switcher no header
+async function showContextSwitcher() {
+  try {
+    const result = await window.electronAPI.listContexts();
+    
+    if (!result.success || !result.contexts || result.contexts.length <= 1) {
+      // Apenas um contexto, não mostrar switcher
+      const switcher = document.getElementById('contextSwitcher');
+      if (switcher) switcher.style.display = 'none';
+      return;
+    }
+    
+    const switcher = document.getElementById('contextSwitcher');
+    const dropdown = document.getElementById('contextDropdown');
+    
+    if (!switcher || !dropdown) return;
+    
+    // Atualizar nome do contexto atual
+    const contextName = document.getElementById('contextName');
+    if (contextName && state.context) {
+      if (state.context.contextType === 'organization') {
+        contextName.textContent = state.context.organizationName || 'Organização';
+      } else {
+        contextName.textContent = state.context.clientName || 'Cliente';
+      }
+    }
+    
+    // Preencher dropdown com contextos
+    let html = '';
+    
+    result.contexts.forEach(ctx => {
+      const isActive = ctx.contextId === state.context?.contextId && 
+                       ctx.contextType === state.context?.contextType;
+      
+      const icon = ctx.contextType === 'organization' ? '🏢' : '👤';
+      const name = ctx.contextType === 'organization' ? 
+                   (ctx.organizationName || ctx.name) : 
+                   (ctx.clientName || ctx.name);
+      
+      html += `
+        <div class="context-dropdown-item ${isActive ? 'active' : ''}" 
+             data-context-id="${ctx.contextId}" 
+             data-context-type="${ctx.contextType}">
+          <span class="context-icon">${icon}</span>
+          <div class="context-details">
+            <div class="context-name">${escapeHTML(name)}</div>
+            <div class="context-role">${escapeHTML(ctx.role)}</div>
+          </div>
+          ${isActive ? '<span class="context-check">✓</span>' : ''}
+        </div>
+      `;
+    });
+    
+    dropdown.innerHTML = html;
+    
+    // Event listener para abrir/fechar dropdown
+    const switcherBtn = document.getElementById('contextSwitcherBtn');
+    if (switcherBtn) {
+      switcherBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('active');
+      });
+    }
+    
+    // Event listeners para itens do dropdown
+    document.querySelectorAll('.context-dropdown-item').forEach(item => {
+      item.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        
+        const contextId = parseInt(item.dataset.contextId);
+        const contextType = item.dataset.contextType;
+        
+        // Fechar dropdown
+        dropdown.classList.remove('active');
+        
+        // Trocar contexto
+        await switchContext(contextId, contextType);
+      });
+    });
+    
+    // Fechar dropdown ao clicar fora
+    document.addEventListener('click', () => {
+      dropdown.classList.remove('active');
+    });
+    
+    // Mostrar switcher
+    switcher.style.display = 'flex';
+    
+  } catch (error) {
+    console.error('❌ Erro ao mostrar context switcher:', error);
+  }
+}
+
+// Trocar contexto durante sessão ativa
+async function switchContext(contextId, contextType) {
+  try {
+    // Verificar se já está no contexto selecionado
+    if (state.context && 
+        state.context.contextId === contextId && 
+        state.context.contextType === contextType) {
+      console.log('ℹ️ Já está no contexto selecionado');
+      return;
+    }
+    
+    showLoadingScreen('Trocando contexto...', 50);
+    
+    console.log('🔄 Trocando contexto:', { contextId, contextType });
+    
+    const result = await window.electronAPI.switchContext({
+      contextId,
+      contextType
+    });
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Erro ao trocar contexto');
+    }
+    
+    const { token, user, context } = result;
+    
+    console.log('✅ Contexto trocado:', context);
+    
+    // Atualizar estado
+    state.user = user;
+    state.context = context;
+    
+    // Atualizar UI
+    updateUIForContext(context);
+    
+    // Recarregar dados
+    await loadUserData();
+    await loadTickets();
+    
+    // Atualizar context switcher
+    await showContextSwitcher();
+    
+    // Ocultar loading
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) loadingScreen.style.display = 'none';
+    
+    showNotification('Contexto alterado com sucesso!', 'success');
+    
+  } catch (error) {
+    console.error('❌ Erro ao trocar contexto:', error);
+    
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) loadingScreen.style.display = 'none';
+    
+    showNotification(error.message || 'Erro ao trocar contexto', 'error');
   }
 }
 
@@ -888,7 +1218,16 @@ function showPage(pageName) {
       dashboard: 'Dashboard',
       tickets: 'Tickets',
       newTicket: 'Novo Ticket',
-      settings: 'Configurações'
+      settings: 'Configurações',
+      catalog: 'Catálogo de Serviços',
+      'my-requests': 'Minhas Solicitações',
+      todos: 'Minhas Tarefas',
+      'my-assets': 'Meus Equipamentos',
+      'hours-bank': 'Bolsa de Horas',
+      organization: 'Organização',
+      knowledge: 'Base de Conhecimento',
+      notifications: 'Notificações',
+      info: 'Informações do Sistema'
     };
     pageTitle.textContent = titles[pageName] || 'T-Desk Agent';
   }
@@ -897,18 +1236,32 @@ function showPage(pageName) {
   loadPageData(pageName);
 }
 
+// Expor funções globalmente para uso pela sidebar
+window.showPage = showPage;
+
+// Tornar função global
+window.showPage = showPage;
+
 function navigateTo(pageName) {
   // Atualizar navegação ativa
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.remove('active');
   });
-  document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
+  
+  const navItem = document.querySelector(`[data-page="${pageName}"]`);
+  if (navItem) {
+    navItem.classList.add('active');
+  }
   
   // Atualizar páginas
   document.querySelectorAll('.page').forEach(page => {
     page.classList.remove('active');
   });
-  document.getElementById(`${pageName}Page`).classList.add('active');
+  
+  const pageElement = document.getElementById(`${pageName}Page`);
+  if (pageElement) {
+    pageElement.classList.add('active');
+  }
   
   // Atualizar título
   const titles = {
@@ -916,13 +1269,28 @@ function navigateTo(pageName) {
     tickets: 'Tickets',
     info: 'Informações do Sistema',
     chat: 'Chat',
-    settings: 'Configurações'
+    settings: 'Configurações',
+    catalog: 'Catálogo de Serviços',
+    'my-requests': 'Minhas Solicitações',
+    todos: 'Minhas Tarefas',
+    'my-assets': 'Meus Equipamentos',
+    'hours-bank': 'Bolsa de Horas',
+    organization: 'Organização',
+    knowledge: 'Base de Conhecimento',
+    notifications: 'Notificações'
   };
-  document.getElementById('pageTitle').textContent = titles[pageName];
+  
+  const pageTitle = document.getElementById('pageTitle');
+  if (pageTitle) {
+    pageTitle.textContent = titles[pageName] || 'T-Desk Agent';
+  }
   
   // Carregar dados específicos da página
   loadPageData(pageName);
 }
+
+// Tornar função global
+window.navigateTo = navigateTo;
 
 async function loadPageData(pageName) {
   switch (pageName) {
@@ -934,7 +1302,13 @@ async function loadPageData(pageName) {
       updateDashboard();
       break;
     case 'catalog':
-      await loadCatalog();
+      // Use catalog.js implementation
+      if (window.loadCatalog) {
+        await window.loadCatalog();
+        if (window.setupCatalogSearch) {
+          window.setupCatalogSearch();
+        }
+      }
       break;
     case 'knowledge':
       await loadKnowledge();
@@ -944,6 +1318,21 @@ async function loadPageData(pageName) {
       break;
     case 'info':
       await loadSystemInfo();
+      break;
+    case 'my-requests':
+      await loadMyRequests();
+      break;
+    case 'todos':
+      await loadTodos();
+      break;
+    case 'my-assets':
+      await loadMyAssets();
+      break;
+    case 'hours-bank':
+      await loadHoursBank();
+      break;
+    case 'organization':
+      await loadOrganizationInfo();
       break;
   }
 }
@@ -3486,256 +3875,10 @@ function initNewTicketForm(formCard) {
 // ============================================
 // CATÁLOGO DE SERVIÇOS
 // ============================================
-
-let catalogState = {
-  categories: [],
-  items: [],
-  selectedCategory: null,
-  searchTerm: ''
-};
-
-async function loadCatalog() {
-  try {
-    showLoading('Carregando catálogo...');
-    
-    // Carregar categorias
-    const categoriesResult = await window.electronAPI.getCatalogCategories();
-    if (categoriesResult.success) {
-      catalogState.categories = categoriesResult.categories || [];
-      renderCatalogCategories();
-    }
-    
-    // Carregar todos os itens inicialmente
-    const itemsResult = await window.electronAPI.getCatalogItems(null);
-    if (itemsResult.success) {
-      catalogState.items = itemsResult.items || [];
-      renderCatalogItems();
-    }
-    
-  } catch (error) {
-    console.error('Erro ao carregar catálogo:', error);
-    showNotification('Erro ao carregar catálogo', 'error');
-  } finally {
-    hideLoading();
-  }
-}
-
-function renderCatalogCategories() {
-  const container = document.getElementById('catalogCategories');
-  if (!container) return;
-  
-  if (catalogState.categories.length === 0) {
-    container.innerHTML = '<p style="color: #64748b; text-align: center; grid-column: 1/-1;">Nenhuma categoria disponível</p>';
-    return;
-  }
-  
-  container.innerHTML = catalogState.categories.map(cat => `
-    <div 
-      class="catalog-category-card ${catalogState.selectedCategory === cat.id ? 'active' : ''}" 
-      data-category-id="${cat.id}"
-      style="
-        padding: 1rem;
-        background: ${catalogState.selectedCategory === cat.id ? '#667eea' : 'white'};
-        color: ${catalogState.selectedCategory === cat.id ? 'white' : '#1e293b'};
-        border: 2px solid ${catalogState.selectedCategory === cat.id ? '#667eea' : '#e2e8f0'};
-        border-radius: 0.5rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-align: center;
-      "
-      onmouseover="if (!this.classList.contains('active')) { this.style.borderColor='#667eea'; this.style.transform='translateY(-2px)'; }"
-      onmouseout="if (!this.classList.contains('active')) { this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'; }"
-    >
-      <div style="font-size: 2rem; margin-bottom: 0.5rem;">${cat.icon || '📦'}</div>
-      <div style="font-weight: 600; font-size: 0.875rem;">${escapeHTML(cat.name)}</div>
-      ${cat.description ? `<div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;">${escapeHTML(cat.description)}</div>` : ''}
-    </div>
-  `).join('');
-  
-  // Adicionar event listeners
-  container.querySelectorAll('.catalog-category-card').forEach(card => {
-    card.addEventListener('click', async () => {
-      const categoryId = card.dataset.categoryId;
-      catalogState.selectedCategory = categoryId;
-      
-      // Recarregar itens da categoria
-      try {
-        showLoading('Carregando itens...');
-        const result = await window.electronAPI.getCatalogItems(categoryId);
-        if (result.success) {
-          catalogState.items = result.items || [];
-          renderCatalogCategories(); // Re-render para atualizar active
-          renderCatalogItems();
-        }
-      } catch (error) {
-        console.error('Erro ao carregar itens:', error);
-        showNotification('Erro ao carregar itens', 'error');
-      } finally {
-        hideLoading();
-      }
-    });
-  });
-}
-
-function renderCatalogItems() {
-  const container = document.getElementById('catalogItems');
-  if (!container) return;
-  
-  let items = catalogState.items;
-  
-  // Filtrar por busca
-  if (catalogState.searchTerm) {
-    const search = catalogState.searchTerm.toLowerCase();
-    items = items.filter(item => 
-      item.name.toLowerCase().includes(search) ||
-      (item.description && item.description.toLowerCase().includes(search))
-    );
-  }
-  
-  if (items.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state" style="grid-column: 1/-1;">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-          <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke="currentColor" stroke-width="2"/>
-        </svg>
-        <p>Nenhum item encontrado</p>
-      </div>
-    `;
-    return;
-  }
-  
-  container.innerHTML = items.map(item => `
-    <div 
-      class="catalog-item-card"
-      data-item-id="${item.id}"
-      style="
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        padding: 1.5rem;
-        cursor: pointer;
-        transition: all 0.2s;
-      "
-      onmouseover="this.style.borderColor='#667eea'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';"
-      onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'; this.style.boxShadow='none';"
-    >
-      <div style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1rem;">
-        <div style="font-size: 2.5rem;">${item.icon || '📦'}</div>
-        <div style="flex: 1;">
-          <h3 style="font-size: 1rem; font-weight: 600; color: #1e293b; margin-bottom: 0.25rem;">${escapeHTML(item.name)}</h3>
-          ${item.description ? `<p style="font-size: 0.875rem; color: #64748b; line-height: 1.4;">${escapeHTML(item.description)}</p>` : ''}
-        </div>
-      </div>
-      
-      ${item.estimatedTime ? `
-        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem;">
-          <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>Tempo estimado: ${escapeHTML(item.estimatedTime)}</span>
-        </div>
-      ` : ''}
-      
-      ${item.requiresApproval ? `
-        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: #f59e0b; margin-bottom: 0.5rem;">
-          <svg style="width: 1rem; height: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          <span>Requer aprovação</span>
-        </div>
-      ` : ''}
-      
-      <button 
-        class="btn btn-primary btn-block" 
-        style="margin-top: 1rem; width: 100%;"
-        onclick="requestCatalogItem('${item.id}')"
-      >
-        Solicitar
-      </button>
-    </div>
-  `).join('');
-}
-
-async function requestCatalogItem(itemId) {
-  const item = catalogState.items.find(i => i.id === itemId);
-  if (!item) return;
-  
-  // Criar modal de solicitação
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.innerHTML = `
-    <div class="modal-content" style="max-width: 600px;">
-      <div class="modal-header">
-        <h2>Solicitar: ${escapeHTML(item.name)}</h2>
-        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Justificativa</label>
-          <textarea 
-            id="catalogRequestJustification" 
-            rows="4" 
-            placeholder="Explique por que você precisa deste serviço..."
-            style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-family: inherit; resize: vertical;"
-          ></textarea>
-        </div>
-        
-        ${item.requiresApproval ? `
-          <div class="info-box" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 0.375rem; margin-top: 1rem;">
-            <strong>⚠️ Atenção:</strong> Esta solicitação requer aprovação do seu gestor.
-          </div>
-        ` : ''}
-        
-        <div class="actions" style="margin-top: 1.5rem;">
-          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
-          <button class="btn btn-primary" onclick="submitCatalogRequest('${itemId}')">Enviar Solicitação</button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-}
-
-async function submitCatalogRequest(itemId) {
-  const justification = document.getElementById('catalogRequestJustification').value.trim();
-  
-  if (!justification) {
-    showNotification('Por favor, informe uma justificativa', 'error');
-    return;
-  }
-  
-  try {
-    showLoading('Enviando solicitação...');
-    
-    const result = await window.electronAPI.requestCatalogItem(itemId, {
-      justification
-    });
-    
-    if (result.success) {
-      showNotification('Solicitação enviada com sucesso!', 'success');
-      document.querySelector('.modal-overlay')?.remove();
-      
-      // Navegar para tickets
-      navigateTo('tickets');
-      await loadTickets();
-    } else {
-      showNotification(result.error || 'Erro ao enviar solicitação', 'error');
-    }
-    
-  } catch (error) {
-    console.error('Erro ao solicitar item:', error);
-    showNotification('Erro ao enviar solicitação', 'error');
-  } finally {
-    hideLoading();
-  }
-}
-
-// Configurar busca no catálogo
-document.getElementById('catalogSearchInput')?.addEventListener('input', (e) => {
-  catalogState.searchTerm = e.target.value;
-  renderCatalogItems();
-});
+// NOTE: Catalog implementation moved to catalog.js
+// See desktop-agent/src/renderer/catalog.js for the complete implementation
+// Functions exposed globally: window.loadCatalog, window.requestCatalogItem, 
+// window.submitCatalogRequest, window.setupCatalogSearch
 
 // ============================================
 // BASE DE CONHECIMENTO
@@ -5388,7 +5531,489 @@ function addFileUploadToTicketForm(form) {
   });
 }
 
+// ============================================
+// PÁGINAS DE CLIENTES
+// ============================================
+
+/**
+ * Carregar Minhas Solicitações (tickets do cliente)
+ */
+async function loadMyRequests() {
+  try {
+    showLoading('Carregando suas solicitações...');
+    
+    const { success, tickets, error } = await window.electronAPI.fetchTickets({});
+    
+    if (!success) {
+      console.error('Erro ao buscar solicitações:', error);
+      document.getElementById('myRequestsList').innerHTML = `
+        <div class="empty-state">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+            <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <p>Erro ao carregar solicitações</p>
+        </div>
+      `;
+      hideLoading();
+      return;
+    }
+    
+    const requests = tickets || [];
+    console.log('📋 Solicitações carregadas:', requests.length);
+    
+    renderMyRequests(requests);
+    
+  } catch (error) {
+    console.error('Erro ao carregar solicitações:', error);
+    showNotification('Erro ao carregar solicitações', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+/**
+ * Renderizar lista de solicitações
+ */
+function renderMyRequests(requests) {
+  const container = document.getElementById('myRequestsList');
+  
+  if (!container) {
+    console.warn('⚠️ Container myRequestsList não encontrado');
+    return;
+  }
+  
+  if (!requests || requests.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+          <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Nenhuma solicitação encontrada</p>
+        <button onclick="showPage('catalog')" class="btn btn-primary" style="margin-top: 1rem;">
+          Fazer Nova Solicitação
+        </button>
+      </div>
+    `;
+    return;
+  }
+  
+  const statusConfig = {
+    novo: { label: 'Novo', color: '#3b82f6' },
+    aguardando_aprovacao: { label: 'Aguardando Aprovação', color: '#f59e0b' },
+    em_progresso: { label: 'Em Progresso', color: '#8b5cf6' },
+    aguardando_cliente: { label: 'Aguardando Cliente', color: '#f97316' },
+    resolvido: { label: 'Resolvido', color: '#10b981' },
+    fechado: { label: 'Fechado', color: '#6b7280' },
+    cancelado: { label: 'Cancelado', color: '#ef4444' }
+  };
+  
+  const html = requests.map(request => {
+    const config = statusConfig[request.status] || { label: request.status, color: '#6b7280' };
+    const created = request.createdAt ? formatRelativeTime(new Date(request.createdAt)) : '-';
+    
+    return `
+      <div class="request-card" onclick="showTicketDetails('${request.id}')" style="cursor: pointer;">
+        <div class="request-header">
+          <div class="request-title">${escapeHTML(request.subject || 'Sem título')}</div>
+          <span class="badge" style="background: ${config.color}20; color: ${config.color}; border: 1px solid ${config.color};">
+            ${config.label}
+          </span>
+        </div>
+        <div class="request-meta">
+          <span>Ticket: #${request.ticketNumber || request.id.substring(0, 8)}</span>
+          <span>Criado: ${created}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  container.innerHTML = html;
+}
+
+/**
+ * Carregar Minhas Tarefas (To-Do List)
+ */
+async function loadTodos() {
+  try {
+    showLoading('Carregando suas tarefas...');
+    
+    // Fazer requisição para API de todos
+    const response = await fetch(`${SERVER_URL}/client/todos`, {
+      headers: {
+        'Authorization': `Bearer ${(await window.electronAPI.getConfig()).token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erro ao carregar tarefas');
+    }
+    
+    const data = await response.json();
+    const todos = data.todos || [];
+    
+    console.log('✅ Tarefas carregadas:', todos.length);
+    
+    renderTodos(todos);
+    
+  } catch (error) {
+    console.error('Erro ao carregar tarefas:', error);
+    document.getElementById('todosKanban').innerHTML = `
+      <div class="empty-state">
+        <p>Erro ao carregar tarefas</p>
+      </div>
+    `;
+  } finally {
+    hideLoading();
+  }
+}
+
+/**
+ * Renderizar tarefas em formato Kanban
+ */
+function renderTodos(todos) {
+  const container = document.getElementById('todosKanban');
+  
+  if (!container) {
+    console.warn('⚠️ Container todosKanban não encontrado');
+    return;
+  }
+  
+  // Agrupar por status
+  const columns = {
+    todo: { title: 'A Fazer', color: '#6b7280', tasks: [] },
+    in_progress: { title: 'Em Progresso', color: '#3b82f6', tasks: [] },
+    done: { title: 'Concluído', color: '#10b981', tasks: [] }
+  };
+  
+  todos.forEach(todo => {
+    const status = todo.status || 'todo';
+    if (columns[status]) {
+      columns[status].tasks.push(todo);
+    }
+  });
+  
+  const html = Object.entries(columns).map(([status, column]) => `
+    <div class="kanban-column">
+      <div class="kanban-column-header" style="background: ${column.color}20; color: ${column.color};">
+        <h3>${column.title}</h3>
+        <span class="badge">${column.tasks.length}</span>
+      </div>
+      <div class="kanban-column-body">
+        ${column.tasks.length === 0 ? `
+          <div class="empty-state-small">
+            <p>Nenhuma tarefa</p>
+          </div>
+        ` : column.tasks.map(task => `
+          <div class="todo-card" onclick="editTodo('${task.id}')">
+            <div class="todo-title">${escapeHTML(task.title)}</div>
+            ${task.description ? `<div class="todo-description">${escapeHTML(task.description)}</div>` : ''}
+            <div class="todo-meta">
+              ${task.priority ? `<span class="badge badge-${task.priority}">${task.priority}</span>` : ''}
+              ${task.dueDate ? `<span>📅 ${new Date(task.dueDate).toLocaleDateString('pt-PT')}</span>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+  
+  container.innerHTML = html;
+}
+
+/**
+ * Carregar Meus Equipamentos
+ */
+async function loadMyAssets() {
+  try {
+    showLoading('Carregando seus equipamentos...');
+    
+    const response = await fetch(`${SERVER_URL}/client/inventory/my-assets`, {
+      headers: {
+        'Authorization': `Bearer ${(await window.electronAPI.getConfig()).token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erro ao carregar equipamentos');
+    }
+    
+    const data = await response.json();
+    const assets = data.assets || [];
+    
+    console.log('💻 Equipamentos carregados:', assets.length);
+    
+    renderMyAssets(assets);
+    
+  } catch (error) {
+    console.error('Erro ao carregar equipamentos:', error);
+    document.getElementById('myAssetsList').innerHTML = `
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+          <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Erro ao carregar equipamentos</p>
+      </div>
+    `;
+  } finally {
+    hideLoading();
+  }
+}
+
+/**
+ * Renderizar lista de equipamentos
+ */
+function renderMyAssets(assets) {
+  const container = document.getElementById('myAssetsList');
+  
+  if (!container) {
+    console.warn('⚠️ Container myAssetsList não encontrado');
+    return;
+  }
+  
+  if (!assets || assets.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+          <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Nenhum equipamento encontrado</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const statusColors = {
+    active: '#10b981',
+    inactive: '#6b7280',
+    maintenance: '#f59e0b'
+  };
+  
+  const statusLabels = {
+    active: 'Ativo',
+    inactive: 'Inativo',
+    maintenance: 'Em Manutenção'
+  };
+  
+  const html = assets.map(asset => {
+    const statusColor = statusColors[asset.status] || '#6b7280';
+    const statusLabel = statusLabels[asset.status] || asset.status;
+    
+    return `
+      <div class="asset-card">
+        <div class="asset-header">
+          <div class="asset-icon">💻</div>
+          <div class="asset-info">
+            <div class="asset-name">${escapeHTML(asset.name || asset.hostname)}</div>
+            <span class="badge" style="background: ${statusColor}20; color: ${statusColor};">
+              ${statusLabel}
+            </span>
+          </div>
+        </div>
+        <div class="asset-details">
+          ${asset.manufacturer ? `<div><strong>Fabricante:</strong> ${escapeHTML(asset.manufacturer)}</div>` : ''}
+          ${asset.model ? `<div><strong>Modelo:</strong> ${escapeHTML(asset.model)}</div>` : ''}
+          ${asset.os ? `<div><strong>SO:</strong> ${escapeHTML(asset.os)}</div>` : ''}
+          ${asset.ram ? `<div><strong>RAM:</strong> ${escapeHTML(asset.ram)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  container.innerHTML = html;
+}
+
+/**
+ * Carregar Bolsa de Horas
+ */
+async function loadHoursBank() {
+  try {
+    showLoading('Carregando bolsa de horas...');
+    
+    const response = await fetch(`${SERVER_URL}/client/hours-banks`, {
+      headers: {
+        'Authorization': `Bearer ${(await window.electronAPI.getConfig()).token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erro ao carregar bolsa de horas');
+    }
+    
+    const data = await response.json();
+    const hoursBanks = data.hoursBanks || [];
+    const summary = data.summary || null;
+    
+    console.log('⏰ Bolsa de horas carregada:', hoursBanks.length);
+    
+    renderHoursBank(hoursBanks, summary);
+    
+  } catch (error) {
+    console.error('Erro ao carregar bolsa de horas:', error);
+    document.getElementById('hoursBankList').innerHTML = `
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Erro ao carregar bolsa de horas</p>
+      </div>
+    `;
+  } finally {
+    hideLoading();
+  }
+}
+
+/**
+ * Renderizar bolsa de horas
+ */
+function renderHoursBank(hoursBanks, summary) {
+  const container = document.getElementById('hoursBankList');
+  
+  if (!container) {
+    console.warn('⚠️ Container hoursBankList não encontrado');
+    return;
+  }
+  
+  // Renderizar resumo
+  if (summary) {
+    const summaryEl = document.getElementById('hoursBankSummary');
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <div class="hours-summary-card">
+          <div class="hours-stat">
+            <div class="hours-stat-label">Total Disponível</div>
+            <div class="hours-stat-value">${parseFloat(summary.totalAvailable).toFixed(1)}h</div>
+          </div>
+          <div class="hours-stat">
+            <div class="hours-stat-label">Total Consumido</div>
+            <div class="hours-stat-value">${parseFloat(summary.totalUsed).toFixed(1)}h</div>
+          </div>
+          <div class="hours-stat">
+            <div class="hours-stat-label">Total Contratado</div>
+            <div class="hours-stat-value">${parseFloat(summary.totalHours).toFixed(1)}h</div>
+          </div>
+        </div>
+      `;
+    }
+  }
+  
+  // Renderizar pacotes
+  if (!hoursBanks || hoursBanks.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Nenhuma bolsa de horas ativa</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const html = hoursBanks.map(bank => {
+    const available = parseFloat(bank.totalHours) - parseFloat(bank.usedHours);
+    const percentage = (parseFloat(bank.usedHours) / parseFloat(bank.totalHours)) * 100;
+    const progressColor = percentage >= 80 ? '#ef4444' : percentage >= 50 ? '#f59e0b' : '#10b981';
+    
+    return `
+      <div class="hours-bank-card">
+        <div class="hours-bank-header">
+          <h3>${escapeHTML(bank.packageType || 'Pacote de Horas')}</h3>
+          <span class="badge" style="background: #10b98120; color: #10b981;">Ativa</span>
+        </div>
+        <div class="hours-bank-progress">
+          <div class="hours-bank-progress-bar">
+            <div class="hours-bank-progress-fill" style="width: ${Math.min(percentage, 100)}%; background: ${progressColor};"></div>
+          </div>
+          <div class="hours-bank-progress-text">
+            <span>${available.toFixed(1)}h disponíveis</span>
+            <span>${bank.usedHours}h / ${bank.totalHours}h</span>
+          </div>
+        </div>
+        ${bank.startDate || bank.endDate ? `
+          <div class="hours-bank-dates">
+            ${bank.startDate ? `<span>Início: ${new Date(bank.startDate).toLocaleDateString('pt-PT')}</span>` : ''}
+            ${bank.endDate ? `<span>Fim: ${new Date(bank.endDate).toLocaleDateString('pt-PT')}</span>` : ''}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+  
+  container.innerHTML = html;
+}
+
+/**
+ * Carregar informações da organização (apenas para client-admin)
+ */
+async function loadOrganizationInfo() {
+  try {
+    showLoading('Carregando informações da organização...');
+    
+    const response = await fetch(`${SERVER_URL}/client/organization`, {
+      headers: {
+        'Authorization': `Bearer ${(await window.electronAPI.getConfig()).token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erro ao carregar informações da organização');
+    }
+    
+    const data = await response.json();
+    const organization = data.organization || {};
+    
+    console.log('🏢 Organização carregada:', organization.name);
+    
+    renderOrganizationInfo(organization);
+    
+  } catch (error) {
+    console.error('Erro ao carregar organização:', error);
+    document.getElementById('organizationInfo').innerHTML = `
+      <div class="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+          <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <p>Erro ao carregar informações da organização</p>
+      </div>
+    `;
+  } finally {
+    hideLoading();
+  }
+}
+
+/**
+ * Renderizar informações da organização
+ */
+function renderOrganizationInfo(organization) {
+  const container = document.getElementById('organizationInfo');
+  
+  if (!container) {
+    console.warn('⚠️ Container organizationInfo não encontrado');
+    return;
+  }
+  
+  const html = `
+    <div class="organization-card">
+      <div class="organization-header">
+        <h2>${escapeHTML(organization.name || 'Organização')}</h2>
+      </div>
+      <div class="organization-details">
+        ${organization.email ? `<div><strong>Email:</strong> ${escapeHTML(organization.email)}</div>` : ''}
+        ${organization.phone ? `<div><strong>Telefone:</strong> ${escapeHTML(organization.phone)}</div>` : ''}
+        ${organization.address ? `<div><strong>Endereço:</strong> ${escapeHTML(organization.address)}</div>` : ''}
+        ${organization.city ? `<div><strong>Cidade:</strong> ${escapeHTML(organization.city)}</div>` : ''}
+        ${organization.country ? `<div><strong>País:</strong> ${escapeHTML(organization.country)}</div>` : ''}
+      </div>
+    </div>
+  `;
+  
+  container.innerHTML = html;
+}
+
 // Inicializar sistema de upload quando a página carregar
 document.addEventListener('DOMContentLoaded', () => {
   initializeFileUploadSystem();
 });
+

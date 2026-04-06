@@ -147,7 +147,7 @@ const ActivityTimeline = ({ ticket, handleDownloadAttachment, formatFileSize }) 
                       dangerouslySetInnerHTML={{ __html: activity.data.content }}
                     />
 
-                    {/* Anexos do Comentário */}
+                    {/* Anexos do Comentário - inline */}
                     {activity.data.attachments && activity.data.attachments.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                         <div className="flex items-center gap-2 mb-2">

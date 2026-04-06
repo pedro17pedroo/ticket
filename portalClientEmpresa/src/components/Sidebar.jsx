@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { usePermissions } from '../hooks/usePermissions'
 import {
   Home,
   Ticket,
@@ -23,21 +24,37 @@ import {
 const Sidebar = ({ isOpen, setIsOpen, isMobile, onClose }) => {
   const location = useLocation()
   const { user } = useAuthStore()
-  const isClientAdmin = user?.role === 'client-admin'
+  const { can, isClientAdmin } = usePermissions()
 
-  const menuItems = [
-    { path: '/', icon: Home, label: 'Início' },
-    { path: '/service-catalog', icon: ShoppingCart, label: 'Catálogo de Serviços' },
-    { path: '/my-requests', icon: ShoppingBag, label: 'Minhas Solicitações' },
-    { path: '/todos', icon: CheckSquare, label: 'Minhas Tarefas' },
-    { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento' },
-    { path: '/my-assets', icon: HardDrive, label: 'Meus Equipamentos' },
-    { path: '/hours-bank', icon: Clock, label: 'Bolsa de Horas' },
-    { path: '/desktop-agent', icon: Monitor, label: 'Desktop Agent' },
-    ...(isClientAdmin ? [
-      { path: '/organization', icon: Building2, label: 'Organização' },
-    ] : []),
+  // Definir itens do menu com suas permissões necessárias
+  const allMenuItems = [
+    { path: '/', icon: Home, label: 'Início', permission: null }, // Dashboard sempre visível
+    { path: '/service-catalog', icon: ShoppingCart, label: 'Catálogo de Serviços', permission: ['catalog', 'view'] },
+    { path: '/my-requests', icon: ShoppingBag, label: 'Minhas Solicitações', permission: ['tickets', 'view'] },
+    { path: '/todos', icon: CheckSquare, label: 'Minhas Tarefas', permission: null }, // Tarefas sempre visíveis
+    { path: '/knowledge', icon: BookOpen, label: 'Base de Conhecimento', permission: ['knowledge', 'view'] },
+    { path: '/my-assets', icon: HardDrive, label: 'Meus Equipamentos', permission: ['assets', 'view'] },
+    { path: '/hours-bank', icon: Clock, label: 'Bolsa de Horas', permission: ['hours_bank', 'view'] },
+    { path: '/desktop-agent', icon: Monitor, label: 'Desktop Agent', permission: null }, // Desktop Agent sempre visível
+    { path: '/organization', icon: Building2, label: 'Organização', permission: ['directions', 'view'], adminOnly: true },
   ]
+
+  // Filtrar itens do menu baseado em permissões
+  const menuItems = allMenuItems.filter(item => {
+    // Se requer ser admin e não é admin, ocultar
+    if (item.adminOnly && !isClientAdmin) {
+      return false
+    }
+    
+    // Se não tem permissão definida, sempre mostrar
+    if (!item.permission) {
+      return true
+    }
+    
+    // Verificar se tem a permissão necessária
+    const [resource, action] = item.permission
+    return can(resource, action)
+  })
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/'

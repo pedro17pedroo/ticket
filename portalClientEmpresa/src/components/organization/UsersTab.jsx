@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2, X, Save, UserPlus, Mail, Phone, Shield, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { confirmDelete, showSuccess, showError } from '../../utils/alerts'
+import { usePermissions } from '../../hooks/usePermissions'
 import organizationService from '../../services/organizationService'
 import toast from 'react-hot-toast'
 
 const UsersTab = () => {
+  const { can } = usePermissions()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -279,13 +281,15 @@ const UsersTab = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700"
           />
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 whitespace-nowrap"
-        >
-          <Plus className="w-5 h-5" />
-          Novo Utilizador
-        </button>
+        {can('client_users', 'create') && (
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 whitespace-nowrap"
+          >
+            <Plus className="w-5 h-5" />
+            Novo Utilizador
+          </button>
+        )}
       </div>
 
       {/* Desktop Table View */}
@@ -337,20 +341,27 @@ const UsersTab = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleOpenModal(user)}
-                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                          title="Editar"
-                        >
-                          <Edit className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user)}
-                          className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-                          title="Desativar"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
-                        </button>
+                        {can('client_users', 'update') && (
+                          <button
+                            onClick={() => handleOpenModal(user)}
+                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                          </button>
+                        )}
+                        {can('client_users', 'delete') && (
+                          <button
+                            onClick={() => handleDelete(user)}
+                            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                            title="Desativar"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
+                          </button>
+                        )}
+                        {!can('client_users', 'update') && !can('client_users', 'delete') && (
+                          <span className="text-xs text-gray-400">Sem ações</span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -407,20 +418,27 @@ const UsersTab = () => {
               </div>
 
               <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => handleOpenModal(user)}
-                  className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg flex items-center justify-center gap-2 text-sm"
-                >
-                  <Edit className="w-4 h-4" />
-                  Editar
-                </button>
-                <button
-                  onClick={() => handleDelete(user)}
-                  className="flex-1 px-3 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg flex items-center justify-center gap-2 text-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Desativar
-                </button>
+                {can('client_users', 'update') && (
+                  <button
+                    onClick={() => handleOpenModal(user)}
+                    className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Editar
+                  </button>
+                )}
+                {can('client_users', 'delete') && (
+                  <button
+                    onClick={() => handleDelete(user)}
+                    className="flex-1 px-3 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Desativar
+                  </button>
+                )}
+                {!can('client_users', 'update') && !can('client_users', 'delete') && (
+                  <div className="flex-1 text-center text-xs text-gray-400">Sem ações disponíveis</div>
+                )}
               </div>
             </div>
           ))

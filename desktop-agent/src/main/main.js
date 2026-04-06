@@ -57,7 +57,7 @@ function createWindow() {
     minHeight: 600,
     resizable: true,
     frame: true,
-    icon: path.join(__dirname, '../../assets/icons/icon.png'),
+    icon: path.join(__dirname, '../../assets/icons/tdesk3.png'),
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
@@ -100,7 +100,7 @@ function createWindow() {
 
 // Criar tray icon
 function createTray() {
-  const iconPath = path.join(__dirname, '../../assets/tray/icon.png');
+  const iconPath = path.join(__dirname, '../../assets/icons/tdesk3.png');
   
   // Verificar se o ícone existe
   const fs = require('fs');
@@ -460,7 +460,7 @@ function setupTicketListeners() {
     new Notification({
       title: 'Solicitação de Acesso Remoto',
       body: `${request.requester?.name || 'Um técnico'} está solicitando acesso remoto`,
-      icon: path.join(__dirname, '../assets/icon.png'),
+      icon: path.join(__dirname, '../../assets/icons/tdesk3.png'),
     }).on('click', () => {
       mainWindow.show();
       mainWindow.focus();
@@ -608,12 +608,12 @@ ipcMain.handle('validate-token', async () => {
 });
 
 // Handler de login
-ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
+ipcMain.handle('login', async (event, { serverUrl, username, password, portalType }) => {
   // Modo MOCK configurado via .env (USE_MOCK=true/false)
   const USE_MOCK = config.development.useMock;
   
   if (USE_MOCK) {
-    console.log('🔐 [MOCK] Tentando login com:', username);
+    console.log('🔐 [MOCK] Tentando login com:', username, 'Portal:', portalType);
     
     // Mock users para desenvolvimento (dentro da função para evitar redeclaração)
     // Suporta organization_users e client_users
@@ -621,9 +621,9 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
       // Organization Users (tabela organization_users)
       {
         id: 1,
-        name: 'Pedro Organization',
-        email: 'pedro17pedroo@gmail.com',
-        password: '123456789',
+        name: 'Admin Organização',
+        email: 'admin@organizacao.com',
+        password: 'Admin@123',
         role: 'org-admin', // ou org-technician, org-manager
         userType: 'organization',
         organizationId: 1,
@@ -643,9 +643,9 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
       // Client Users (tabela client_users)
       {
         id: 3,
-        name: 'Pedro Cliente',
-        email: 'pedro.nekaka@gmail.com',
-        password: '123456789',
+        name: 'Cliente Empresa',
+        email: 'cliente@empresa.com',
+        password: 'Cliente@123',
         role: 'client-user',
         userType: 'client',
         organizationId: 1,
@@ -655,8 +655,8 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
       {
         id: 4,
         name: 'Cliente Teste',
-        email: 'cliente@empresa.com',
-        password: 'Cliente@123',
+        email: 'usuario@cliente.com',
+        password: 'Usuario@123',
         role: 'client-user',
         userType: 'client',
         organizationId: 1,
@@ -668,10 +668,16 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
     // Simular delay de rede
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    const user = MOCK_USERS.find(u => u.email === username && u.password === password);
+    // Filtrar por portalType se fornecido
+    let filteredUsers = MOCK_USERS;
+    if (portalType) {
+      filteredUsers = MOCK_USERS.filter(u => u.userType === portalType);
+    }
+    
+    const user = filteredUsers.find(u => u.email === username && u.password === password);
     
     if (!user) {
-      console.log('❌ [MOCK] Credenciais inválidas');
+      console.log('❌ [MOCK] Credenciais inválidas ou tipo de portal incorreto');
       return {
         success: false,
         error: 'Email ou senha inválidos'
@@ -681,17 +687,32 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
     const { password: _, ...userWithoutPassword } = user;
     const mockToken = 'mock-jwt-token-' + Date.now();
     
+    // Criar contexto
+    const context = {
+      contextId: user.userType === 'organization' ? user.organizationId : user.clientId,
+      contextType: user.userType === 'organization' ? 'organization' : 'client',
+      organizationId: user.organizationId,
+      organizationName: user.organizationName,
+      clientId: user.clientId,
+      clientName: user.clientName,
+      role: user.role,
+      permissions: []
+    };
+    
     console.log('✅ [MOCK] Login bem-sucedido:', userWithoutPassword);
     
     // Salvar token e serverUrl
     store.set('serverUrl', serverUrl);
     store.set('token', mockToken);
     store.set('user', userWithoutPassword);
+    store.set('context', context);
     
     return {
       success: true,
       token: mockToken,
-      user: userWithoutPassword
+      user: userWithoutPassword,
+      context,
+      requiresContextSelection: false // Mock sempre retorna único contexto
     };
   }
   
@@ -699,33 +720,49 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
   try {
     const axios = require('axios');
     
-    console.log('🔐 Fazendo login no servidor:', serverUrl);
+    console.log('🔐 Fazendo login no servidor:', serverUrl, 'Portal:', portalType);
     
-    // Fazer login no servidor (não especifica portalType para permitir qualquer tipo de usuário)
+    // Fazer login no servidor com portalType
     const response = await axios.post(`${serverUrl}/api/auth/login`, {
       email: username,
-      password: password
-      // portalType não especificado = Agent Desktop (aceita organization_users e client_users)
+      password: password,
+      portalType: portalType // 'organization' ou 'client'
     });
     
     if (response.data && response.data.token) {
-      const { token, user } = response.data;
+      const { token, user, context, contexts, requiresContextSelection } = response.data;
       
       console.log('✅ Login bem-sucedido:', {
         email: user.email,
         userType: user.userType,
-        role: user.role
+        role: user.role,
+        requiresContextSelection
       });
       
-      // Salvar token e serverUrl
+      // Se requer seleção de contexto, retornar contextos disponíveis
+      if (requiresContextSelection && contexts && contexts.length > 0) {
+        console.log('🔀 Múltiplos contextos disponíveis:', contexts.length);
+        return {
+          success: true,
+          requiresContextSelection: true,
+          contexts,
+          email: username,
+          password // Necessário para select-context
+        };
+      }
+      
+      // Contexto único - salvar e retornar
       store.set('serverUrl', serverUrl);
       store.set('token', token);
       store.set('user', user);
+      store.set('context', context);
       
       return {
         success: true,
         token,
-        user
+        user,
+        context,
+        requiresContextSelection: false
       };
     }
     
@@ -741,6 +778,168 @@ ipcMain.handle('login', async (event, { serverUrl, username, password }) => {
       || error.response?.data?.message 
       || error.message 
       || 'Erro ao fazer login';
+    
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+});
+
+// Handler para selecionar contexto após login
+ipcMain.handle('select-context', async (event, { email, password, contextId, contextType }) => {
+  try {
+    const axios = require('axios');
+    const serverUrl = store.get('serverUrl');
+    
+    if (!serverUrl) {
+      return { success: false, error: 'Servidor não configurado' };
+    }
+    
+    console.log('🔀 Selecionando contexto:', { contextId, contextType });
+    
+    const response = await axios.post(`${serverUrl}/api/auth/select-context`, {
+      email,
+      password,
+      contextId,
+      contextType
+    });
+    
+    if (response.data && response.data.token) {
+      const { token, user, context } = response.data;
+      
+      console.log('✅ Contexto selecionado:', context);
+      
+      // Salvar token, user e context
+      store.set('token', token);
+      store.set('user', user);
+      store.set('context', context);
+      
+      return {
+        success: true,
+        token,
+        user,
+        context
+      };
+    }
+    
+    return {
+      success: false,
+      error: 'Resposta inválida do servidor'
+    };
+  } catch (error) {
+    console.error('❌ Erro ao selecionar contexto:', error.message);
+    
+    const errorMessage = error.response?.data?.error 
+      || error.response?.data?.message 
+      || error.message 
+      || 'Erro ao selecionar contexto';
+    
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+});
+
+// Handler para trocar contexto durante sessão ativa
+ipcMain.handle('switch-context', async (event, { contextId, contextType }) => {
+  try {
+    const axios = require('axios');
+    const serverUrl = store.get('serverUrl');
+    const token = store.get('token');
+    
+    if (!serverUrl || !token) {
+      return { success: false, error: 'Não autenticado' };
+    }
+    
+    console.log('🔄 Trocando contexto:', { contextId, contextType });
+    
+    const response = await axios.post(
+      `${serverUrl}/api/auth/switch-context`,
+      { contextId, contextType },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    if (response.data && response.data.token) {
+      const { token: newToken, user, context } = response.data;
+      
+      console.log('✅ Contexto trocado:', context);
+      
+      // Atualizar token, user e context
+      store.set('token', newToken);
+      store.set('user', user);
+      store.set('context', context);
+      
+      // Notificar renderer sobre mudança de contexto
+      if (mainWindow) {
+        mainWindow.webContents.send('context-changed', { user, context });
+      }
+      
+      return {
+        success: true,
+        token: newToken,
+        user,
+        context
+      };
+    }
+    
+    return {
+      success: false,
+      error: 'Resposta inválida do servidor'
+    };
+  } catch (error) {
+    console.error('❌ Erro ao trocar contexto:', error.message);
+    
+    const errorMessage = error.response?.data?.error 
+      || error.response?.data?.message 
+      || error.message 
+      || 'Erro ao trocar contexto';
+    
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+});
+
+// Handler para listar contextos disponíveis
+ipcMain.handle('list-contexts', async (event) => {
+  try {
+    const axios = require('axios');
+    const serverUrl = store.get('serverUrl');
+    const token = store.get('token');
+    
+    if (!serverUrl || !token) {
+      return { success: false, error: 'Não autenticado' };
+    }
+    
+    console.log('📋 Listando contextos disponíveis...');
+    
+    const response = await axios.get(`${serverUrl}/api/auth/contexts`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (response.data && response.data.contexts) {
+      console.log('✅ Contextos carregados:', response.data.contexts.length);
+      
+      return {
+        success: true,
+        contexts: response.data.contexts
+      };
+    }
+    
+    return {
+      success: false,
+      error: 'Resposta inválida do servidor'
+    };
+  } catch (error) {
+    console.error('❌ Erro ao listar contextos:', error.message);
+    
+    const errorMessage = error.response?.data?.error 
+      || error.response?.data?.message 
+      || error.message 
+      || 'Erro ao listar contextos';
     
     return {
       success: false,
@@ -1875,7 +2074,7 @@ async function checkNotifications() {
       const notification = new Notification({
         title: notif.title || 'T-Desk',
         body: notif.message || notif.body || '',
-        icon: path.join(__dirname, '../../assets/icons/icon.png'),
+        icon: path.join(__dirname, '../../assets/icons/tdesk3.png'),
         silent: false,
         urgency: notif.priority === 'high' || notif.priority === 'urgent' ? 'critical' : 'normal'
       });
@@ -1920,7 +2119,7 @@ function sendNotification(type, message, options = {}) {
       const notification = new Notification({
         title: options.title || 'T-Desk',
         body: message,
-        icon: path.join(__dirname, '../assets/icon.png'),
+        icon: path.join(__dirname, '../../assets/icons/tdesk3.png'),
         silent: false,
         urgency: options.urgency || 'normal'
       });

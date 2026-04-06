@@ -313,7 +313,7 @@ const TicketDetail = () => {
             </div>
           )}
 
-          {/* Attachments */}
+          {/* Attachments - APENAS anexos do ticket (sem commentId) */}
           {ticketAttachments.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="font-semibold mb-4 flex items-center gap-2">
@@ -357,6 +357,9 @@ const TicketDetail = () => {
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-gray-500 mt-3">
+                💡 Anexos de comentários aparecem inline nas Atividades abaixo
+              </p>
             </div>
           )}
 

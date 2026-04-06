@@ -5,11 +5,15 @@ import * as clientCatalogAccessController from '../modules/clients/clientCatalog
 import { authenticate, authorize } from '../middleware/auth.js';
 import { requireSmartPermission } from '../middleware/smartPermission.js';
 import { auditLog } from '../middleware/audit.js';
+import { checkSubscriptionStatus, checkClientLimit } from '../middleware/planLimitsMiddleware.js';
 
 const router = express.Router();
 
 // Todas as rotas precisam de autenticação
 router.use(authenticate);
+
+// Verificar status da subscrição em todas as rotas
+router.use(checkSubscriptionStatus);
 
 // Listar clientes B2B do tenant
 router.get('/', requireSmartPermission('clients', 'read'), clientB2BController.getClients);
@@ -18,7 +22,7 @@ router.get('/', requireSmartPermission('clients', 'read'), clientB2BController.g
 router.get('/:id', requireSmartPermission('clients', 'read'), clientB2BController.getClientById);
 
 // Criar novo cliente
-router.post('/', requireSmartPermission('clients', 'create'), clientB2BController.createClient);
+router.post('/', checkClientLimit(), requireSmartPermission('clients', 'create'), clientB2BController.createClient);
 
 // Atualizar cliente
 router.put('/:id', requireSmartPermission('clients', 'update'), clientB2BController.updateClient);
